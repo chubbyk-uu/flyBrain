@@ -74,17 +74,18 @@ For a short native WSLg viewer run:
 target/release/flybrain-world view --max-seconds 1
 ```
 
-For the preferred Windows browser display, keep the native CUDA/MuJoCo simulation in WSL and run
-the static server separately:
+For the preferred Windows browser display, keep the native CUDA/MuJoCo simulation in WSL and start
+it together with the static server:
 
 ```bash
-target/release/flybrain-world web-view
-npm --prefix web start
+tools/run_native_viewer.sh
 ```
 
 Open `http://localhost:8080/native-view.html` in Windows Chrome/Edge. `web-view` defaults to native
 MuJoCo 0.2 ms and a 30 Hz pose/snapshot stream on `ws://127.0.0.1:8765`; MaleCNS stays at 0.1 ms.
 The first stage keeps native retina sensory capture and does not use the browser image for brain input.
+Use `http://localhost:8080/native-gallery.html` to collect non-empty fixed room views and CNS-observed
+behavior states. The normal viewer remains `native-view.html`; the gallery never sends commands.
 
 Set `CUDA_HOME` only if the toolkit is not available at `/usr/local/cuda`. Set
 `FLYBRAIN_CUDA_ARCH` to an explicit `nvcc -arch` value when building for a GPU

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { WingDisplayController } from "./wing-display.js";
 
 export const RETINA_WIDTH = 450;
 export const RETINA_HEIGHT = 512;
@@ -140,6 +141,11 @@ function materialKind(name, materialName) {
   const value = `${name ?? ""} ${materialName ?? ""}`.toLowerCase();
   if (value.includes("wing")) return "wing";
   if (value.includes("eye")) return "eye";
+  if (value.includes("flower") || value.includes("petal") || value.includes("nectar")) return "flower";
+  if (value.includes("leaf") || value.includes("stem")) return "leaf";
+  if (value.includes("soil")) return "soil";
+  if (value.includes("ceramic") || value.includes("pot") || value.includes("plate")) return "ceramic";
+  if (value.includes("wall") || value.includes("ceiling") || value.includes("baseboard")) return "room";
   if (value.includes("oak") || value.includes("wood") || value.includes("floor") || value.includes("grid")) return "oak";
   if (value.includes("food") || value.includes("banana") || value.includes("sugar")) return "food";
   if (value.includes("band")) return "band";
@@ -154,6 +160,11 @@ function colorForKind(kind, descriptorColor) {
   if (kind === "chitin") return rgbaColor(descriptorColor, [0.59, 0.31, 0.12, 1]);
   if (kind === "oak") return rgbaColor(descriptorColor, [0.40, 0.20, 0.09, 1]);
   if (kind === "food") return rgbaColor(descriptorColor, [0.72, 0.42, 0.06, 1]);
+  if (kind === "flower") return rgbaColor(descriptorColor, [0.82, 0.24, 0.48, 1]);
+  if (kind === "leaf") return rgbaColor(descriptorColor, [0.10, 0.34, 0.13, 1]);
+  if (kind === "soil") return rgbaColor(descriptorColor, [0.18, 0.09, 0.045, 1]);
+  if (kind === "ceramic") return rgbaColor(descriptorColor, [0.74, 0.77, 0.70, 1]);
+  if (kind === "room") return rgbaColor(descriptorColor, [0.62, 0.67, 0.72, 1]);
   return rgbaColor(descriptorColor);
 }
 
@@ -230,6 +241,10 @@ export class FlySceneRenderer {
     this.primitiveGeometries = new Map();
     this.materials = [];
     this.materialCache = new Map();
+    this.bodyDescriptors = [];
+    this.wingRigs = [];
+    this.wingDisplay = new WingDisplayController();
+    this.wingDisplayState = this.wingDisplay.sample(performance.now());
     this.cameras = [];
     this.cameraPoses = [];
     this.cameraMode = "chase";
@@ -256,6 +271,7 @@ export class FlySceneRenderer {
     this.tempPosition = new THREE.Vector3();
     this.tempTarget = new THREE.Vector3();
     this.tempQuaternion = new THREE.Quaternion();
+    this.wingAxis = new THREE.Vector3(0, 0, 1);
     this.wallPlanes = new Map();
     this.snapshot = null;
     this.foodObjects = [];
@@ -306,7 +322,19 @@ export class FlySceneRenderer {
     }
     this.disposeSceneObjects();
     this.bodyGroups = Array.from({ length: Math.max(0, Number(descriptor?.bodyCount) || 0) }, () => new THREE.Group());
+    this.bodyDescriptors = Array.isArray(descriptor?.bodies) ? descriptor.bodies : [];
     for (const body of this.bodyGroups) this.worldRoot.add(body);
+    this.wingRigs = this.bodyDescriptors.flatMap((body, index) => {
+      const name = String(body?.name ?? "");
+      if (name !== "fly/l_wing" && name !== "fly/r_wing") return [];
+      return [{
+        side: name.includes("/l_") ? "left" : "right",
+        body: index,
+        parent: Number(body?.parent),
+        position: new THREE.Vector3().fromArray(vector3(body?.pos)),
+        quaternion: normalizeQuaternion(body?.quat),
+      }];
+    });
     this.cameras = Array.isArray(descriptor?.cameras) ? descriptor.cameras : [];
     this.cameraPoses = this.cameras.map(() => ({ position: new THREE.Vector3(), quaternion: new THREE.Quaternion() }));
     this.meshGeometries = (Array.isArray(descriptor?.meshes) ? descriptor.meshes : []).map(makeMeshGeometry);
@@ -430,8 +458,8 @@ export class FlySceneRenderer {
       opacity,
       transparent,
       side: kind === "wing" || kind === "oak" ? THREE.DoubleSide : THREE.FrontSide,
-      roughness: kind === "eye" ? 0.28 : kind === "wing" ? 0.72 : kind === "oak" ? 0.68 : 0.5,
-      metalness: kind === "eye" ? 0.08 : 0,
+      roughness: kind === "eye" ? 0.22 : kind === "wing" ? 0.58 : kind === "oak" ? 0.68 : kind === "ceramic" ? 0.32 : 0.5,
+      metalness: kind === "eye" ? 0.08 : kind === "ceramic" ? 0.02 : 0,
     };
     const material = kind === "eye" ? new THREE.MeshPhysicalMaterial({ ...options, clearcoat: 0.18, clearcoatRoughness: 0.32 }) : new THREE.MeshStandardMaterial(options);
     if (kind === "oak") {
@@ -476,11 +504,37 @@ export class FlySceneRenderer {
       pose.quaternion.copy(quaternionFromRotationRows(values.subarray(offset + 3, offset + 12)));
     }
     this.snapshot = snapshot ?? this.snapshot;
+    if (snapshot) this.wingDisplay.ingest(snapshot);
     this.updateFood(snapshot);
     this.updateObserverCamera();
     this.frameReady = true;
     this.needsRender = true;
     this.pendingVision = true;
+  }
+
+  applyWingDisplay(nowMs) {
+    this.wingDisplayState = this.wingDisplay.sample(nowMs);
+    const state = this.wingDisplayState;
+    for (const rig of this.wingRigs) {
+      const wing = this.bodyGroups[rig.body];
+      const parent = this.bodyGroups[rig.parent];
+      if (!wing || !parent) continue;
+      wing.position.copy(rig.position).applyQuaternion(parent.quaternion).add(parent.position);
+      wing.quaternion.copy(parent.quaternion).multiply(rig.quaternion);
+      const angle = rig.side === "left" ? state.leftAngleRad : state.rightAngleRad;
+      wing.quaternion.multiply(this.tempQuaternion.setFromAxisAngle(this.wingAxis, angle));
+    }
+    for (const object of this.objects) {
+      if (!object.userData.isWing) continue;
+      object.material.opacity = state.blurOpacity;
+      object.material.transparent = true;
+    }
+    if (state.leftEnvelope > 0.01 || state.rightEnvelope > 0.01) this.needsRender = true;
+  }
+
+  disconnectTelemetry() {
+    this.wingDisplay.ingest({ flight_mode: "Grounded", brain_flight_drive: 0 });
+    this.needsRender = true;
   }
 
   updateFood(snapshot) {
@@ -509,6 +563,17 @@ export class FlySceneRenderer {
     this.cameraMode = next;
     this.cameraPresetPending = next !== "orbit" || !this.frameReady;
     if (this.frameReady) this.updateObserverCamera();
+  }
+
+  setObserverView(position, target) {
+    this.cameraMode = "orbit";
+    this.cameraPresetPending = false;
+    this.camera.position.fromArray(vector3(position));
+    this.controls.target.fromArray(vector3(target));
+    this.camera.up.set(0, 0, 1);
+    this.camera.lookAt(this.controls.target);
+    this.controls.update();
+    this.needsRender = true;
   }
 
   updateObserverCamera() {
@@ -567,6 +632,7 @@ export class FlySceneRenderer {
 
   render() {
     this.controls.update();
+    this.applyWingDisplay(performance.now());
     if (!this.needsRender && !this.pendingVision) return;
     if (this.sceneReady) {
       this.applyWallCutaway(true);

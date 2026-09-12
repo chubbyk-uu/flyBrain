@@ -760,7 +760,7 @@ mod tests {
 
         assert!(artifact.is_male_cns());
         assert_eq!(resolution.groups.len(), artifact.groups.len());
-        assert_eq!(resolution.groups.len(), 28);
+        assert_eq!(resolution.groups.len(), 32);
         for name in artifact.groups.keys() {
             let group = resolution.group(name).expect("artifact group resolves");
             assert_eq!(
@@ -776,6 +776,38 @@ mod tests {
         assert_eq!(
             resolution.group("feeding_mn9").unwrap().selected_root_ids,
             [10331]
+        );
+        assert_eq!(
+            resolution
+                .group("grooming_sensory_left")
+                .unwrap()
+                .engine_indices
+                .len(),
+            40
+        );
+        assert_eq!(
+            resolution
+                .group("grooming_sensory_right")
+                .unwrap()
+                .engine_indices
+                .len(),
+            24
+        );
+        assert_eq!(
+            resolution
+                .group("grooming_dn_left")
+                .unwrap()
+                .engine_indices
+                .len(),
+            2
+        );
+        assert_eq!(
+            resolution
+                .group("grooming_dn_right")
+                .unwrap()
+                .engine_indices
+                .len(),
+            2
         );
         assert_eq!(
             resolution

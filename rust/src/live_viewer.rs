@@ -60,6 +60,13 @@ const TRACKING_CAMERA_WALL_BOUNDS: [[f64; 2]; 3] =
 const TRACKING_CAMERA_AZIMUTH_OFFSETS: [f64; 4] = [0.0, 90.0, -90.0, 180.0];
 const HIDDEN_RETINA_SUBMISSION_HZ: f64 = 20.0;
 
+fn retina_simulation_capture_due(previous_s: Option<f64>, current_s: f64) -> bool {
+    previous_s.is_none_or(|previous| {
+        current_s < previous
+            || current_s - previous + f64::EPSILON >= 1.0 / HIDDEN_RETINA_SUBMISSION_HZ
+    })
+}
+
 #[link(name = "glfw.3")]
 unsafe extern "C" {
     fn glfwInit() -> c_int;
@@ -86,6 +93,17 @@ unsafe extern "C" {
     fn glfwGetCursorPos(window: *mut c_void, x: *mut f64, y: *mut f64);
     fn glfwSetWindowTitle(window: *mut c_void, title: *const c_char);
     fn glfwGetProcAddress(name: *const c_char) -> Option<unsafe extern "C" fn()>;
+}
+
+struct CurrentGlContextGuard;
+
+impl Drop for CurrentGlContextGuard {
+    fn drop(&mut self) {
+        // The hidden retina shares the physical GPU with CUDA. Keeping the WSLg
+        // D3D12-backed GL context current between captures needlessly prolongs
+        // cross-API scheduling contention.
+        unsafe { glfwMakeContextCurrent(std::ptr::null_mut()) };
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -196,6 +214,7 @@ pub struct LiveViewer {
     retina_summaries: [RetinaSummary; 2],
     retina_capture_sequence: u64,
     last_retina_capture: Option<Instant>,
+    last_hidden_retina_time_s: Option<f64>,
     eye_raw_bottom_up: Box<[u8]>,
     retina_pbos: [u32; 3],
     retina_pbo_eyes: [usize; 3],
@@ -418,6 +437,7 @@ impl LiveViewer {
             retina_summaries: [RetinaSummary::default(); 2],
             retina_capture_sequence: 0,
             last_retina_capture: None,
+            last_hidden_retina_time_s: None,
             eye_raw_bottom_up: vec![0; eye_rgb_bytes].into_boxed_slice(),
             retina_pbos,
             retina_pbo_eyes: [0; 3],
@@ -775,12 +795,12 @@ impl LiveViewer {
     where
         M: std::ops::Deref<Target = MjModel>,
     {
-        if self.last_retina_capture.is_some_and(|last| {
-            last.elapsed() < Duration::from_secs_f64(1.0 / HIDDEN_RETINA_SUBMISSION_HZ)
-        }) {
+        let simulation_time_s = data.time();
+        if !retina_simulation_capture_due(self.last_hidden_retina_time_s, simulation_time_s) {
             return Ok(false);
         }
         unsafe { glfwMakeContextCurrent(self.window.as_ptr()) };
+        let _release_context = CurrentGlContextGuard;
         let context = self
             .context
             .as_mut()
@@ -818,7 +838,7 @@ impl LiveViewer {
         }
         self.retina_pbo_eyes[current] = submitted_eye;
         self.retina_pbo_index = (current + 1) % self.retina_pbos.len();
-        self.last_retina_capture = Some(Instant::now());
+        self.last_hidden_retina_time_s = Some(simulation_time_s);
         if self.retina_pbo_primed + 1 < self.retina_pbos.len() {
             self.retina_pbo_primed += 1;
             unsafe { (gl.bind_buffer)(GL_PIXEL_PACK_BUFFER, 0) };
@@ -957,6 +977,7 @@ impl LiveViewer {
 
     pub fn clear_retina(&mut self) {
         self.last_retina_capture = None;
+        self.last_hidden_retina_time_s = None;
         self.retina_summaries = [RetinaSummary::default(); 2];
     }
 
@@ -1364,8 +1385,16 @@ fn draw_hud_button(context: &MjrContext, rectangle: MjrRectangle, label: &str, e
 mod tests {
     use super::{
         TRACKING_CAMERA_WALL_BOUNDS, clamped_tracking_distance, retina_inset_rects,
-        safe_tracking_distance,
+        retina_simulation_capture_due, safe_tracking_distance,
     };
+
+    #[test]
+    fn hidden_retina_rate_is_bound_to_simulation_time_and_resets_cleanly() {
+        assert!(retina_simulation_capture_due(None, 0.0));
+        assert!(!retina_simulation_capture_due(Some(1.0), 1.049));
+        assert!(retina_simulation_capture_due(Some(1.0), 1.05));
+        assert!(retina_simulation_capture_due(Some(5.0), 0.0));
+    }
 
     #[test]
     fn binocular_retina_panels_are_equal_and_side_by_side() {

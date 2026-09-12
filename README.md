@@ -363,11 +363,10 @@ claim to reproduce Brian2's private RNG stream.
 ## Watch the native simulation in a Windows browser
 
 The preferred live display keeps CUDA MaleCNS and MuJoCo native in WSL while reusing the existing
-Three.js renderer in Windows. Start these in separate WSL terminals:
+Three.js renderer in Windows. Start the native runtime and static server together:
 
 ```bash
-target/release/flybrain-world web-view
-npm --prefix web start
+tools/run_native_viewer.sh
 ```
 
 Then open `http://localhost:8080/native-view.html` in Windows Chrome or Edge. Native simulation
@@ -378,6 +377,13 @@ The existing hidden native binocular retina continues to supply sensory summarie
 `BrainBodyBridge`; browser retina readback is explicitly deferred. Both neural realtime and the
 browser's actual RAF FPS are shown separately. See the
 [stage-1 report](docs/native-threejs-viewer-stage-1-2026-09-13.md).
+
+Open `http://localhost:8080/native-gallery.html` for the acceptance gallery. It immediately captures
+the room, tea table/sugar and plant/flower views, then adds grounded, walking, flight, feeding and
+grooming cards only when those states are actually observed in the native stream. Retina cards come
+from the native binocular preview. The 18 Hz visible wing carrier avoids monitor aliasing while its
+envelope, physical-frequency label and left/right balance remain driven by the current hybrid flight
+command; it is display-only and does not write back into MuJoCo or sensory input.
 
 ## Legacy WSLg native viewer
 

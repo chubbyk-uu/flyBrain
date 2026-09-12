@@ -22,6 +22,14 @@ assert.deepEqual(
   ),
   { time_seconds: 1.5, root_position: [5, 4, 6] },
 );
+assert.deepEqual(
+  interpolateSnapshot(
+    { time_seconds: 1, root_position: [0, 0, 0], legacy: true },
+    { time_seconds: 2, root_position: [2, 4, 6], wing_display: { envelope: 0.8 } },
+    0.5,
+  ),
+  { time_seconds: 1.5, root_position: [1, 2, 3], wing_display: { envelope: 0.8 } },
+);
 buffer.push({ sequence: 2, epoch: 0, poses: left, snapshot: { time_seconds: 0.033 } }, 168);
 assert.equal(buffer.sample(168).poses[0], 10);
 buffer.push({ sequence: 1, epoch: 1, poses: left, snapshot: { time_seconds: 0 } }, 170);

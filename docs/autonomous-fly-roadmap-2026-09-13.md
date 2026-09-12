@@ -1,6 +1,6 @@
 # 自主混合控制果蝇：连续实施与验收路线
 
-日期：2026-09-13。状态：阶段 0（计划冻结）。本文件是后续六个阶段的执行门控；
+日期：2026-09-13。状态：**六个阶段全部完成并通过预定义门控**。本文件是六个阶段的执行门控；
 每阶段只有全部硬门槛通过后才提交并进入下一阶段。历史性能实验和已放弃的身体简化路线
 仍保留在其他报告中，但不再决定本轮顺序。
 
@@ -47,6 +47,9 @@ CNS 运动输出。
 
 ## 3. 阶段 1：新室内场景骨架
 
+状态：**已通过**。证据见
+[`stage-1-small-room-result-2026-09-13.md`](stage-1-small-room-result-2026-09-13.md)。
+
 ### 实施
 
 - 建立版本化 `small-room-v1` 场景配置，不覆盖 legacy 场景；CLI/manifest 明确记录选择。
@@ -71,6 +74,9 @@ CNS 运动输出。
 通过后提交：`Add small indoor room scene skeleton`。
 
 ## 4. 阶段 2：场景物理、感觉与性能验收
+
+状态：**已通过**。证据见
+[`stage-2-small-room-gates-2026-09-13.md`](stage-2-small-room-gates-2026-09-13.md)。
 
 ### 实施
 
@@ -99,6 +105,9 @@ CNS 运动输出。
 
 ## 5. 阶段 3：300 秒既有行为诊断
 
+状态：**已通过**。证据见
+[`stage-3-behavior-diagnosis-2026-09-13.md`](stage-3-behavior-diagnosis-2026-09-13.md)。
+
 ### 实施
 
 - 在 `small-room-v1`、现有行为逻辑完全不变的条件下运行至少 300 生物秒。
@@ -123,6 +132,9 @@ CNS 运动输出。
 `Diagnose long-run flight and exploration loops`。
 
 ## 6. 阶段 4：饥饿、疲劳与探索混合控制
+
+状态：**已通过**。证据见
+[`stage-4-homeostasis-result-2026-09-13.md`](stage-4-homeostasis-result-2026-09-13.md)。
 
 ### 实施
 
@@ -185,6 +197,9 @@ CNS 运动输出。
 通过后提交：`Add CNS-gated leg and head grooming behavior`。
 
 ## 8. 阶段 6：美术、果蝇外观与翼运动
+
+状态：**已通过**。完整证据与无人值守 Windows 验证边界见
+[`stage-6-visual-polish-result-2026-09-13.md`](stage-6-visual-polish-result-2026-09-13.md)。
 
 ### 实施
 

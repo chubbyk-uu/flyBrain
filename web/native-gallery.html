@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FlyBrain acceptance gallery</title>
+    <style>
+      :root { color-scheme: dark; font: 14px system-ui, sans-serif; background:#10151c; color:#eef5ff; }
+      body { margin:0; padding:20px; }
+      header { max-width:1100px; margin:auto auto 16px; }
+      h1 { margin:0 0 6px; font-size:22px; }
+      p { color:#aebdca; margin:5px 0; }
+      #capture { position:fixed; width:960px; height:540px; left:-10000px; top:0; }
+      #cards { max-width:1100px; margin:auto; display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; }
+      figure { margin:0; background:#18212b; border:1px solid #ffffff20; border-radius:10px; overflow:hidden; min-height:190px; }
+      img { display:block; width:100%; aspect-ratio:16/9; object-fit:cover; background:#080b10; }
+      figcaption { padding:9px 11px; color:#cbd7e1; }
+      .pending { display:grid; place-items:center; aspect-ratio:16/9; color:#8494a4; }
+      .ok { color:#8ee6a8; } .warn { color:#ffd37d; }
+    </style>
+    <script type="importmap">
+      {"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}
+    </script>
+  </head>
+  <body>
+    <header>
+      <h1>FlyBrain display acceptance gallery</h1>
+      <p id="status">Connecting to the read-only native stream…</p>
+      <p>Room views are captured immediately; behavior cards fill only when the native CNS actually enters that state.</p>
+    </header>
+    <canvas id="capture" width="960" height="540"></canvas>
+    <main id="cards"></main>
+    <script type="module" src="./native-gallery.js"></script>
+  </body>
+</html>

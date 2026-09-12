@@ -8,6 +8,16 @@ pub fn scene_descriptor(
     backend: Option<&str>,
 ) -> Value {
     let name = |kind, id| model.id_to_name(kind, id).unwrap_or("").to_string();
+    let bodies: Vec<_> = (0..model.nbody() as usize)
+        .map(|i| {
+            json!({
+                "name": name(MjtObj::mjOBJ_BODY, i),
+                "parent": model.body_parentid()[i],
+                "pos": model.body_pos()[i],
+                "quat": model.body_quat()[i],
+            })
+        })
+        .collect();
     let meshes: Vec<_> = (0..model.nmesh() as usize)
         .map(|i| {
             let v = model.mesh_vertadr()[i] as usize;
@@ -87,6 +97,7 @@ pub fn scene_descriptor(
         .collect();
     json!({
         "bodyCount": model.nbody(),
+        "bodies": bodies,
         "meshCount": model.nmesh(),
         "geoms": geoms,
         "meshes": meshes,
