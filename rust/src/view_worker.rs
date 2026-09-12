@@ -17,6 +17,8 @@ pub struct Frame {
     pub realtime_factor: f64,
     pub neurons: usize,
     pub sensory_neurons: usize,
+    pub brain_model: Option<String>,
+    pub brain_backend: Option<String>,
     pub nearest_resource: String,
     pub tasted_resource: String,
     pub nearest_obstacle: String,
@@ -55,15 +57,18 @@ impl Worker {
                     .map(SimulationParameters::load)
                     .transpose()?
                     .unwrap_or_default();
-                let mut simulation = SimulationStepper::new_with_parameters(
+                let mut simulation = SimulationStepper::new_with_parameters_and_physics_timestep(
                     &options.assets,
                     options.with_brain.then_some(options.pack.as_path()),
                     options.control_hz,
                     options.settle_seconds,
                     parameters,
+                    options.physics_dt_ms.map(|value| value / 1000.0),
                 )?;
                 simulation.place_food_ahead(options.start_food_distance)?;
-                simulation.set_brain_telemetry_enabled(options.with_brain)?;
+                simulation.set_brain_telemetry_enabled(
+                    options.with_brain && std::env::var_os("FLYBRAIN_BENCH_NO_TELEMETRY").is_none(),
+                )?;
                 eprintln!(
                     "Simulation worker ready: {} neurons on {}",
                     simulation.brain_neuron_count(),
@@ -78,6 +83,8 @@ impl Worker {
                     realtime_factor: 0.0,
                     neurons: simulation.brain_neuron_count(),
                     sensory_neurons: simulation.brain_sensory_neuron_count(),
+                    brain_model: simulation.brain_model_name().map(str::to_owned),
+                    brain_backend: simulation.brain_device_name().map(str::to_owned),
                     nearest_resource: String::new(),
                     tasted_resource: String::new(),
                     nearest_obstacle: String::new(),
@@ -95,6 +102,10 @@ impl Worker {
                 let mut field_sequence = 0;
                 let mut field_samples = Vec::new();
                 let period = simulation.control_period().as_secs_f64();
+                let profile = std::env::var_os("FLYBRAIN_PROFILE_VIEWER").is_some();
+                let profile_started = Instant::now();
+                let mut totals = [0.0_f64; 5];
+                let mut windows = 0_u64;
                 while !worker_stop.load(Ordering::Relaxed) {
                     let mut force_publish = false;
                     for command in receiver.try_iter() {
@@ -150,6 +161,14 @@ impl Worker {
                         < anchor.1 + anchor.0.elapsed().as_secs_f64() * options.speed;
                     if !paused && due {
                         let snapshot = simulation.step_window()?;
+                        if profile {
+                            windows += 1;
+                            totals[0] += snapshot.brain_wall_seconds;
+                            totals[1] += snapshot.brain_engine_seconds;
+                            totals[2] += snapshot.physics_wall_seconds;
+                            totals[3] += snapshot.mujoco_step_wall_seconds;
+                            totals[4] += snapshot.window_wall_seconds;
+                        }
                         if snapshot.brain_field_sample_sequence != field_sequence {
                             field_sequence = snapshot.brain_field_sample_sequence;
                             field_samples.push((
@@ -206,6 +225,18 @@ impl Worker {
                         std::thread::sleep(Duration::from_millis(1));
                     }
                 }
+                if profile {
+                    eprintln!(
+                        "WORKERBENCH {}",
+                        serde_json::json!({
+                            "windows": windows, "sim_seconds": simulation.world().time(),
+                            "wall_seconds": profile_started.elapsed().as_secs_f64(),
+                            "brain_wall_seconds": totals[0], "brain_engine_seconds": totals[1],
+                            "physics_wall_seconds": totals[2], "mj_step_seconds": totals[3],
+                            "window_wall_seconds": totals[4],
+                        })
+                    );
+                }
                 Ok(())
             })?;
         match ready_rx.recv() {
@@ -260,6 +291,9 @@ mod tests {
             height: 480,
             fps: 60,
             control_hz: 500.0,
+            physics_dt_ms: None,
+            shadow_map_size: 4096,
+            msaa_samples: 4,
             settle_seconds: 0.5,
             speed: 1.0,
             start_food_distance: 40.0,

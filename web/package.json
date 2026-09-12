@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node serve.mjs",
+    "test": "node scene-test.mjs && node native-pose-test.mjs",
     "build:wasm": "../tools/build_browser.sh",
     "build:cloudflare": "node ../tools/package_cloudflare.mjs",
     "deploy": "npm run build:cloudflare && node ../tools/cloudflare.mjs deploy"

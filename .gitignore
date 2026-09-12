@@ -9,4 +9,5 @@ work/
 target/
 outputs/packs/
 outputs/benchmarks/
+/assets/neuromechfly_realtime*/
 .DS_Store

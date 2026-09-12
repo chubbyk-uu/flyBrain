@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FlyBrain Native Stream</title>
+    <style>
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #0d121a; color: #eef5ff; font: 14px system-ui, sans-serif; }
+      #scene-canvas { width: 100%; height: 100%; display: block; }
+      .status { position: fixed; left: 16px; top: 16px; padding: 10px 13px; border: 1px solid #ffffff26; border-radius: 8px; background: #07101bd9; backdrop-filter: blur(8px); }
+      .status strong, .status span { display: block; }
+      .status span { margin-top: 4px; color: #b8c9dc; font-variant-numeric: tabular-nums; }
+      .error { color: #ff9d9d !important; }
+      .retina { position: fixed; right: 16px; top: 16px; width: min(440px, 42vw); padding: 10px; border: 1px solid #ffffff26; border-radius: 8px; background: #07101bd9; }
+      .retina canvas { display: block; width: 100%; height: auto; margin-top: 7px; background: #000; image-rendering: pixelated; }
+      .retina .labels { display: flex; justify-content: space-around; margin-top: 4px; color: #b8c9dc; }
+      @media (max-width: 760px) { .retina { top: auto; bottom: 12px; width: calc(100vw - 44px); } }
+    </style>
+    <script type="importmap">
+      {"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}
+    </script>
+  </head>
+  <body>
+    <canvas id="scene-canvas" aria-label="Native CUDA MaleCNS and MuJoCo world"></canvas>
+    <div class="status">
+      <strong>CUDA MaleCNS · native MuJoCo · Three.js display</strong>
+      <span id="connection">connecting…</span>
+      <span id="metrics">waiting for scene</span>
+      <span>Drag to orbit · scroll to zoom</span>
+    </div>
+    <aside class="retina">
+      <strong>What the fly sees</strong>
+      <span id="retina-status">waiting for native retina…</span>
+      <canvas id="retina-canvas" width="450" height="256"></canvas>
+      <div class="labels"><span>Left</span><span>Right</span></div>
+    </aside>
+    <script type="module" src="./native-view.js"></script>
+  </body>
+</html>

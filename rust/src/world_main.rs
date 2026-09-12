@@ -25,6 +25,7 @@ use flybrain_engine::world_sim::{
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
+mod native_stream;
 mod view_worker;
 
 #[derive(Debug, Parser)]
@@ -165,6 +166,13 @@ enum Command {
         fps: u32,
         #[arg(long, default_value_t = 500.0)]
         control_hz: f64,
+        /// Override only MuJoCo's timestep; the MaleCNS neural timestep remains unchanged.
+        #[arg(long, default_value = "0.2")]
+        physics_dt_ms: Option<f64>,
+        #[arg(long, default_value_t = 4096)]
+        shadow_map_size: u32,
+        #[arg(long, default_value_t = 4)]
+        msaa_samples: u32,
         #[arg(long, default_value_t = 0.5)]
         settle_seconds: f64,
         #[arg(long, default_value_t = 1.0)]
@@ -173,6 +181,34 @@ enum Command {
         start_food_distance: f64,
         #[arg(long, default_value = "chase")]
         camera: String,
+        #[arg(long)]
+        max_seconds: Option<f64>,
+        #[arg(long)]
+        no_brain: bool,
+        #[arg(long)]
+        parameters: Option<PathBuf>,
+    },
+    /// Stream the native CUDA/MuJoCo simulation to the display-only Three.js viewer.
+    WebView {
+        #[arg(long, default_value = DEFAULT_ASSETS_DIR)]
+        assets: PathBuf,
+        #[arg(long, default_value = "outputs/packs/male_cns_v1")]
+        pack: PathBuf,
+        #[arg(long, default_value_t = 30)]
+        publish_hz: u32,
+        #[arg(long, default_value = "127.0.0.1:8765")]
+        bind: std::net::SocketAddr,
+        #[arg(long, default_value_t = 500.0)]
+        control_hz: f64,
+        /// Override only MuJoCo's timestep; the MaleCNS neural timestep remains unchanged.
+        #[arg(long, default_value = "0.2")]
+        physics_dt_ms: Option<f64>,
+        #[arg(long, default_value_t = 0.5)]
+        settle_seconds: f64,
+        #[arg(long, default_value_t = 1.0)]
+        speed: f64,
+        #[arg(long, default_value_t = 40.0)]
+        start_food_distance: f64,
         #[arg(long)]
         max_seconds: Option<f64>,
         #[arg(long)]
@@ -282,6 +318,9 @@ fn main() -> Result<()> {
             height,
             fps,
             control_hz,
+            physics_dt_ms,
+            shadow_map_size,
+            msaa_samples,
             settle_seconds,
             speed,
             start_food_distance,
@@ -296,6 +335,9 @@ fn main() -> Result<()> {
             height,
             fps,
             control_hz,
+            physics_dt_ms,
+            shadow_map_size,
+            msaa_samples,
             settle_seconds,
             speed,
             start_food_distance,
@@ -304,6 +346,40 @@ fn main() -> Result<()> {
             with_brain: !no_brain,
             parameters,
         }),
+        Command::WebView {
+            assets,
+            pack,
+            publish_hz,
+            bind,
+            control_hz,
+            physics_dt_ms,
+            settle_seconds,
+            speed,
+            start_food_distance,
+            max_seconds,
+            no_brain,
+            parameters,
+        } => web_view_world(
+            ViewOptions {
+                assets,
+                pack,
+                width: 1,
+                height: 1,
+                fps: publish_hz,
+                control_hz,
+                physics_dt_ms,
+                shadow_map_size: 4096,
+                msaa_samples: 4,
+                settle_seconds,
+                speed,
+                start_food_distance,
+                camera: "chase".into(),
+                max_seconds,
+                with_brain: !no_brain,
+                parameters,
+            },
+            bind,
+        ),
     }
 }
 
@@ -318,7 +394,7 @@ struct CnsCheckOptions {
     #[arg(long, default_value_t = 500.0)]
     control_hz: f64,
     /// Override only MuJoCo's timestep; the MaleCNS neural timestep remains unchanged.
-    #[arg(long)]
+    #[arg(long, default_value = "0.2")]
     physics_dt_ms: Option<f64>,
     #[arg(long, default_value_t = 0.5)]
     settle_seconds: f64,
@@ -672,6 +748,9 @@ struct ViewOptions {
     height: u32,
     fps: u32,
     control_hz: f64,
+    physics_dt_ms: Option<f64>,
+    shadow_map_size: u32,
+    msaa_samples: u32,
     settle_seconds: f64,
     speed: f64,
     start_food_distance: f64,
@@ -685,11 +764,13 @@ fn view_world(options: ViewOptions) -> Result<()> {
     validate_view_options(&options)?;
     let assets = options.assets.clone();
     let camera = options.camera.clone();
-    let (width, height, fps, with_brain) = (
+    let (width, height, fps, with_brain, shadow_map_size, msaa_samples) = (
         options.width,
         options.height,
         options.fps,
         options.with_brain,
+        options.shadow_map_size,
+        options.msaa_samples,
     );
     eprintln!("Loading body and connectome on simulation worker...");
     let mut worker = view_worker::Worker::start(options)?;
@@ -697,12 +778,17 @@ fn view_world(options: ViewOptions) -> Result<()> {
         let frame = worker.frame.lock().unwrap();
         (frame.data.clone(), frame.neurons, frame.sensory_neurons)
     };
-    let mut viewer = LiveViewer::new(data.model(), &assets, width, height, &camera)?;
+    LiveViewer::configure_render_quality(&mut data, shadow_map_size, msaa_samples)?;
+    let mut viewer = LiveViewer::new(data.model(), &assets, width, height, &camera, msaa_samples)?;
     eprintln!(
         "Native viewer opened; simulation and rendering run independently. SPACE pause, R reset, V retina, B field, ESC quit."
     );
-    let mut show_eye_view = true;
-    let mut show_brain_graph = with_brain;
+    let disable_retina = std::env::var_os("FLYBRAIN_BENCH_NO_RETINA").is_some();
+    let disable_telemetry = std::env::var_os("FLYBRAIN_BENCH_NO_TELEMETRY").is_some();
+    let mut show_eye_view = !disable_retina;
+    let mut show_brain_graph = with_brain && !disable_telemetry;
+    let benchmark_started = Instant::now();
+    let mut benchmark_frames = 0_u64;
     let mut sequence = u64::MAX;
     let mut epoch = 0;
     let mut last_title = Instant::now() - Duration::from_secs(1);
@@ -809,14 +895,15 @@ fn view_world(options: ViewOptions) -> Result<()> {
                 status: &status,
                 show_eye_view,
                 show_brain_graph,
-                capture_vision: with_brain && !paused,
+                capture_vision: with_brain && !paused && !disable_retina,
                 flight_allowed: snapshot.flight_allowed,
             },
         )?;
-        if with_brain && !paused {
+        if with_brain && !paused && !disable_retina {
             *worker.vision.lock().unwrap() = Some((epoch, viewer.retina_summaries()));
         }
         frames += 1;
+        benchmark_frames += 1;
         if frame_stats.elapsed() >= Duration::from_secs(1) {
             render_fps = f64::from(frames) / frame_stats.elapsed().as_secs_f64();
             frames = 0;
@@ -833,6 +920,90 @@ fn view_world(options: ViewOptions) -> Result<()> {
             std::thread::sleep(wait);
         }
     }
+    if std::env::var_os("FLYBRAIN_PROFILE_VIEWER").is_some() {
+        eprintln!(
+            "VIEWBENCH {}",
+            serde_json::json!({
+                "frames": benchmark_frames,
+                "wall_seconds": benchmark_started.elapsed().as_secs_f64(),
+                "no_retina": disable_retina, "no_telemetry": disable_telemetry,
+            })
+        );
+    }
+    worker.finish()
+}
+
+fn web_view_world(options: ViewOptions, bind: std::net::SocketAddr) -> Result<()> {
+    validate_view_options(&options)?;
+    let assets = options.assets.clone();
+    let publish_hz = options.fps;
+    let with_brain = options.with_brain;
+    let shadow_map_size = options.shadow_map_size;
+    let msaa_samples = options.msaa_samples;
+    eprintln!("Loading native CUDA MaleCNS and MuJoCo simulation worker...");
+    let mut worker = view_worker::Worker::start(options)?;
+    let mut publisher = native_stream::Server::start(bind, publish_hz, worker.frame.clone())?;
+    let (mut data, mut sequence, mut epoch) = {
+        let frame = worker.frame.lock().unwrap();
+        (frame.data.clone(), frame.sequence, frame.epoch)
+    };
+    LiveViewer::configure_render_quality(&mut data, shadow_map_size, msaa_samples)?;
+    let mut retina = if with_brain {
+        Some(LiveViewer::new_hidden_sensor(
+            data.model(),
+            &assets,
+            msaa_samples,
+        )?)
+    } else {
+        None
+    };
+    eprintln!(
+        "Native stream ready: ws://{bind} at {publish_hz} Hz; open http://localhost:8080/native-view.html on Windows"
+    );
+    let mut retina_updates = 0_u64;
+    let mut retina_capture_sequence = 0_u64;
+    while !worker.is_finished() {
+        let (snapshot, paused, next_epoch) = {
+            let frame = worker.frame.lock().unwrap();
+            if sequence != frame.sequence {
+                frame.data.copy_to(&mut data)?;
+                sequence = frame.sequence;
+            }
+            (frame.snapshot, frame.paused, frame.epoch)
+        };
+        if epoch != next_epoch {
+            epoch = next_epoch;
+            if let Some(retina) = retina.as_mut() {
+                retina.clear_retina();
+            }
+        }
+        if let Some(retina) = retina.as_mut() {
+            retina.render(
+                &mut data,
+                LiveRenderOptions {
+                    food_center: snapshot.food_center,
+                    food_enabled: snapshot.food_enabled,
+                    status: "",
+                    show_eye_view: false,
+                    show_brain_graph: false,
+                    capture_vision: !paused,
+                    flight_allowed: snapshot.flight_allowed,
+                },
+            )?;
+            let capture_sequence = retina.retina_capture_sequence();
+            if capture_sequence != retina_capture_sequence {
+                retina_capture_sequence = capture_sequence;
+                publisher.update_retina(capture_sequence, retina.retina_preview_gray_half());
+            }
+            if !paused {
+                *worker.vision.lock().unwrap() = Some((epoch, retina.retina_summaries()));
+                retina_updates += 1;
+            }
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    eprintln!("Native retina updates delivered: {retina_updates}");
+    publisher.finish()?;
     worker.finish()
 }
 
@@ -981,6 +1152,18 @@ fn validate_view_options(options: &ViewOptions) -> Result<()> {
     }
     if !options.control_hz.is_finite() || options.control_hz <= 0.0 {
         bail!("control_hz must be finite and positive")
+    }
+    if options
+        .physics_dt_ms
+        .is_some_and(|value| !value.is_finite() || value <= 0.0)
+    {
+        bail!("physics_dt_ms must be finite and positive")
+    }
+    if options.shadow_map_size == 0 || !options.shadow_map_size.is_power_of_two() {
+        bail!("shadow_map_size must be a positive power of two")
+    }
+    if !matches!(options.msaa_samples, 0 | 2 | 4 | 8) {
+        bail!("msaa_samples must be one of 0, 2, 4, or 8")
     }
     if !options.settle_seconds.is_finite() || options.settle_seconds < 0.0 {
         bail!("settle_seconds must be finite and non-negative")
@@ -1989,14 +2172,42 @@ mod tests {
             Command::View {
                 pack,
                 start_food_distance,
+                physics_dt_ms,
+                shadow_map_size,
+                msaa_samples,
                 no_brain,
                 ..
             } => {
                 assert_eq!(pack.to_str(), Some("outputs/packs/male_cns_v1"));
                 assert_eq!(start_food_distance, 40.0);
+                assert_eq!(physics_dt_ms, Some(0.2));
+                assert_eq!(shadow_map_size, 4096);
+                assert_eq!(msaa_samples, 4);
                 assert!(!no_brain);
             }
             _ => panic!("expected live view"),
+        }
+    }
+
+    #[test]
+    fn web_view_defaults_to_native_male_cns_stream() {
+        let cli = Cli::parse_from(["flybrain-world", "web-view"]);
+        match cli.command {
+            Command::WebView {
+                pack,
+                publish_hz,
+                bind,
+                physics_dt_ms,
+                no_brain,
+                ..
+            } => {
+                assert_eq!(pack.to_str(), Some("outputs/packs/male_cns_v1"));
+                assert_eq!(publish_hz, 30);
+                assert_eq!(bind.to_string(), "127.0.0.1:8765");
+                assert_eq!(physics_dt_ms, Some(0.2));
+                assert!(!no_brain);
+            }
+            _ => panic!("expected native web view"),
         }
     }
 

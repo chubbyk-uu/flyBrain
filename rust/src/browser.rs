@@ -2,9 +2,9 @@ use std::cell::RefCell;
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
-use mujoco_rs::prelude::*;
 use serde_json::{Value, json};
 
+use crate::display_protocol::{body_poses, scene_descriptor};
 use crate::retina::{FlyGymRetina, RETINA_HEIGHT, RETINA_WIDTH};
 use crate::world_sim::{SimulationParameters, SimulationStepper};
 
@@ -107,24 +107,17 @@ pub extern "C" fn fb_step(windows: u32) -> i32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn fb_metrics_ptr() -> *const f64 {
     STATE.with(|state| {
-        state.borrow().as_ref().map_or(std::ptr::null(), |s| s.metrics.as_ptr())
+        state
+            .borrow()
+            .as_ref()
+            .map_or(std::ptr::null(), |s| s.metrics.as_ptr())
     })
 }
 
 fn update_frame(state: &mut BrowserState) {
     let world = state.simulation.world();
     let data = world.data();
-    state.poses.clear();
-    for (position, quaternion) in data.xpos().iter().zip(data.xquat()) {
-        state
-            .poses
-            .extend(position.iter().chain(quaternion).map(|v| *v as f32));
-    }
-    for (position, rotation) in data.cam_xpos().iter().zip(data.cam_xmat()) {
-        state
-            .poses
-            .extend(position.iter().chain(rotation).map(|v| *v as f32));
-    }
+    state.poses = body_poses(data);
     let s = state.simulation.snapshot();
     let flight_diagnostics = json!({
         "contact_count": s.contact_count,
@@ -227,65 +220,12 @@ pub extern "C" fn fb_update_retina_display() -> i32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn fb_scene() -> i32 {
     action(|state| {
-        let m = state.simulation.world().model();
-        let name = |kind, id| m.id_to_name(kind, id).unwrap_or("").to_string();
-        let meshes: Vec<_> = (0..m.nmesh() as usize)
-            .map(|i| {
-                let v = m.mesh_vertadr()[i] as usize;
-                let f = m.mesh_faceadr()[i] as usize;
-                let n = m.mesh_normaladr()[i] as usize;
-                json!({"vertices": &m.mesh_vert()[v..v + m.mesh_vertnum()[i] as usize],
-                "faces": &m.mesh_face()[f..f + m.mesh_facenum()[i] as usize],
-                "normals": &m.mesh_normal()[n..n + m.mesh_normalnum()[i] as usize],
-                "faceNormals": &m.mesh_facenormal()[f..f + m.mesh_facenum()[i] as usize]})
-            })
-            .collect();
-        let geoms: Vec<_> = (0..m.ngeom() as usize).map(|i| {
-            let material = m.geom_matid()[i];
-            let mut color = m.geom_rgba()[i];
-            let mut repeat = [1.0_f32; 2];
-            if material >= 0 {
-                color = m.mat_rgba()[material as usize];
-                repeat = m.mat_texrepeat()[material as usize];
-                let texture = m.mat_texid()[material as usize][MjtTextureRole::mjTEXROLE_RGB as usize];
-                if texture >= 0 {
-                    let t = texture as usize;
-                    let start = m.tex_adr()[t] as usize;
-                    let pixels = m.tex_width()[t] as usize * m.tex_height()[t] as usize;
-                    let channels = m.tex_nchannel()[t] as usize;
-                    let bytes = &m.tex_data()[start..start + pixels * channels];
-                    let mut sums = [0_u64; 3];
-                    for pixel in bytes.chunks_exact(channels) {
-                        for channel in 0..3 { sums[channel] += u64::from(pixel[channel.min(channels - 1)]); }
-                    }
-                    let material_name = name(MjtObj::mjOBJ_MATERIAL, material as usize);
-                    if !matches!(material_name.as_str(), "grid" | "habitat/wood" | "habitat/darkwood") {
-                        for channel in 0..3 { color[channel] *= sums[channel] as f32 / (pixels as f32 * 255.0); }
-                    }
-                }
-            }
-            json!({"id":i, "name":name(MjtObj::mjOBJ_GEOM,i), "body":m.geom_bodyid()[i],
-                "type":m.geom_type()[i] as i32, "size":m.geom_size()[i], "pos":m.geom_pos()[i],
-                "quat":m.geom_quat()[i], "mesh":m.geom_dataid()[i], "rgba":color,
-                "material":if material >= 0 {name(MjtObj::mjOBJ_MATERIAL, material as usize)} else {String::new()},
-                "group":m.geom_group()[i], "texrepeat":repeat})
-        }).collect();
-        let cameras: Vec<_> = (0..m.ncam() as usize)
-            .map(|i| {
-                json!({
-                    "name":name(MjtObj::mjOBJ_CAMERA,i), "body":m.cam_bodyid()[i],
-                    "pos":m.cam_pos()[i], "quat":m.cam_quat()[i], "fovy":m.cam_fovy()[i],
-                })
-            })
-            .collect();
-        respond(
-            json!({"bodyCount":m.nbody(), "meshCount":m.nmesh(), "geoms":geoms,
-            "meshes":meshes,"cameras":cameras,"brain":{
-                "neurons":state.simulation.brain_neuron_count(),
-                "model":state.simulation.brain_model_name(),
-                "backend":state.simulation.brain_device_name(),
-            }}),
-        );
+        respond(scene_descriptor(
+            state.simulation.world().model(),
+            state.simulation.brain_neuron_count(),
+            state.simulation.brain_model_name(),
+            state.simulation.brain_device_name(),
+        ));
         Ok(())
     })
 }

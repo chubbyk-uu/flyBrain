@@ -20,16 +20,16 @@ is now functional: the existing paired CNS/world gate passes with native Rust + 
 native MuJoCo, and the WSLg viewer opens successfully. See the
 [native integration report](docs/native-cuda-mujoco-stage-2026-09-12.md). MuJoCo does
 not remain in the browser/WASM path. Bridge readback and CUDA propagation have since
-been optimized, but long-run native closed-loop throughput is still approximately
-0.63–0.67x in the recorded reference tests; real-time execution is not yet achieved.
+been optimized. The retained full body now reaches approximately 1.065x in the recorded
+20-second run with a 0.2 ms MuJoCo timestep; viewer FPS remains the current bottleneck.
 The new target permits engineered satiety, flight fatigue, persistent random exploration,
 and one dust level triggering one combined foreleg-rubbing/head-and-eye-cleaning routine.
 Neural outputs must still have a demonstrable causal role in active movement and feeding.
 Later milestones include a smaller indoor world with a coffee table, candy and flowering
 potted plants. Visual food recognition, the new internal-state rules, and the unified cleaning
 routine are not yet implemented. The reference assets and historical tests remain preserved.
-Neural dt remains 0.1 ms; a separate 0.2 ms experiment is planned after body optimization,
-not a default change. Headless realtime and 30 FPS GUI playback are separate targets, not guarantees.
+Neural dt remains 0.1 ms while native `view` and `cns-check` now default MuJoCo to 0.2 ms.
+Headless realtime and 30 FPS GUI playback remain separate measurements.
 Use the dedicated `flybrain` Conda environment described in
 [local setup](docs/local-setup.md). Do not install project dependencies into shared environments.
 
@@ -358,13 +358,36 @@ parameters, timings, source hashes, and output hashes. The counter-based generat
 across Rust and Python; it has the same Bernoulli statistics as the upstream `N=1` input but does not
 claim to reproduce Brian2's private RNG stream.
 
-## Watch the embodied world live
+## Watch the native simulation in a Windows browser
 
-To watch the simulation continuously in a native window, run:
+The preferred live display keeps CUDA MaleCNS and MuJoCo native in WSL while reusing the existing
+Three.js renderer in Windows. Start these in separate WSL terminals:
+
+```bash
+target/release/flybrain-world web-view
+npm --prefix web start
+```
+
+Then open `http://localhost:8080/native-view.html` in Windows Chrome or Edge. Native simulation
+publishes poses and a read-only snapshot at 30 Hz; the browser interpolates one stream interval and
+renders independently with `requestAnimationFrame`, capped at 60 FPS by default. Append `?fps=90`
+to test a 90 FPS display without changing the native simulation rate. The browser is display-only in this stage.
+The existing hidden native binocular retina continues to supply sensory summaries to the unchanged
+`BrainBodyBridge`; browser retina readback is explicitly deferred. Both neural realtime and the
+browser's actual RAF FPS are shown separately. See the
+[stage-1 report](docs/native-threejs-viewer-stage-1-2026-09-13.md).
+
+## Legacy WSLg native viewer
+
+The classic OpenGL viewer remains available for diagnostics, but is no longer the optimization target:
 
 ```bash
 target/release/flybrain-world view
 ```
+
+This defaults to a `0.2 ms` MuJoCo timestep while MaleCNS remains at `0.1 ms`.
+Pass `--physics-dt-ms 0.1` for the original reference timebase. Shadows remain enabled;
+`--shadow-map-size` and `--msaa-samples` expose explicit rendering comparisons.
 
 The live command has no duration limit and does not create a video. Use
 `--pack outputs/packs/male_cns_v1 --start-food-distance 40` to reproduce the CNS roaming setup,
@@ -539,10 +562,11 @@ reports actual display FPS separately from simulation speed. Binocular capture i
 at 15 Hz wall time and its latest summaries enter the next available control window.
 This changes the live visual sampling schedule; fixed-input headless experiments are unaffected.
 
-For an optional lower-cost preview, run
+For a diagnostic shadow-free upper bound, run
 `FLYBRAIN_VIEWER_SHADOWS=0 target/release/flybrain-world view`. This removes shadows from
 both the observer and sensory eye images, so it is a different visual-input condition.
-Shadows remain enabled by default. `FLYBRAIN_PROFILE_VIEWER=1` logs per-frame CPU wall
+Shadows remain enabled by default; shadow-free mode is not the intended final presentation.
+`FLYBRAIN_PROFILE_VIEWER=1` logs per-frame CPU wall
 times for the main view, eyes, and graph/swap. See the
 [native viewer decoupling report](docs/native-viewer-decoupling-2026-09-12.md) for measured
 WSLg rendering limits; decoupling alone does not guarantee smooth rendering.

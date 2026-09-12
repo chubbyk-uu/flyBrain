@@ -3,6 +3,12 @@ pub mod behavior;
 pub mod brain_signal;
 pub mod cns_olfaction;
 pub mod cns_pathway;
+#[cfg(any(
+    target_os = "macos",
+    target_os = "emscripten",
+    all(target_os = "linux", feature = "cuda")
+))]
+pub mod display_protocol;
 pub mod embodiment;
 pub mod fixture;
 #[cfg(any(
@@ -59,16 +65,10 @@ pub mod browser;
 ))]
 pub mod world;
 
-#[cfg(any(
-    target_os = "macos",
-    all(target_os = "linux", feature = "cuda")
-))]
+#[cfg(any(target_os = "macos", all(target_os = "linux", feature = "cuda")))]
 pub mod render;
 
-#[cfg(any(
-    target_os = "macos",
-    all(target_os = "linux", feature = "cuda")
-))]
+#[cfg(any(target_os = "macos", all(target_os = "linux", feature = "cuda")))]
 pub mod live_viewer;
 
 #[cfg(any(
@@ -85,8 +85,5 @@ pub mod retina;
 ))]
 pub mod world_sim;
 
-#[cfg(any(
-    target_os = "macos",
-    all(target_os = "linux", feature = "cuda")
-))]
+#[cfg(any(target_os = "macos", all(target_os = "linux", feature = "cuda")))]
 pub mod flight_system_id_world;

@@ -1,8 +1,24 @@
 # 现有混合驱动果蝇的实时化、物理简化与行为完善计划
 
-日期：2026-09-13。状态：阶段 A 已完成，0.2 ms 物理 dt 保持显式候选；阶段 B 尚未开始。
+日期：2026-09-13。状态：阶段 A 已完成；阶段 B 第一轮结构筛选完成但候选未通过功能验收。
 范围依据为 [项目总规范](project-spec.md)。本计划区分用户需求、建议方案与已有证据；
 数值候选不是已测出的收益或已经验证的生物参数。
+
+2026-09-13 后续优先级调整：用户要求先继续优化现有身体，FlyGym 2.x 留作备选。
+阶段 B 新身体设计暂缓，以下身体简化章节保留为备选路线。
+现有模型的线程池与本机库筛选结果见
+[MuJoCo 线程池筛选](native-mujoco-threadpool-screen-2026-09-13.md)；这些候选未提速，
+不修改默认配置，后续优先定位碰撞流水线中的可优化开销。
+
+随后用户要求暂停功能开发，先完成五组 CNS/物理/viewer 消融定位；报告见
+[五组性能瓶颈报告](native-five-way-bottleneck-report-2026-09-13.md)。测试保持原始
+0.1 ms 物理，确认显示侧 main/retina 同步等待和模拟侧 MuJoCo 为两类独立瓶颈；
+当前没有据此实施渲染优化、改变步长或推进新身体/行为。
+
+2026-09-13 最新决策取代上述优先级：保留完整 132 DOF 身体，不继续阶段 B/C 简化。
+MaleCNS 神经保持 0.1 ms，原生实时路线默认采用已验收的 0.2 ms MuJoCo 物理；先把
+viewer 提升到稳定至少 30 FPS，再实现阶段 F 混合行为，最后重做小室内场景和外观。
+阴影保留，但允许降低 shadow map 和 MSAA；全关阴影只作为诊断上界，不作为正式默认。
 
 ## 1. 新目标与可接受的工程规则
 
@@ -34,10 +50,12 @@
 ## 2. 基线与优化依据
 
 当前身体是 132 DOF、127 个关节、56 个执行器、270 个 geom；50 个关节被关节执行器
-直接驱动。物理步长 0.1 ms，每生物秒 10,000 步；默认 500 Hz 脑体交换。
-当前 `world_sim.rs` 强制神经与物理步长相同，神经和物理循环共用窗口步数。
+直接驱动。原生实时路线物理步长改为 0.2 ms，每生物秒 5,000 步；默认 500 Hz 脑体交换，
+MaleCNS 神经步长仍为 0.1 ms、每个 2 ms 控制窗 20 个神经 tick。
+当前 `world_sim.rs` 已分别维护神经与物理步数，并在同一 2 ms 控制窗边界交换数据。
 飞行包含约 218 Hz 翼运动、MuJoCo 椭球流体力及工程化身体稳定/速度控制，
-不是默认逐翼条施加力的旧气动分支。显示配置还包括 4096 阴影贴图及 4× 离屏多重采样。
+不是默认逐翼条施加力的旧气动分支。显示默认仍使用 4096 阴影贴图及 4× 离屏多重采样；
+viewer 已暴露质量参数，但 1024/2× 和 256/0× 的首轮 A/B 均未测得 FPS 收益，未采用。
 
 既有 [长程回归](native-long-behavior-gates-2026-09-12.md) 的 intact 约 0.63–0.67×；
 [物理 profile](native-physics-profile-2026-09-12.md) 说明主要热点在 `mj_step`。
@@ -74,7 +92,8 @@ GPU 物理不列为首步：MJWarp 面向批量吞吐，并不保证单个连通
 ## 4. 阶段 A：分离神经与物理时间步
 
 实施结果见 [阶段 A 原生时间基准记录](native-timebase-stage-a-2026-09-13.md)。调度分离、
-默认 0.1 ms 回归和 0.2 ms 完整 CNS 短程验收已通过；候选尚未设为默认值。
+0.1 ms 参考回归和 0.2 ms 完整 CNS 长程验收已通过；0.2 ms 现被接受为原生实时默认值，
+显式 `--physics-dt-ms 0.1` 保留参考回退。
 
 仍以 2 ms 为控制窗口，独立维护两个整数步数：
 
@@ -99,6 +118,10 @@ GPU 物理不列为首步：MJWarp 面向批量吞吐，并不保证单个连通
 新物理步长下无非有限值、自动重置或明显接触爆炸。通过后汇报再进入 B。
 
 ## 5. 阶段 B：轻量身体与碰撞
+
+第一轮筛选及失败边界见
+[阶段 B 实时身体筛选](realtime-body-stage-b-screening-2026-09-13.md)。primitive collision
+没有带来收益；直接焊接被动链虽能提速，但破坏了持续取食或降落，因此均未采用为默认。
 
 ### 第一档：尽量保留动作接口
 
@@ -161,13 +184,21 @@ GPU 物理不列为首步：MJWarp 面向批量吞吐，并不保证单个连通
 10 秒 brain 成本；假设 brain 不变、物理快 2 倍，整体才约接近 1×，物理快 4 倍才约 1.3×。
 这只是预算估算，不能将各项候选加速倍数直接相乘或承诺 5–10×。
 
-### E：显示与场景
+### E：显示与场景（当前最高优先级）
 
-继续原生模拟 worker 与独立 viewer。显示插值只用于画面，不反馈到神经感觉或物理状态。
-观察者阴影、分辨率、细节可独立简化；双眼图像作为感觉输入，任何采样率/像素变化都要
-显式记录，不能静默改变感觉条件。视觉外观与物理碰撞保持空间对齐。
-GUI 目标为稳定 30 FPS 且仿真实时；同时报告 FPS 与仿真倍率，不能混用。
-新小室内场景与美术属于后续独立资产版本，不与早期物理 A/B 同时改布局。
+停止继续优化 WSLg classic OpenGL 主 viewer。原生 CUDA MaleCNS + MuJoCo worker 保持
+0.2 ms 物理步长、`BrainBodyBridge`、sensory/behavior 和现有 native retina 路径；新增
+WebSocket 以 20–30 Hz 发布 body poses 与 snapshot。Windows Chrome/Edge 复用 Three.js
+renderer，在 `requestAnimationFrame` 中按一个发布周期延迟插值。插值结果只用于画面，
+不反馈神经感觉、行为或物理。阶段 1 GUI 目标为稳定 20–30 FPS 且仿真实时；同时报告 FPS
+与仿真倍率，不能混用。阶段 1 验收后才单独评估把 binocular retina 改为浏览器异步
+readback；在此之前不改变 native 双眼采样率、像素处理或 sensory 输入条件。
+0.2 ms 单轮定位中，完整 viewer 约 3.02 FPS；关闭 retina 为 6.76 FPS，关闭阴影为
+10.85 FPS，两者关闭为 17.44 FPS，无脑且两者关闭约 25.04 FPS。4096 阴影贴图、多视角
+渲染和同步 `mjr_readPixels` 是首要瓶颈，CNS/图形资源竞争是次要瓶颈。正式优化保留较低
+质量阴影，并将 retina 捕获与窗口显示解耦；不得把全关阴影的诊断上界写成最终配置。
+这些结果作为停止 WSLg 主画面优化的依据，而不是新浏览器 viewer 的目标上限。新小室内
+场景与美术属于后续独立资产版本，不与 viewer 传输阶段同时改布局。
 
 ## 8. 阶段 F：需求状态与动作闭环
 
@@ -196,17 +227,17 @@ GUI 目标为稳定 30 FPS 且仿真实时；同时报告 FPS 与仿真倍率，
 刺激敏感性、MN9/运动输出、异常沉默/持续兴奋及既有断连效应。
 报告首次数值/spike 分歧作为诊断，不要求不同 dt 或 CPU-f64 长期逐神经元一致；
 门槛预先确定。若响应质量或速度收益不合格，继续用 0.1 ms。
-更新次数减半不保证 neural 或总闭环耗时减半，0.2 ms 尚不是默认，也未完成验收。
+更新次数减半不保证 neural 或总闭环耗时减半；这里讨论的 **0.2 ms 神经步长** 尚不是
+默认，也未完成验收，不要与已经成为默认的 0.2 ms MuJoCo 物理步长混淆。
 
 ## 10. 文件范围、交付与回退
 
 | 阶段 | 主要文件/资产（新增项为拟议） |
 |---|---|
 | A | `rust/src/world_sim.rs`、`rust/src/world_main.rs`、时间调度测试 |
-| B | 新 `tools/build_realtime_assets.py`、新 `assets/neuromechfly_realtime/`、`rust/src/world.rs`、manifest/绑定测试 |
-| C | `rust/src/flight.rs`、新版气动配置、必要的 `render.rs`/`live_viewer.rs` 翼呈现适配 |
+| B/C（后备） | 仅在完整身体无法满足目标时恢复轻量身体/平均力飞行方案 |
 | D | 性能工具、`tools/verify_cns_world.py`/`verify_cns_odor_guidance.py` 的独立新版验收入口、实验报告 |
-| E | `rust/src/live_viewer.rs`、`rust/src/render.rs`、`rust/src/view_worker.rs`、独立场景资产 |
+| E（当前） | `rust/src/live_viewer.rs`、`rust/src/world_main.rs`、viewer 性能工具；场景资产延后 |
 | F | `rust/src/behavior.rs`、`rust/src/foraging.rs`、`rust/src/grooming.rs`、`rust/src/world_sim.rs`；必要的 bridge/感觉适配 |
 | 神经 dt | `rust/src/parameters.rs`、配置与验证入口；按需要调整 `brain_bridge.rs`/事件调度测试，不预设要重写 CUDA 内核 |
 

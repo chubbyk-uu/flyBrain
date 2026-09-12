@@ -244,6 +244,17 @@ struct Manifest {
     cameras: Vec<String>,
     environment: ManifestEnvironment,
     brain_body_interface: ManifestBrainBodyInterface,
+    #[serde(default)]
+    realtime_profile: Option<ManifestRealtimeProfile>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct ManifestRealtimeProfile {
+    schema: String,
+    schema_version: u32,
+    collision_backend: String,
+    frozen_passive_joint_count: usize,
+    source_fly_xml_sha256: String,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
@@ -1066,7 +1077,7 @@ fn validate_manifest(manifest: &Manifest, model: &MjModel, counts: WorldCounts) 
     {
         bail!("unsupported NeuroMechFly manifest schema, model, or physics");
     }
-    let expected_counts = WorldCounts {
+    let reference_counts = WorldCounts {
         qpos: 133,
         dofs: 132,
         bodies: 71,
@@ -1074,6 +1085,32 @@ fn validate_manifest(manifest: &Manifest, model: &MjModel, counts: WorldCounts) 
         actuators: ACTUATOR_COUNT,
         sensors: GROUND_CONTACT_SENSOR_COUNT,
         cameras: 4,
+    };
+    let expected_counts = if let Some(profile) = &manifest.realtime_profile {
+        if profile.schema != "flybrain.realtime-assets"
+            || profile.schema_version != 1
+            || !matches!(profile.collision_backend.as_str(), "mesh" | "primitive")
+            || profile.frozen_passive_joint_count > 72
+            || profile.source_fly_xml_sha256.len() != 64
+            || !profile
+                .source_fly_xml_sha256
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit())
+        {
+            bail!("realtime asset profile is invalid");
+        }
+        let frozen = profile.frozen_passive_joint_count;
+        WorldCounts {
+            qpos: reference_counts.qpos - frozen,
+            dofs: reference_counts.dofs - frozen,
+            bodies: reference_counts.bodies,
+            joints: reference_counts.joints - frozen,
+            actuators: reference_counts.actuators,
+            sensors: reference_counts.sensors,
+            cameras: reference_counts.cameras,
+        }
+    } else {
+        reference_counts
     };
     if manifest.counts != ManifestCounts::from(expected_counts) || counts != expected_counts {
         bail!("NeuroMechFly manifest and model counts do not match the bounded world layout");

@@ -199,6 +199,7 @@ export class FlySceneRenderer {
     this.visionInFlight = false;
     this.disposed = false;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
+    this.renderer.autoClear = false;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.NoToneMapping;
@@ -576,6 +577,7 @@ export class FlySceneRenderer {
     }
     if (this.needsRender) {
       this.renderer.setRenderTarget(null);
+      this.renderer.clear(true, true, true);
       this.renderer.render(this.scene, this.camera);
       this.needsRender = false;
     }

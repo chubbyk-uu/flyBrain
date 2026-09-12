@@ -110,7 +110,8 @@ impl FlyGymRetina {
                 }
                 let ommatidium = id - 1;
                 source.map(|source| RetinaSample {
-                    source_byte: (source * 3 + usize::from(pale_mask[usize::from(ommatidium)]) + 1) as u32,
+                    source_byte: (source * 3 + usize::from(pale_mask[usize::from(ommatidium)]) + 1)
+                        as u32,
                     ommatidium,
                 })
             })
@@ -155,9 +156,8 @@ impl FlyGymRetina {
         for sample in &self.samples {
             let ommatidium = usize::from(sample.ommatidium);
             let channel = usize::from(self.pale_mask[ommatidium]);
-            self.readings[ommatidium][channel] +=
-                f64::from(raw_rgb[sample.source_byte as usize])
-                    / f64::from(self.pixels_per_ommatidium[ommatidium]);
+            self.readings[ommatidium][channel] += f64::from(raw_rgb[sample.source_byte as usize])
+                / f64::from(self.pixels_per_ommatidium[ommatidium]);
         }
         for reading in &mut self.readings {
             reading[0] /= 255.0;
@@ -290,14 +290,19 @@ mod tests {
         let mut retina = FlyGymRetina::load(assets_dir()).unwrap();
         let sources = build_fisheye_source_pixels();
         for pattern in [0, 1, 17, 255] {
-            let raw: Vec<u8> = (0..RGB_BYTES).map(|i| ((i * pattern + i / 7) % 256) as u8).collect();
+            let raw: Vec<u8> = (0..RGB_BYTES)
+                .map(|i| ((i * pattern + i / 7) % 256) as u8)
+                .collect();
             let mut expected = vec![[0.0; 2]; OMMATIDIA_PER_EYE];
             for (pixel, &id) in retina.ommatidia_id_map.iter().enumerate() {
-                if id == 0 { continue; }
+                if id == 0 {
+                    continue;
+                }
                 let index = usize::from(id - 1);
                 let channel = usize::from(retina.pale_mask[index]);
                 let value = sources[pixel].map_or(0, |source| raw[source * 3 + channel + 1]);
-                expected[index][channel] += f64::from(value) / f64::from(retina.pixels_per_ommatidium[index]);
+                expected[index][channel] +=
+                    f64::from(value) / f64::from(retina.pixels_per_ommatidium[index]);
             }
             for reading in &mut expected {
                 reading[0] /= 255.0;

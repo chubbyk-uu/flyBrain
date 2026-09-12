@@ -60,10 +60,9 @@ FLYBRAIN_CUDA_EXECUTION=graph target/release/flybrain-world cns-check \
   --output outputs/cuda/cns-graph-check.json
 ```
 
-The neural and MuJoCo clocks are independently scheduled. The default remains
-0.1 ms on both sides. For the measured Stage A MuJoCo-only 0.2 ms candidate, add
-`--physics-dt-ms 0.2` to `cns-check`; the MaleCNS timestep remains 0.1 ms and the
-report records both tick counts under `timebase`.
+The neural and MuJoCo clocks are independently scheduled. Native `view` and `cns-check`
+default to 0.1 ms neural and 0.2 ms MuJoCo ticks. Pass `--physics-dt-ms 0.1` for the
+original reference physics timebase; reports record both tick counts under `timebase`.
 
 Accepted values are `direct` and `graph`. Graph currently improves only the neural
 portion slightly and is not the default; see the
@@ -74,6 +73,18 @@ For a short native WSLg viewer run:
 ```bash
 target/release/flybrain-world view --max-seconds 1
 ```
+
+For the preferred Windows browser display, keep the native CUDA/MuJoCo simulation in WSL and run
+the static server separately:
+
+```bash
+target/release/flybrain-world web-view
+npm --prefix web start
+```
+
+Open `http://localhost:8080/native-view.html` in Windows Chrome/Edge. `web-view` defaults to native
+MuJoCo 0.2 ms and a 30 Hz pose/snapshot stream on `ws://127.0.0.1:8765`; MaleCNS stays at 0.1 ms.
+The first stage keeps native retina sensory capture and does not use the browser image for brain input.
 
 Set `CUDA_HOME` only if the toolkit is not available at `/usr/local/cuda`. Set
 `FLYBRAIN_CUDA_ARCH` to an explicit `nvcc -arch` value when building for a GPU
