@@ -13,16 +13,20 @@ pub struct OdorGuidanceParameters {
     pub release_rate_hz: f64,
     pub steering_gain: f64,
     pub close_concentration_ppm: f64,
+    pub close_dwell_seconds: f64,
+    pub minimum_acquisition_height_mm: f64,
 }
 
 impl Default for OdorGuidanceParameters {
     fn default() -> Self {
         Self {
             enabled: true,
-            enter_rate_hz: 10.0,
-            release_rate_hz: 9.0,
+            enter_rate_hz: 14.0,
+            release_rate_hz: 11.0,
             steering_gain: 150.0,
-            close_concentration_ppm: 1.0,
+            close_concentration_ppm: 15.0,
+            close_dwell_seconds: 0.8,
+            minimum_acquisition_height_mm: 55.0,
         }
     }
 }
@@ -34,6 +38,8 @@ impl OdorGuidanceParameters {
             self.release_rate_hz,
             self.steering_gain,
             self.close_concentration_ppm,
+            self.close_dwell_seconds,
+            self.minimum_acquisition_height_mm,
         ]
         .into_iter()
         .any(|value| !value.is_finite() || value <= 0.0)
@@ -61,9 +67,14 @@ pub struct OdorGuidance {
     filtered_contrast: f64,
     observation_seconds: f64,
     approach_height_mm: f64,
+    close_evidence_seconds: f64,
 }
 
 impl OdorGuidance {
+    pub fn active(&self) -> bool {
+        self.active
+    }
+
     pub fn reset(&mut self) {
         *self = Self::default();
     }
@@ -119,9 +130,13 @@ impl OdorGuidance {
             (1.0 - (-dt_seconds / 0.35).exp()) * (contrast - self.filtered_contrast);
         let normal_steering = (parameters.steering_gain * self.filtered_contrast).clamp(-0.7, 0.7);
         if concentration >= parameters.close_concentration_ppm {
-            self.close = true;
+            self.close_evidence_seconds += dt_seconds;
+            if self.close_evidence_seconds >= parameters.close_dwell_seconds {
+                self.close = true;
+            }
         } else if concentration < parameters.close_concentration_ppm * 0.7 {
             self.close = false;
+            self.close_evidence_seconds = 0.0;
         }
         OdorGuidanceCommand {
             active: true,
@@ -214,22 +229,38 @@ mod tests {
     }
 
     #[test]
+    fn active_accessor_tracks_acquisition_and_reset() {
+        let mut guidance = OdorGuidance::default();
+        assert!(!guidance.active());
+        guidance.update(
+            readout(20.0, 20.0),
+            60.0,
+            0.6,
+            true,
+            OdorGuidanceParameters::default(),
+        );
+        assert!(guidance.active());
+        guidance.reset();
+        assert!(!guidance.active());
+    }
+
+    #[test]
     fn enter_and_release_thresholds_have_hysteresis() {
         let mut guidance = OdorGuidance::default();
         let parameters = OdorGuidanceParameters::default();
         assert!(
             guidance
-                .update(readout(10.0, 10.0), 20.0, 0.2, true, parameters)
+                .update(readout(14.0, 14.0), 20.0, 0.2, true, parameters)
                 .active
         );
         assert!(
             guidance
-                .update(readout(9.0, 9.0), 20.0, 0.2, true, parameters)
+                .update(readout(11.0, 11.0), 20.0, 0.2, true, parameters)
                 .active
         );
         assert!(
             !guidance
-                .update(readout(8.99, 8.99), 20.0, 0.2, true, parameters)
+                .update(readout(10.99, 10.99), 20.0, 0.2, true, parameters)
                 .active
         );
     }
@@ -282,6 +313,7 @@ mod tests {
         let mut guidance = OdorGuidance::default();
         let parameters = OdorGuidanceParameters {
             close_concentration_ppm: 2.0,
+            close_dwell_seconds: 0.1,
             ..Default::default()
         };
         let signal = CnsOlfactoryReadout {
@@ -326,6 +358,7 @@ mod tests {
     fn landing_context_uses_concentration_not_nonmonotonic_total_rate() {
         let parameters = OdorGuidanceParameters {
             close_concentration_ppm: 2.0,
+            close_dwell_seconds: 0.1,
             ..Default::default()
         };
         let mut guidance = OdorGuidance::default();

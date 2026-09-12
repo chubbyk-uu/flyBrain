@@ -24,6 +24,7 @@ pub mod foraging;
 pub mod gait;
 pub mod grooming;
 pub mod habitat;
+pub mod homeostasis;
 pub mod neural_io;
 pub mod npy;
 pub mod obstacle_avoidance;

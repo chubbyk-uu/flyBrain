@@ -34,8 +34,10 @@ def detect_repetition(samples: list[dict[str, Any]]) -> dict[str, Any]:
         return {"circle_windows": 0, "grid_loop_windows": 0, "shuttle_windows": 0}
     dt = _median_dt(samples)
     window = max(3, round(WINDOW_SECONDS / dt))
-    circle = grid_loop = shuttle = 0
-    for start in range(0, len(samples) - window + 1, window):
+    circle_indices: list[int] = []
+    grid_loop_indices: list[int] = []
+    shuttle_indices: list[int] = []
+    for window_index, start in enumerate(range(0, len(samples) - window + 1, window)):
         chunk = samples[start : start + window]
         points = [sample["root_position"] for sample in chunk]
         segments = [_distance(a, b) for a, b in zip(points, points[1:])]
@@ -52,18 +54,28 @@ def detect_repetition(samples: list[dict[str, Any]]) -> dict[str, Any]:
             and abs(turn) >= CIRCLE_MIN_TURN_RAD
             and closure <= CIRCLE_MAX_CLOSURE_RATIO
         ):
-            circle += 1
+            circle_indices.append(window_index)
         cells = {(math.floor(p[0] / GRID_MM), math.floor(p[1] / GRID_MM)) for p in points}
         if len(cells) >= GRID_LOOP_MIN_UNIQUE_CELLS and closure <= CIRCLE_MAX_CLOSURE_RATIO:
-            grid_loop += 1
+            grid_loop_indices.append(window_index)
         if _maximum_planar_autocorrelation(points, dt) >= SHUTTLE_MIN_CORRELATION:
-            shuttle += 1
+            shuttle_indices.append(window_index)
     return {
         "window_seconds": WINDOW_SECONDS,
         "windows": max(0, (len(samples) - window) // window + 1),
-        "circle_windows": circle,
-        "grid_loop_windows": grid_loop,
-        "shuttle_windows": shuttle,
+        "circle_windows": len(circle_indices),
+        "circle_window_indices": circle_indices,
+        "maximum_consecutive_circle_windows": _maximum_consecutive(circle_indices),
+        "twenty_second_circle_windows": _circle_window_indices(
+            samples, dt, 20.0, 20.0
+        ),
+        "maximum_consecutive_twenty_second_circle_windows": _maximum_consecutive(
+            _circle_window_indices(samples, dt, 20.0, 20.0)
+        ),
+        "grid_loop_windows": len(grid_loop_indices),
+        "grid_loop_window_indices": grid_loop_indices,
+        "shuttle_windows": len(shuttle_indices),
+        "shuttle_window_indices": shuttle_indices,
         "thresholds": {
             "circle_min_path_mm": CIRCLE_MIN_PATH_MM,
             "circle_min_abs_turn_rad": CIRCLE_MIN_TURN_RAD,
@@ -74,6 +86,42 @@ def detect_repetition(samples: list[dict[str, Any]]) -> dict[str, Any]:
             "shuttle_lag_seconds": [SHUTTLE_MIN_LAG_SECONDS, SHUTTLE_MAX_LAG_SECONDS],
         },
     }
+
+
+def _circle_window_indices(
+    samples: list[dict[str, Any]], dt: float, window_seconds: float, stride_seconds: float
+) -> list[int]:
+    window = max(3, round(window_seconds / dt))
+    stride = max(1, round(stride_seconds / dt))
+    indices = []
+    for window_index, start in enumerate(range(0, len(samples) - window + 1, stride)):
+        points = [sample["root_position"] for sample in samples[start : start + window]]
+        segments = [_distance(a, b) for a, b in zip(points, points[1:])]
+        path = sum(segments)
+        headings = [
+            math.atan2(b[1] - a[1], b[0] - a[0])
+            for a, b, length in zip(points, points[1:], segments)
+            if length > 1e-6
+        ]
+        turn = sum(_wrap(b - a) for a, b in zip(headings, headings[1:]))
+        closure = _distance(points[0], points[-1]) / max(path, 1e-9)
+        if (
+            path >= CIRCLE_MIN_PATH_MM
+            and abs(turn) >= CIRCLE_MIN_TURN_RAD
+            and closure <= CIRCLE_MAX_CLOSURE_RATIO
+        ):
+            indices.append(window_index)
+    return indices
+
+
+def _maximum_consecutive(indices: list[int]) -> int:
+    maximum = current = 0
+    previous = None
+    for index in indices:
+        current = current + 1 if previous is not None and index == previous + 1 else 1
+        maximum = max(maximum, current)
+        previous = index
+    return maximum
 
 
 def _maximum_planar_autocorrelation(points: list[list[float]], dt: float) -> float:
@@ -217,6 +265,22 @@ def analyze(payload: dict[str, Any]) -> dict[str, Any]:
                 samples,
                 lambda sample: sample["flight_mode"] != "GROUNDED"
                 and sample["contact_count"] == 0,
+            ),
+            "supported_rest_seconds": sum(
+                duration
+                for sample, duration in zip(samples, sample_durations)
+                if sample["flight_mode"] == "GROUNDED"
+                and sample["contact_count"] >= 3
+                and sample.get("homeostatic_resting", False)
+            ),
+            "supported_crawling_seconds": sum(
+                duration
+                for sample, duration in zip(samples, sample_durations)
+                if sample["flight_mode"] == "GROUNDED"
+                and sample["contact_count"] >= 3
+                and not sample.get("homeostatic_resting", False)
+                and sample.get("walking_activation", 0.0) > 0.05
+                and sample.get("horizontal_speed_mm_s", 0.0) > 0.5
             ),
         },
         "events": {

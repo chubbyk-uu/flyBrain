@@ -4,7 +4,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from tools.analyze_behavior_trace import _bout_stats, _longest_boolean_bout, detect_repetition
+from tools.analyze_behavior_trace import (
+    _bout_stats,
+    _longest_boolean_bout,
+    _maximum_consecutive,
+    detect_repetition,
+)
 
 
 def _samples(points, dt=0.02):
@@ -44,3 +49,8 @@ def test_bout_durations_use_actual_irregular_sample_intervals():
     assert math.isclose(stats["A"]["seconds"], 0.022)
     assert math.isclose(stats["B"]["seconds"], 0.02)
     assert math.isclose(_longest_boolean_bout(samples, lambda item: item["active"]), 0.022)
+
+
+def test_consecutive_window_count_does_not_merge_separate_runs():
+    assert _maximum_consecutive([]) == 0
+    assert _maximum_consecutive([0, 1, 4, 5, 6, 9]) == 3

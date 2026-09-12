@@ -15,10 +15,33 @@
     },
     "odor_guidance": {
       "enabled": true,
-      "enter_rate_hz": 10.0,
-      "release_rate_hz": 9.0,
+      "enter_rate_hz": 14.0,
+      "release_rate_hz": 11.0,
       "steering_gain": 150.0,
-      "close_concentration_ppm": 1.0
+      "close_concentration_ppm": 15.0,
+      "close_dwell_seconds": 0.8,
+      "minimum_acquisition_height_mm": 55.0
+    },
+    "homeostasis": {
+      "initial_hunger": 0.72,
+      "hunger_rate_per_second": 0.001,
+      "feeding_relief_per_second": 0.22,
+      "hunger_enter": 0.55,
+      "hunger_release": 0.3,
+      "feeding_extension_threshold": 0.1,
+      "feeding_mn9_threshold_hz": 1.0,
+      "initial_fatigue": 0.05,
+      "flight_fatigue_rate_per_second": 0.02,
+      "support_recovery_rate_per_second": 0.06,
+      "fatigue_landing_enter": 0.68,
+      "fatigue_takeoff_release": 0.25,
+      "minimum_rest_seconds": 3.5,
+      "minimum_grounded_seconds": 10.0,
+      "waypoint_min_seconds": 2.0,
+      "waypoint_max_seconds": 4.0,
+      "waypoint_margin_fraction": 0.18,
+      "exploration_steering_gain": 0.65,
+      "exploration_flight_speed_scale": 0.48
     },
     "brain": {
       "neural": {

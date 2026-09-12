@@ -418,6 +418,10 @@ struct CnsCheckOptions {
     settle_seconds: f64,
     #[arg(long, default_value_t = 40.0)]
     start_food_distance: f64,
+    #[arg(long, num_args = 3)]
+    initial_position_mm: Option<Vec<f64>>,
+    #[arg(long)]
+    keep_scene_food: bool,
     #[arg(long)]
     disconnect_motor_outputs: bool,
     #[arg(long)]
@@ -430,6 +434,8 @@ struct CnsCheckOptions {
     disconnect_odor_guidance: bool,
     #[arg(long, default_value_t = 0.0)]
     initial_yaw_deg: f64,
+    #[arg(long, default_value_t = 20260913)]
+    behavior_seed: u64,
     #[arg(long)]
     parameters: Option<PathBuf>,
     #[arg(long)]
@@ -482,8 +488,14 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     {
         bail!("cns-check requires the MaleCNS pack")
     }
+    if let Some(position) = &options.initial_position_mm {
+        simulation.set_initial_position(position.as_slice().try_into().unwrap())?;
+    }
     simulation.set_initial_yaw(options.initial_yaw_deg.to_radians())?;
-    simulation.place_food_ahead(options.start_food_distance)?;
+    simulation.set_behavior_seed(options.behavior_seed)?;
+    if !options.keep_scene_food {
+        simulation.place_food_ahead(options.start_food_distance)?;
+    }
     simulation.set_brain_telemetry_enabled(true)?;
     let started = Instant::now();
     let initial_position = simulation.snapshot().root_position;
@@ -530,6 +542,9 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         "control_hz": options.control_hz, "settle_seconds": options.settle_seconds,
         "timebase": simulation.timebase(),
         "start_food_distance": options.start_food_distance,
+        "initial_position_mm": options.initial_position_mm,
+        "keep_scene_food": options.keep_scene_food,
+        "behavior_seed": options.behavior_seed,
         "sensory_encoder": "deterministic fractional-rate accumulator",
     });
     let initial_state_sha256 = format!("{:x}", Sha256::digest(serde_json::to_vec(&initial_state)?));
@@ -602,7 +617,7 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
             && snapshot.flight_mode == FlightMode::Grounded
             && snapshot.filtered_mn9_rate_hz > 0.0
             && snapshot.feeding_extension > 0.1
-            && snapshot.contact_count >= 2
+            && (snapshot.contact_count >= 2 || snapshot.flight_down_clearance_mm <= 2.0)
             && body_up_z > 0.8
         {
             feeding_seconds += period;
@@ -663,6 +678,15 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
                 "boundary_avoidance": snapshot.flight_boundary_avoidance,
                 "collision_reflex_active": snapshot.flight_escape_active,
             });
+            trace_sample["hunger"] = json!(snapshot.hunger);
+            trace_sample["fatigue"] = json!(snapshot.fatigue);
+            trace_sample["hungry"] = json!(snapshot.hungry);
+            trace_sample["homeostatic_landing_request"] =
+                json!(snapshot.homeostatic_landing_request);
+            trace_sample["homeostatic_takeoff_inhibited"] =
+                json!(snapshot.homeostatic_takeoff_inhibited);
+            trace_sample["homeostatic_resting"] = json!(snapshot.homeostatic_resting);
+            trace_sample["exploration_steering"] = json!(snapshot.exploration_steering);
             trace_sample["flight_diagnostics"] = flight_diagnostics;
             samples.push(trace_sample);
             next_sample_time = snapshot.time_seconds + 0.01;

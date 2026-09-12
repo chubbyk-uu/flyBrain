@@ -23,6 +23,7 @@ use crate::foraging::{
 use crate::gait::GaitLibrary;
 use crate::grooming::{GroomingController, GroomingInput, GroomingMode, GroomingTrigger};
 use crate::habitat::Habitat;
+use crate::homeostasis::{HomeostasisParameters, HomeostaticController, HomeostaticInput};
 use crate::neural_io::MALE_CNS_MATERIALIZATION;
 use crate::obstacle_avoidance::{
     NavigationObservation, NavigationPolicy, NavigationPolicyParameters,
@@ -55,6 +56,8 @@ pub struct SimulationParameters {
     pub cns_foraging: CnsForagingParameters,
     #[serde(default)]
     pub odor_guidance: crate::odor_guidance::OdorGuidanceParameters,
+    #[serde(default)]
+    pub homeostasis: HomeostasisParameters,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -148,6 +151,7 @@ impl Default for SimulationParameters {
             brain_walking_steering_gain: 0.35,
             cns_foraging: CnsForagingParameters::default(),
             odor_guidance: crate::odor_guidance::OdorGuidanceParameters::default(),
+            homeostasis: HomeostasisParameters::default(),
         }
     }
 }
@@ -170,6 +174,7 @@ impl SimulationParameters {
         self.flight_dynamics.validate()?;
         self.cns_foraging.validate()?;
         self.odor_guidance.validate()?;
+        self.homeostasis.validate()?;
         if !self.brain_walking_steering_gain.is_finite() || self.brain_walking_steering_gain < 0.0 {
             bail!("brain walking steering gain must be finite and non-negative")
         }
@@ -237,6 +242,13 @@ pub struct SimulationSnapshot {
     pub brain_flight_steering: f64,
     pub brain_altitude_control: f64,
     pub brain_landing_drive: f64,
+    pub hunger: f64,
+    pub fatigue: f64,
+    pub hungry: bool,
+    pub homeostatic_landing_request: bool,
+    pub homeostatic_takeoff_inhibited: bool,
+    pub homeostatic_resting: bool,
+    pub exploration_steering: f64,
     pub cns_motor: Option<CnsMotorReadout>,
     pub cns_olfactory: Option<crate::cns_olfaction::CnsOlfactoryReadout>,
     pub odor_guidance: crate::odor_guidance::OdorGuidanceCommand,
@@ -379,6 +391,7 @@ pub struct SimulationStepper {
     flight_stabilizer: FlightStabilizer,
     flight_behavior: FlightBehaviorController,
     foraging: ForagingController,
+    homeostasis: HomeostaticController,
     odor_guidance: crate::odor_guidance::OdorGuidance,
     navigation: NavigationPolicy,
     ground_navigation: NavigationPolicy,
@@ -543,6 +556,7 @@ impl SimulationStepper {
                 parameters.flight_behavior,
             )?,
             foraging: ForagingController::default(),
+            homeostasis: HomeostaticController::new(0xc011_ab1e_2026_0913, parameters.homeostasis)?,
             odor_guidance: crate::odor_guidance::OdorGuidance::default(),
             navigation: NavigationPolicy::default(),
             ground_navigation: NavigationPolicy::with_parameters(NavigationPolicyParameters {
@@ -584,6 +598,10 @@ impl SimulationStepper {
                 flight_allowed: true,
                 flight_altitude_bounds_mm,
                 forward_gain: 1.0,
+                hunger: parameters.homeostasis.initial_hunger,
+                fatigue: parameters.homeostasis.initial_fatigue,
+                hungry: parameters.homeostasis.initial_hunger
+                    >= parameters.homeostasis.hunger_enter,
                 ..SimulationSnapshot::default()
             },
         };
@@ -800,14 +818,18 @@ impl SimulationStepper {
             dt_seconds: window_seconds,
             odor_left: olfactory_sample.perceived_intensity[0],
             odor_right: olfactory_sample.perceived_intensity[1],
-            taste_valence: if self.snapshot.flight_mode == FlightMode::Grounded {
+            taste_valence: if self.snapshot.flight_mode == FlightMode::Grounded
+                && self.snapshot.hungry
+            {
                 habitat_sample.taste_valence
             } else {
                 0.0
             },
         })?;
-        sample.taste_valence *= behavior.sensory_taste_gain;
-        let perceived_taste_active = taste_active && behavior.sensory_taste_gain > 0.0;
+        let homeostatic_taste_gain = f64::from(self.snapshot.hungry);
+        sample.taste_valence *= behavior.sensory_taste_gain * homeostatic_taste_gain;
+        let perceived_taste_active =
+            taste_active && behavior.sensory_taste_gain > 0.0 && homeostatic_taste_gain > 0.0;
 
         let mut mn9_spike_delta = 0;
         let mut filtered_mn9_rate_hz = 0.0;
@@ -898,12 +920,17 @@ impl SimulationStepper {
             (behavior.forward_gain, behavior.turn_gain, 0.0)
         };
 
+        let odor_guidance_was_active = self.odor_guidance.active();
         let odor_guidance = self.odor_guidance.update(
             cns_olfactory.unwrap_or_default(),
             root_position[2],
             window_seconds,
             cns_motor.is_some_and(|motor| motor.outputs_connected)
-                && behavior.sensory_taste_gain > 0.0,
+                && behavior.sensory_taste_gain > 0.0
+                && self.snapshot.hungry
+                && (odor_guidance_was_active
+                    || root_position[2]
+                        >= self.parameters.odor_guidance.minimum_acquisition_height_mm),
             self.parameters.odor_guidance,
         );
         if odor_guidance.active && behavior.mode != BehaviorMode::Feed {
@@ -929,6 +956,31 @@ impl SimulationStepper {
         } else {
             ForagingCommand::default()
         };
+        let homeostasis = self.homeostasis.update(HomeostaticInput {
+            dt_seconds: window_seconds,
+            flight_mode: previous_flight_mode,
+            contact_count,
+            support_contact: contact_count >= 2 || obstacle_sample.down_clearance_mm <= 2.0,
+            horizontal_speed_mm_s,
+            flight_amplitude: self.snapshot.flight_amplitude_scale,
+            taste_active: perceived_taste_active,
+            feeding_extension: next_motor.2,
+            mn9_rate_hz: filtered_mn9_rate_hz,
+            motor_outputs_connected: cns_motor.is_none_or(|motor| motor.outputs_connected),
+            target_sensed: odor_guidance.active,
+            position_mm: root_position,
+            forward_xy,
+            room_half_extents_mm: self.habitat.room().half_extents_mm,
+            planar_wall_clearance_mm: planar_wall_clearance(
+                root_position,
+                self.habitat.room().half_extents_mm,
+            ),
+            collision_escape_active: self.snapshot.flight_escape_active,
+        })?;
+        if homeostasis.resting {
+            next_motor.0 = 0.0;
+            next_motor.1 = 0.0;
+        }
         let food_contact_blocks_flight = grounded_food_contact_blocks_flight(
             previous_flight_mode,
             perceived_taste_active,
@@ -960,7 +1012,7 @@ impl SimulationStepper {
             brain_steering: if odor_guidance.active {
                 odor_guidance.steering * cns_motor.map_or(0.0, |motor| motor.flight_activation)
             } else {
-                brain_flight_steering
+                (brain_flight_steering + homeostasis.exploration_steering).clamp(-1.0, 1.0)
             },
             brain_altitude_control,
             optic_flow_altitude_control,
@@ -969,8 +1021,8 @@ impl SimulationStepper {
             cns_approach_height_mm: odor_guidance
                 .active
                 .then_some(odor_guidance.approach_height_mm),
-            landing_request: foraging.landing_request,
-            takeoff_inhibited: foraging.takeoff_inhibited,
+            landing_request: foraging.landing_request || homeostasis.landing_request,
+            takeoff_inhibited: foraging.takeoff_inhibited || homeostasis.takeoff_inhibited,
             collision_escape_active: self.wall_escape.latched
                 || self.wall_escape.release_hold_windows > 0,
             flight_altitude_bounds_mm: self.habitat.room().flight_altitude_bounds_mm,
@@ -991,7 +1043,6 @@ impl SimulationStepper {
         let wall_takeoff = previous_flight_mode == FlightMode::Grounded
             && flight_behavior.mode == FlightMode::Takeoff
             && perched_on_wall;
-        let forward_xy = planar_forward(root_quaternion);
         self.wall_escape.update(WallEscapeObservation {
             mode: flight_behavior.mode,
             wall_takeoff,
@@ -1066,7 +1117,7 @@ impl SimulationStepper {
         } else if navigation.collision_reflex_active {
             1.0
         } else {
-            foraging.horizontal_speed_scale
+            foraging.horizontal_speed_scale * homeostasis.flight_speed_scale
         }) * cns_motor
             .map_or(1.0, |motor| motor.flight_activation.sqrt());
         let grooming_command = self.grooming.update(GroomingInput {
@@ -1302,6 +1353,13 @@ impl SimulationStepper {
             brain_flight_steering,
             brain_altitude_control,
             brain_landing_drive,
+            hunger: homeostasis.hunger,
+            fatigue: homeostasis.fatigue,
+            hungry: homeostasis.hungry,
+            homeostatic_landing_request: homeostasis.landing_request,
+            homeostatic_takeoff_inhibited: homeostasis.takeoff_inhibited,
+            homeostatic_resting: homeostasis.resting,
+            exploration_steering: homeostasis.exploration_steering,
             cns_motor,
             cns_olfactory,
             odor_guidance,
@@ -1381,6 +1439,7 @@ impl SimulationStepper {
         self.explorer.reset(0x5eed_f17b_2026_0816);
         self.flight_behavior.reset(0xa17f_1eaf_2026_0816);
         self.foraging.reset();
+        self.homeostasis.reset(0xc011_ab1e_2026_0913);
         self.odor_guidance.reset();
         self.navigation.reset();
         self.ground_navigation.reset();
@@ -1396,6 +1455,10 @@ impl SimulationStepper {
             flight_allowed: self.flight_allowed,
             flight_altitude_bounds_mm: self.habitat.room().flight_altitude_bounds_mm,
             forward_gain: 1.0,
+            hunger: self.parameters.homeostasis.initial_hunger,
+            fatigue: self.parameters.homeostasis.initial_fatigue,
+            hungry: self.parameters.homeostasis.initial_hunger
+                >= self.parameters.homeostasis.hunger_enter,
             ..SimulationSnapshot::default()
         };
         self.refresh_environment_snapshot()
@@ -1415,6 +1478,16 @@ impl SimulationStepper {
 
     pub fn parameters(&self) -> SimulationParameters {
         self.parameters
+    }
+
+    pub fn set_behavior_seed(&mut self, seed: u64) -> Result<()> {
+        if self.world.time() != 0.0 {
+            bail!("behavior seed can only be set before stepping")
+        }
+        self.explorer.reset(seed ^ 0x5eed_f17b_2026_0816);
+        self.flight_behavior.reset(seed ^ 0xa17f_1eaf_2026_0816);
+        self.homeostasis.reset(seed ^ 0xc011_ab1e_2026_0913);
+        Ok(())
     }
 
     pub fn brain_device_name(&self) -> Option<&str> {
@@ -1570,11 +1643,13 @@ impl SimulationStepper {
         if !distance.is_finite() || distance <= 0.0 {
             bail!("food distance must be finite and positive")
         }
-        let root = self.world.root_position();
+        let source = self.world.metadata().environment.taste_source_body.clone();
+        let mouth = self.world.body_position(&source)?;
+        let forward = planar_forward(self.world.root_quaternion());
         self.set_food_center([
-            root[0] + distance,
-            root[1],
-            self.world.metadata().environment.food_center[2],
+            mouth[0] + distance * forward[0],
+            mouth[1] + distance * forward[1],
+            mouth[2],
         ])
     }
 
@@ -1590,6 +1665,24 @@ impl SimulationStepper {
             c * y + s * x,
             c * z + s * w,
         ]);
+        self.world.data_mut().forward();
+        self.refresh_environment_snapshot()
+    }
+
+    pub fn set_initial_position(&mut self, position_mm: [f64; 3]) -> Result<()> {
+        if position_mm.iter().any(|value| !value.is_finite()) || self.world.time() != 0.0 {
+            bail!("initial position requires finite coordinates and an unstepped simulation")
+        }
+        let room = self.habitat.room().half_extents_mm;
+        if position_mm[0].abs() >= room[0]
+            || position_mm[1].abs() >= room[1]
+            || position_mm[2] <= 0.0
+            || position_mm[2] >= 2.0 * room[2]
+        {
+            bail!("initial position lies outside the habitat room")
+        }
+        self.world.data_mut().qpos_mut()[0..3].copy_from_slice(&position_mm);
+        self.world.data_mut().qvel_mut().fill(0.0);
         self.world.data_mut().forward();
         self.refresh_environment_snapshot()
     }
