@@ -4,7 +4,9 @@
 
 This fork retains its Windows/RTX 5080 browser baseline and now prioritizes a
 real-time Linux/WSL2 simulation with full MaleCNS, CUDA and native MuJoCo.
-The [project goals and constraints](docs/project-spec.md) define the scope and acceptance criteria.
+The [project goals and constraints](docs/project-spec.md) define the scope. The current six-stage
+[autonomous fly roadmap](docs/autonomous-fly-roadmap-2026-09-13.md) fixes the implementation order
+and acceptance gates before behavior and scene work proceeds.
 The [2026-09-13 simplification plan](docs/realtime-simplification-plan-2026-09-13.md)
 allows lighter joints, collision geometry and averaged flight forces, while preserving
 a meaningful sensory–neural–body feedback loop. These changes are planned, not implemented.
