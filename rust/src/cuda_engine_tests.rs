@@ -234,4 +234,36 @@ fn cuda_sparse_dense_and_split_windows_are_exactly_equal() {
             .run_window_sparse(1, &[0, 2], &[0, 0], &[1, 1], &[])
             .is_err()
     );
+
+    let (total_spikes, active_neurons) = sparse_engine.population_counts().unwrap();
+    assert_eq!(
+        total_spikes,
+        sparse_state
+            .spike_counts
+            .iter()
+            .map(|&count| u64::from(count))
+            .sum::<u64>()
+    );
+    assert_eq!(
+        active_neurons,
+        sparse_state
+            .spike_counts
+            .iter()
+            .filter(|&&count| count != 0)
+            .count()
+    );
+    let expected_mean_deviation = sparse_state
+        .voltage_mv
+        .iter()
+        .map(|&value| f64::from(value) - parameters.resting_mv)
+        .sum::<f64>()
+        / sparse_state.voltage_mv.len() as f64;
+    assert!(
+        (sparse_engine
+            .mean_voltage_deviation_mv(parameters.resting_mv)
+            .unwrap()
+            - expected_mean_deviation)
+            .abs()
+            <= 1e-12
+    );
 }

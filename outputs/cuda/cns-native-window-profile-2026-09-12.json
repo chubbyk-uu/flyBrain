@@ -1,0 +1,1011 @@
+{
+  "brain": {
+    "allocated_bytes": 154830637,
+    "landing_output_connected": true,
+    "materialization": "male-cns-v1.0-superclass-non-null-known-nt",
+    "model": "male-cns-v1-connectome-partial-engineered-motor-embodiment-v2",
+    "motor_outputs_connected": true,
+    "neurons": 166700,
+    "odor_guidance_enabled": true,
+    "olfactory_evoked_inputs_connected": true,
+    "sensory_inputs_connected": true,
+    "sensory_neurons": 2324
+  },
+  "control_hz": 500.0,
+  "duration_seconds": 0.05,
+  "feeding_metric": "grounded FEED state with physical taste, MN9 activity and proboscis extension; excludes post-meal decay",
+  "initial_state": {
+    "assets": {
+      "aerodynamics.json": "834f5dbda6b41c1fa8baba87c02e9c03e77d68f886d8470e460c88ea20e39434",
+      "fly.xml": "dc4b13e3cad341c8c06276d164e940503e4ed9954a0a2bf15720ea44a2835ecb",
+      "habitat.json": "b6525a321f3f971185f0e5481d3221e3b3d69fe8a0214a4190cf90bc338b92a3",
+      "manifest.json": "aed8b1f2cc157fbc790d4ac5046dd72205786cfdf8f970cafc967b9948e3eebc",
+      "tripod_gait.json": "95e0042dd726ec620f161d1f9cb9f773292cd50596fb41392ab0ec950a4859a3"
+    },
+    "control_hz": 500.0,
+    "initial_position_mm": [
+      0.496,
+      0.0,
+      2.1
+    ],
+    "initial_quaternion": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "io_sha256": "b1d7f6f96e619f681e12c34c2082980429af307cecff9af53db92ea6fccaa560",
+    "pack_arrays": {
+      "destinations.npy": "3e61173a407dd01c23280782e13e9c619f2c33eac120585ab1ca4ad4a8286af9",
+      "neuron_ids.npy": "ddfa789213c8c5066400c026b65c112c267781c2e3ab380a39dd437866e704d6",
+      "row_ptr.npy": "b38878452b4871cdd8563f29463231dab67b61780a5ee540900811e3bbf41511",
+      "signed_counts.npy": "6b2b9918174273d67eaef951c2bfd72a25ae5a07d3c7861ab249c8ca7dd38421"
+    },
+    "parameters": {
+      "behavior": {
+        "departure_forward_gain": 0.9,
+        "departure_turn_gain": 0.35,
+        "explore_forward_gain": 0.72,
+        "explore_wander_gain": 0.62,
+        "feeding_bout_seconds": 3.0,
+        "odor_confidence_scale": 0.3,
+        "odor_forward_bias": 0.65,
+        "odor_forward_gain": 0.35,
+        "odor_gradient_gain": 100.0,
+        "odor_tracking_threshold": 0.025,
+        "odor_turn_gain": 0.92,
+        "odor_wander_gain": 0.18,
+        "post_meal_departure_seconds": 1.25,
+        "post_meal_refractory_seconds": 12.0,
+        "wander_tau_seconds": 0.8
+      },
+      "brain": {
+        "altitude_control_gain": 1.0,
+        "cns_landing_output_enabled": true,
+        "cns_motor_outputs_enabled": true,
+        "cns_motor_reference_rate_hz": 20.0,
+        "dn_decoder_reference_rate_hz": 80.0,
+        "feeding_extension_per_mn9_spike": 0.35,
+        "feeding_release_tau_ms": 500.0,
+        "flight_drive_gain": 1.0,
+        "flight_state_input_max_rad_s": 200.0,
+        "flight_state_input_rate_hz": 120.0,
+        "flight_steering_gain": 1.0,
+        "motor_rate_filter_tau_ms": 50.0,
+        "neural": {
+          "delay_ms": 1.8,
+          "dt_ms": 0.1,
+          "external_weight_mv": 68.75,
+          "membrane_tau_ms": 20.0,
+          "refractory_ms": 2.2,
+          "reset_mv": -52.0,
+          "resting_mv": -52.0,
+          "synapse_tau_ms": 5.0,
+          "synapse_weight_mv": 0.275,
+          "threshold_mv": -45.0
+        },
+        "olfactory_baseline_rate_hz": 8.0,
+        "olfactory_input_rate_hz": 192.0,
+        "taste_input_rate_hz": 150.0,
+        "visual_baseline_rate_hz": 5.0,
+        "visual_input_rate_hz": 75.0,
+        "walking_steering_gain": 1.0
+      },
+      "brain_walking_steering_gain": 0.35,
+      "cns_foraging": {
+        "approach_speed_scale": 0.02,
+        "landing_drive_enter": 0.02,
+        "landing_drive_release": 0.01,
+        "landing_odor_enter": 0.4,
+        "landing_odor_release": 0.2
+      },
+      "flight_behavior": {
+        "brain_amplitude_gain": 0.06,
+        "brain_steering_weight": 0.26,
+        "cruise_amplitude": 0.94,
+        "cruise_height_mm": 28.0,
+        "landing_amplitude": 0.94,
+        "landing_bilateral_fraction": 0.18,
+        "landing_height_mm": 0.6,
+        "landing_odor_threshold": 1.1,
+        "maximum_abs_steering": 0.7,
+        "neural_altitude_rate_mm_s": 40.0,
+        "odor_gradient_gain": 100.0,
+        "odor_steering_weight": 0.58,
+        "optic_flow_altitude_rate_mm_s": 24.0,
+        "takeoff_amplitude": 1.0,
+        "takeoff_drive_dwell_seconds": 0.15,
+        "takeoff_drive_threshold": 0.015,
+        "takeoff_height_mm": 18.0,
+        "wander_steering_weight": 0.16,
+        "wander_tau_seconds": 0.7
+      },
+      "flight_dynamics": {
+        "altitude_position_gain_per_s2": 600.0,
+        "altitude_rate_gain_per_s": 50.0,
+        "attitude_position_gain_g_mm2_s2": 40.0,
+        "attitude_rate_gain_g_mm2_s2": 0.04,
+        "maximum_horizontal_force_weight": 2.0,
+        "maximum_torque_g_mm2_s2": 60.0,
+        "maximum_vertical_force_weight": 0.8,
+        "maximum_yaw_rate_rad_s": 2.0,
+        "pitch_feedforward_torque_g_mm2_s2": -7.0,
+        "target_horizontal_speed_mm_s": 300.0,
+        "target_pitch_rad": -0.8290313946973065,
+        "velocity_gain_per_s": 200.0,
+        "yaw_rate_gain_g_mm2_s2": 1.0
+      },
+      "odor_guidance": {
+        "close_concentration_ppm": 1.0,
+        "enabled": true,
+        "enter_rate_hz": 10.0,
+        "release_rate_hz": 9.0,
+        "steering_gain": 150.0
+      }
+    },
+    "runtime_sha256": "8e97cc7599c59daf347ddca0f9354bc7eb234650e3c2d055adbef5b277925029",
+    "sensory_encoder": "deterministic fractional-rate accumulator",
+    "settle_seconds": 0.0,
+    "start_food_distance": 40.0
+  },
+  "motor_interface": "annotated CNS motor population rate decoder; engineered gait, wing waveform and stabilizer",
+  "odor_guidance_interface": "engineered chemotaxis decoder of simulated DM1/DM2 ORN firing; bypasses unvalidated central food-heading circuitry; no food coordinates",
+  "pack": "outputs/packs/male_cns_v1",
+  "parameters": {
+    "behavior": {
+      "departure_forward_gain": 0.9,
+      "departure_turn_gain": 0.35,
+      "explore_forward_gain": 0.72,
+      "explore_wander_gain": 0.62,
+      "feeding_bout_seconds": 3.0,
+      "odor_confidence_scale": 0.3,
+      "odor_forward_bias": 0.65,
+      "odor_forward_gain": 0.35,
+      "odor_gradient_gain": 100.0,
+      "odor_tracking_threshold": 0.025,
+      "odor_turn_gain": 0.92,
+      "odor_wander_gain": 0.18,
+      "post_meal_departure_seconds": 1.25,
+      "post_meal_refractory_seconds": 12.0,
+      "wander_tau_seconds": 0.8
+    },
+    "brain": {
+      "altitude_control_gain": 1.0,
+      "cns_landing_output_enabled": true,
+      "cns_motor_outputs_enabled": true,
+      "cns_motor_reference_rate_hz": 20.0,
+      "dn_decoder_reference_rate_hz": 80.0,
+      "feeding_extension_per_mn9_spike": 0.35,
+      "feeding_release_tau_ms": 500.0,
+      "flight_drive_gain": 1.0,
+      "flight_state_input_max_rad_s": 200.0,
+      "flight_state_input_rate_hz": 120.0,
+      "flight_steering_gain": 1.0,
+      "motor_rate_filter_tau_ms": 50.0,
+      "neural": {
+        "delay_ms": 1.8,
+        "dt_ms": 0.1,
+        "external_weight_mv": 68.75,
+        "membrane_tau_ms": 20.0,
+        "refractory_ms": 2.2,
+        "reset_mv": -52.0,
+        "resting_mv": -52.0,
+        "synapse_tau_ms": 5.0,
+        "synapse_weight_mv": 0.275,
+        "threshold_mv": -45.0
+      },
+      "olfactory_baseline_rate_hz": 8.0,
+      "olfactory_input_rate_hz": 192.0,
+      "taste_input_rate_hz": 150.0,
+      "visual_baseline_rate_hz": 5.0,
+      "visual_input_rate_hz": 75.0,
+      "walking_steering_gain": 1.0
+    },
+    "brain_walking_steering_gain": 0.35,
+    "cns_foraging": {
+      "approach_speed_scale": 0.02,
+      "landing_drive_enter": 0.02,
+      "landing_drive_release": 0.01,
+      "landing_odor_enter": 0.4,
+      "landing_odor_release": 0.2
+    },
+    "flight_behavior": {
+      "brain_amplitude_gain": 0.06,
+      "brain_steering_weight": 0.26,
+      "cruise_amplitude": 0.94,
+      "cruise_height_mm": 28.0,
+      "landing_amplitude": 0.94,
+      "landing_bilateral_fraction": 0.18,
+      "landing_height_mm": 0.6,
+      "landing_odor_threshold": 1.1,
+      "maximum_abs_steering": 0.7,
+      "neural_altitude_rate_mm_s": 40.0,
+      "odor_gradient_gain": 100.0,
+      "odor_steering_weight": 0.58,
+      "optic_flow_altitude_rate_mm_s": 24.0,
+      "takeoff_amplitude": 1.0,
+      "takeoff_drive_dwell_seconds": 0.15,
+      "takeoff_drive_threshold": 0.015,
+      "takeoff_height_mm": 18.0,
+      "wander_steering_weight": 0.16,
+      "wander_tau_seconds": 0.7
+    },
+    "flight_dynamics": {
+      "altitude_position_gain_per_s2": 600.0,
+      "altitude_rate_gain_per_s": 50.0,
+      "attitude_position_gain_g_mm2_s2": 40.0,
+      "attitude_rate_gain_g_mm2_s2": 0.04,
+      "maximum_horizontal_force_weight": 2.0,
+      "maximum_torque_g_mm2_s2": 60.0,
+      "maximum_vertical_force_weight": 0.8,
+      "maximum_yaw_rate_rad_s": 2.0,
+      "pitch_feedforward_torque_g_mm2_s2": -7.0,
+      "target_horizontal_speed_mm_s": 300.0,
+      "target_pitch_rad": -0.8290313946973065,
+      "velocity_gain_per_s": 200.0,
+      "yaw_rate_gain_g_mm2_s2": 1.0
+    },
+    "odor_guidance": {
+      "close_concentration_ppm": 1.0,
+      "enabled": true,
+      "enter_rate_hz": 10.0,
+      "release_rate_hz": 9.0,
+      "steering_gain": 150.0
+    }
+  },
+  "room_bounds_mm": [
+    [
+      -300.0,
+      -220.0,
+      0.0
+    ],
+    [
+      300.0,
+      220.0,
+      220.0
+    ]
+  ],
+  "runtime_sha256": "8e97cc7599c59daf347ddca0f9354bc7eb234650e3c2d055adbef5b277925029",
+  "samples": [
+    {
+      "behavior_mode": "ODOR TAXIS",
+      "body_pitch_deg": 1.6513307103335433,
+      "boundary_avoidance": 0.0,
+      "brain_altitude_control": 0.0,
+      "brain_flight_drive": 0.0,
+      "brain_flight_steering": 0.0,
+      "brain_landing_drive": 0.0,
+      "brain_walking_drive": 0.0,
+      "cns_motor": {
+        "flight_activation": 0.0,
+        "flight_power_hz": [
+          0.0,
+          0.0
+        ],
+        "landing_hz": [
+          0.0,
+          0.0
+        ],
+        "outputs_connected": true,
+        "spike_delta": 0,
+        "steering": 0.0,
+        "walking_activation": 0.0,
+        "walking_hz": [
+          0.0,
+          0.0
+        ],
+        "wing_steering_hz": [
+          0.0,
+          0.0
+        ]
+      },
+      "cns_olfactory": {
+        "band_rate_hz": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0
+          ]
+        ],
+        "concentration_ppm": [
+          0.0,
+          0.0
+        ],
+        "contrast": 0.0,
+        "observed_seconds": 0.002,
+        "rate_hz": [
+          0.0,
+          0.0
+        ],
+        "spike_delta": 0
+      },
+      "collision_reflex_active": false,
+      "contact_count": 0,
+      "feeding_extension": 0.0,
+      "flight_diagnostics": {
+        "amplitude_scale": 0.0,
+        "wall_landing_alignment": null,
+        "wall_landing_normal": null,
+        "wall_landing_surface_point_mm": null,
+        "wall_support_leg_count": 0,
+        "wing_controls": [
+          1.5,
+          -1.0,
+          0.7,
+          1.5,
+          -1.0,
+          0.7
+        ],
+        "wing_joint_positions": [
+          1.504584480117727,
+          -1.0032038884029792,
+          0.7044439796595259,
+          1.5046059115858734,
+          -1.0032037135183987,
+          0.7044426621387796
+        ],
+        "wing_joint_velocities": [
+          -68.99078089376151,
+          18.030294998614064,
+          -17.974096106395812,
+          -68.91319444998192,
+          18.032246964422214,
+          -17.965197092830433
+        ]
+      },
+      "flight_mode": "GROUNDED",
+      "flight_steering": 0.0,
+      "flight_target_height_mm": 0.0,
+      "foraging_mode": "SEARCH",
+      "forward_speed_mm_s": 16.304553562488934,
+      "horizontal_speed_mm_s": 16.304600743714914,
+      "mn9_rate_hz": 0.0,
+      "mn9_spike_delta": 0,
+      "nearest_resource_distance_mm": 36.20810399995565,
+      "odor_guidance": {
+        "active": false,
+        "approach_height_mm": 0.0,
+        "close": false,
+        "mean_rate_hz": 0.0,
+        "steering": 0.0
+      },
+      "odor_left": 0.08148133543388213,
+      "odor_left_ppm": 0.08871111017114147,
+      "odor_right": 0.08081887215188509,
+      "odor_right_ppm": 0.08792643776399109,
+      "olfactory_event_delta": 25,
+      "population_rate_hz": 0.0,
+      "population_spike_delta": 0,
+      "root_position": [
+        0.5416015696552859,
+        -0.00017940455342408567,
+        2.0495636337881113
+      ],
+      "root_quaternion": [
+        0.9998961230665238,
+        -0.00026480583100231596,
+        0.014410119626538192,
+        -0.00014631047353935129
+      ],
+      "root_velocity_world": [
+        0.17705644248049274,
+        13.753526164085644,
+        -0.06271978148441051,
+        16.30454104620491,
+        -0.04412124848867005,
+        -24.89254428894254
+      ],
+      "taste_active": false,
+      "taste_event_delta": 0,
+      "tasted_resource": null,
+      "time_seconds": 0.0020000000000000005,
+      "visual_event_delta": 1,
+      "walking_activation": 0.0,
+      "walking_translation_scale": 1.0,
+      "walking_turn_gain": 0.0
+    },
+    {
+      "behavior_mode": "ODOR TAXIS",
+      "body_pitch_deg": 4.071867897994172,
+      "boundary_avoidance": 0.0,
+      "brain_altitude_control": 0.0,
+      "brain_flight_drive": 0.0,
+      "brain_flight_steering": 0.0,
+      "brain_landing_drive": 0.0,
+      "brain_walking_drive": 0.0,
+      "cns_motor": {
+        "flight_activation": 0.0,
+        "flight_power_hz": [
+          0.0,
+          0.0
+        ],
+        "landing_hz": [
+          0.0,
+          0.0
+        ],
+        "outputs_connected": true,
+        "spike_delta": 0,
+        "steering": 0.0,
+        "walking_activation": 0.0,
+        "walking_hz": [
+          0.0,
+          0.0
+        ],
+        "wing_steering_hz": [
+          0.0,
+          0.0
+        ]
+      },
+      "cns_olfactory": {
+        "band_rate_hz": [
+          [
+            2.0609146646227647,
+            8.986596427559506
+          ],
+          [
+            18.2953349847067,
+            4.926108349757507
+          ]
+        ],
+        "concentration_ppm": [
+          0.0,
+          0.0
+        ],
+        "contrast": -0.3552466786910739,
+        "observed_seconds": 0.014,
+        "rate_hz": [
+          5.523755546091135,
+          11.610721667232102
+        ],
+        "spike_delta": 0
+      },
+      "collision_reflex_active": false,
+      "contact_count": 1,
+      "feeding_extension": 0.0,
+      "flight_diagnostics": {
+        "amplitude_scale": 0.0,
+        "wall_landing_alignment": null,
+        "wall_landing_normal": null,
+        "wall_landing_surface_point_mm": null,
+        "wall_support_leg_count": 0,
+        "wing_controls": [
+          1.5,
+          -1.0,
+          0.7,
+          1.5,
+          -1.0,
+          0.7
+        ],
+        "wing_joint_positions": [
+          1.499984550307642,
+          -1.000018829331414,
+          0.6999264567058161,
+          1.499959047777075,
+          -1.0000125249110616,
+          0.6999221090229256
+        ],
+        "wing_joint_velocities": [
+          -0.028372180330188224,
+          -0.0032245310574450592,
+          -0.006679805132123381,
+          0.06530291206621254,
+          0.0028235726798752,
+          -0.005418354950330665
+        ]
+      },
+      "flight_mode": "GROUNDED",
+      "flight_steering": 0.0,
+      "flight_target_height_mm": 0.0,
+      "foraging_mode": "SEARCH",
+      "forward_speed_mm_s": -26.42316335185243,
+      "horizontal_speed_mm_s": 26.649669073271443,
+      "mn9_rate_hz": 0.0,
+      "mn9_spike_delta": 0,
+      "nearest_resource_distance_mm": 36.10844108590229,
+      "odor_guidance": {
+        "active": false,
+        "approach_height_mm": 0.0,
+        "close": false,
+        "mean_rate_hz": 0.0,
+        "steering": 0.0
+      },
+      "odor_left": 0.08214472259101256,
+      "odor_left_ppm": 0.08950777155749669,
+      "odor_right": 0.08148320460058509,
+      "odor_right_ppm": 0.08872291392956706,
+      "olfactory_event_delta": 34,
+      "population_rate_hz": 0.0,
+      "population_spike_delta": 0,
+      "root_position": [
+        0.6249858982296672,
+        0.010795651306041619,
+        1.2493753365873894
+      ],
+      "root_quaternion": [
+        0.9992893834157691,
+        0.010455356227006243,
+        0.03559861703703826,
+        0.006644710960394579
+      ],
+      "root_velocity_world": [
+        22.52971834729452,
+        -57.34120433613693,
+        2.019559832761142,
+        -26.371803567314952,
+        -3.838337963472563,
+        -42.13289888866625
+      ],
+      "taste_active": false,
+      "taste_event_delta": 0,
+      "tasted_resource": null,
+      "time_seconds": 0.01399999999999997,
+      "visual_event_delta": 5,
+      "walking_activation": 0.0,
+      "walking_translation_scale": 1.0,
+      "walking_turn_gain": 0.0
+    },
+    {
+      "behavior_mode": "ODOR TAXIS",
+      "body_pitch_deg": -1.3108715278711653,
+      "boundary_avoidance": 0.0,
+      "brain_altitude_control": 0.0,
+      "brain_flight_drive": 0.0,
+      "brain_flight_steering": 0.0,
+      "brain_landing_drive": 0.0,
+      "brain_walking_drive": 0.0,
+      "cns_motor": {
+        "flight_activation": 0.0,
+        "flight_power_hz": [
+          0.0,
+          0.0
+        ],
+        "landing_hz": [
+          0.0,
+          0.0
+        ],
+        "outputs_connected": true,
+        "spike_delta": 0,
+        "steering": 0.0,
+        "walking_activation": 0.0,
+        "walking_hz": [
+          0.0,
+          0.0
+        ],
+        "wing_steering_hz": [
+          0.0,
+          0.0
+        ]
+      },
+      "cns_olfactory": {
+        "band_rate_hz": [
+          [
+            7.934873954959572,
+            6.311115028579662
+          ],
+          [
+            13.607669723135094,
+            8.10479480825924
+          ]
+        ],
+        "concentration_ppm": [
+          0.0,
+          0.0
+        ],
+        "contrast": -0.20764173144304623,
+        "observed_seconds": 0.02600000000000001,
+        "rate_hz": [
+          7.122994491769617,
+          10.856232265697166
+        ],
+        "spike_delta": 1
+      },
+      "collision_reflex_active": false,
+      "contact_count": 5,
+      "feeding_extension": 0.0,
+      "flight_diagnostics": {
+        "amplitude_scale": 0.0,
+        "wall_landing_alignment": null,
+        "wall_landing_normal": null,
+        "wall_landing_surface_point_mm": null,
+        "wall_support_leg_count": 0,
+        "wing_controls": [
+          1.5,
+          -1.0,
+          0.7,
+          1.5,
+          -1.0,
+          0.7
+        ],
+        "wing_joint_positions": [
+          1.5000209047886628,
+          -0.9999859363620908,
+          0.7000498190164988,
+          1.4999881166763536,
+          -0.9999879575338767,
+          0.7000474279204788
+        ],
+        "wing_joint_velocities": [
+          -0.021699938770028022,
+          -0.01071523229139302,
+          -0.03472928192012135,
+          0.024533409694849045,
+          -0.005821218142585913,
+          -0.04389472659969544
+        ]
+      },
+      "flight_mode": "GROUNDED",
+      "flight_steering": 0.0,
+      "flight_target_height_mm": 0.0,
+      "foraging_mode": "SEARCH",
+      "forward_speed_mm_s": 1.7774236950679208,
+      "horizontal_speed_mm_s": 1.8389660773883523,
+      "mn9_rate_hz": 0.0,
+      "mn9_spike_delta": 0,
+      "nearest_resource_distance_mm": 36.09189070663748,
+      "odor_guidance": {
+        "active": false,
+        "approach_height_mm": 0.0,
+        "close": false,
+        "mean_rate_hz": 0.0,
+        "steering": 0.0
+      },
+      "odor_left": 0.08196020053570308,
+      "odor_left_ppm": 0.08929849384116688,
+      "odor_right": 0.08131934635697494,
+      "odor_right_ppm": 0.08853827256321911,
+      "olfactory_event_delta": 27,
+      "population_rate_hz": 0.0,
+      "population_spike_delta": 0,
+      "root_position": [
+        0.6258669974056893,
+        0.016077354564783663,
+        1.118141881092881
+      ],
+      "root_quaternion": [
+        0.9997689299314998,
+        0.010852376503643967,
+        -0.011281238343768638,
+        0.01473249229685132
+      ],
+      "root_velocity_world": [
+        0.19016621675959483,
+        0.585072498595895,
+        -0.02372226735951968,
+        1.7628792937156306,
+        0.523500553556329,
+        -1.0399156781073053
+      ],
+      "taste_active": false,
+      "taste_event_delta": 0,
+      "tasted_resource": null,
+      "time_seconds": 0.025999999999999898,
+      "visual_event_delta": 1,
+      "walking_activation": 0.0,
+      "walking_translation_scale": 1.0,
+      "walking_turn_gain": 0.0
+    },
+    {
+      "behavior_mode": "ODOR TAXIS",
+      "body_pitch_deg": -1.0170761334410656,
+      "boundary_avoidance": 0.0,
+      "brain_altitude_control": 0.03193724250242227,
+      "brain_flight_drive": 0.3553333101615542,
+      "brain_flight_steering": 0.0,
+      "brain_landing_drive": 0.0,
+      "brain_walking_drive": 0.04265677801995405,
+      "cns_motor": {
+        "flight_activation": 0.3553333101615542,
+        "flight_power_hz": [
+          11.054558434482573,
+          10.99300913880719
+        ],
+        "landing_hz": [
+          0.0,
+          0.0
+        ],
+        "outputs_connected": true,
+        "spike_delta": 5,
+        "steering": 0.0,
+        "walking_activation": 0.04265677801995405,
+        "walking_hz": [
+          1.7822982203489464,
+          0.0
+        ],
+        "wing_steering_hz": [
+          6.278848794281242,
+          6.278848794281242
+        ]
+      },
+      "cns_olfactory": {
+        "band_rate_hz": [
+          [
+            8.986065129539279,
+            6.959410333152255
+          ],
+          [
+            12.63051181665365,
+            6.726064664734817
+          ]
+        ],
+        "concentration_ppm": [
+          0.0,
+          0.0
+        ],
+        "contrast": -0.09662614014902778,
+        "observed_seconds": 0.03600000000000002,
+        "rate_hz": [
+          7.972737731345767,
+          9.678288240694233
+        ],
+        "spike_delta": 3
+      },
+      "collision_reflex_active": false,
+      "contact_count": 5,
+      "feeding_extension": 0.0,
+      "flight_diagnostics": {
+        "amplitude_scale": 0.0,
+        "wall_landing_alignment": null,
+        "wall_landing_normal": null,
+        "wall_landing_surface_point_mm": null,
+        "wall_support_leg_count": 0,
+        "wing_controls": [
+          1.5,
+          -1.0,
+          0.7,
+          1.5,
+          -1.0,
+          0.7
+        ],
+        "wing_joint_positions": [
+          1.499994293346056,
+          -0.9999848633653498,
+          0.7000632971876649,
+          1.5000174148523622,
+          -0.9999822597307158,
+          0.7000609927448521
+        ],
+        "wing_joint_velocities": [
+          -0.02293469848487483,
+          0.001594915453403881,
+          0.02966957914499122,
+          0.0114274804777992,
+          0.008326210806643263,
+          0.026215254345347147
+        ]
+      },
+      "flight_mode": "GROUNDED",
+      "flight_steering": 0.0,
+      "flight_target_height_mm": 1.1121570185498355,
+      "foraging_mode": "SEARCH",
+      "forward_speed_mm_s": 0.3576463687208271,
+      "horizontal_speed_mm_s": 0.3730962555471207,
+      "mn9_rate_hz": 18.83654638284373,
+      "mn9_spike_delta": 0,
+      "nearest_resource_distance_mm": 36.08153564907399,
+      "odor_guidance": {
+        "active": false,
+        "approach_height_mm": 0.0,
+        "close": false,
+        "mean_rate_hz": 0.0,
+        "steering": 0.0
+      },
+      "odor_left": 0.08202603496984902,
+      "odor_left_ppm": 0.08938475415235907,
+      "odor_right": 0.08138904035783333,
+      "odor_right_ppm": 0.08862886167201217,
+      "olfactory_event_delta": 33,
+      "population_rate_hz": 0.0,
+      "population_spike_delta": 0,
+      "root_position": [
+        0.6352256738353891,
+        0.02014090591066376,
+        1.111473866747725
+      ],
+      "root_quaternion": [
+        0.999764619392933,
+        0.011054317086309827,
+        -0.008694626417398236,
+        0.01652002891405635
+      ],
+      "root_velocity_world": [
+        1.367129088797079,
+        0.030708759168398287,
+        0.43309329659367474,
+        0.3609433342320579,
+        -0.09444959172345511,
+        0.06284200623092655
+      ],
+      "taste_active": false,
+      "taste_event_delta": 0,
+      "tasted_resource": null,
+      "time_seconds": 0.036000000000000004,
+      "visual_event_delta": 0,
+      "walking_activation": 0.04265677801995405,
+      "walking_translation_scale": 1.0,
+      "walking_turn_gain": -0.007369164380836353
+    },
+    {
+      "behavior_mode": "ODOR TAXIS",
+      "body_pitch_deg": -0.8394265965340887,
+      "boundary_avoidance": 0.0,
+      "brain_altitude_control": 0.12052033042190256,
+      "brain_flight_drive": 0.628464349839361,
+      "brain_flight_steering": -0.18589630038615942,
+      "brain_landing_drive": 0.0,
+      "brain_walking_drive": 0.06929119432730571,
+      "cns_motor": {
+        "flight_activation": 0.628464349839361,
+        "flight_power_hz": [
+          33.82858201819354,
+          33.83268812561471
+        ],
+        "landing_hz": [
+          0.0,
+          0.0
+        ],
+        "outputs_connected": true,
+        "spike_delta": 12,
+        "steering": -0.18589630038615942,
+        "walking_activation": 0.06929119432730571,
+        "walking_hz": [
+          2.977996722711726,
+          0.0
+        ],
+        "wing_steering_hz": [
+          16.74217752808929,
+          10.709525916509575
+        ]
+      },
+      "cns_olfactory": {
+        "band_rate_hz": [
+          [
+            10.942446664034508,
+            7.255912139876412
+          ],
+          [
+            10.228985115668438,
+            9.26308143040108
+          ]
+        ],
+        "concentration_ppm": [
+          0.0,
+          2.614891987072572
+        ],
+        "contrast": -0.03432457262409926,
+        "observed_seconds": 0.04600000000000003,
+        "rate_hz": [
+          9.09917940195546,
+          9.746033273034758
+        ],
+        "spike_delta": 4
+      },
+      "collision_reflex_active": false,
+      "contact_count": 5,
+      "feeding_extension": 0.0,
+      "flight_diagnostics": {
+        "amplitude_scale": 0.0,
+        "wall_landing_alignment": null,
+        "wall_landing_normal": null,
+        "wall_landing_surface_point_mm": null,
+        "wall_support_leg_count": 0,
+        "wing_controls": [
+          1.5,
+          -1.0,
+          0.7,
+          1.5,
+          -1.0,
+          0.7
+        ],
+        "wing_joint_positions": [
+          1.500010989657407,
+          -0.9999835894682922,
+          0.7000583730302113,
+          1.5000032868793263,
+          -0.9999850668832864,
+          0.7000603807988206
+        ],
+        "wing_joint_velocities": [
+          0.05371215088198584,
+          -0.0009661771656957069,
+          -0.057508179498086426,
+          -0.08793771124089841,
+          -0.02057770931059744,
+          -0.03778608181720831
+        ]
+      },
+      "flight_mode": "GROUNDED",
+      "flight_steering": -0.18589630038615942,
+      "flight_target_height_mm": 1.0986084211766105,
+      "foraging_mode": "SEARCH",
+      "forward_speed_mm_s": 0.5785244868200808,
+      "horizontal_speed_mm_s": 0.7337714166966129,
+      "mn9_rate_hz": 15.422059805413976,
+      "mn9_spike_delta": 0,
+      "nearest_resource_distance_mm": 36.076965808653945,
+      "odor_guidance": {
+        "active": false,
+        "approach_height_mm": 0.0,
+        "close": false,
+        "mean_rate_hz": 0.0,
+        "steering": 0.0
+      },
+      "odor_left": 0.08205246658246446,
+      "odor_left_ppm": 0.08942425250385384,
+      "odor_right": 0.08141486528434802,
+      "odor_right_ppm": 0.08866746039824071,
+      "olfactory_event_delta": 41,
+      "population_rate_hz": 0.0,
+      "population_spike_delta": 0,
+      "root_position": [
+        0.6418446963029194,
+        0.023332585413700153,
+        1.096735700701103
+      ],
+      "root_quaternion": [
+        0.9998011355304034,
+        0.009187333450994463,
+        -0.007177902483072227,
+        0.016178999107445167
+      ],
+      "root_velocity_world": [
+        -1.0827248900916269,
+        -0.06978605482386839,
+        0.056460170435555804,
+        0.5636796822232898,
+        0.46977197427007655,
+        -0.6892227403900067
+      ],
+      "taste_active": false,
+      "taste_event_delta": 0,
+      "tasted_resource": null,
+      "time_seconds": 0.04600000000000029,
+      "visual_event_delta": 1,
+      "walking_activation": 0.06929119432730571,
+      "walking_translation_scale": 1.0,
+      "walking_turn_gain": -0.01011735136738653
+    }
+  ],
+  "schema": "flybrain.cns-world-check",
+  "schema_version": 1,
+  "sensory_interface": "odor receptor proxy; ray/velocity-derived optic-flow and looming proxy; no retinal transduction claim",
+  "summary": {
+    "brain_encoding_seconds": 0.0035795880000000007,
+    "brain_engine_seconds": 0.173829126,
+    "brain_wall_seconds": 0.185024728,
+    "duration_seconds": 0.050000000000000405,
+    "elapsed_seconds": 0.270085796,
+    "feeding_seconds": 0.0,
+    "final_position_mm": [
+      0.6443915634217001,
+      0.025148722951397997,
+      1.0934499034992002
+    ],
+    "flight_seconds": 0.0,
+    "forward_flight_distance_mm": 0.0,
+    "initial_position_mm": [
+      0.496,
+      0.0,
+      2.1
+    ],
+    "initial_state_sha256": "6319abac451f3dff06c321916d52fdfe13f42cd9e7727b83aba388a6447ba590",
+    "maximum_abs_pitch_deg": 10.488182541377242,
+    "maximum_position_mm": [
+      0.6690154223908037,
+      0.025148722951397997,
+      2.1
+    ],
+    "maximum_speed_mm_s": 26.649669073271443,
+    "minimum_position_mm": [
+      0.496,
+      -0.00017940455342408567,
+      1.0934499034992002
+    ],
+    "motor_output_source": "whole-cns-spikes",
+    "motor_output_spikes": 63,
+    "path_length_mm": 0.32987512930894575,
+    "population_spikes": 27460
+  }
+}

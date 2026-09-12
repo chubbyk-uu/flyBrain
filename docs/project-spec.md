@@ -111,9 +111,17 @@ CSR 和神经状态常驻设备显存。使用有序 CUDA stream 批量提交窗
    与 [完整 CNS CUDA 报告](cuda-full-cns-stage-2026-09-12.md)。
 4. 原生世界接入与实验回归（进行中）：保持原世界/映射，CUDA 已接入原生 MuJoCo，
    不经过浏览器/WASM；2 秒 `cns-check` 成对门控、无感官输入、运动/嗅觉断连和
-   WSLg viewer 已通过。当前 bridge 全状态读回导致闭环仅约 `0.271×` 实时，先优化
-   probe/telemetry 读回并复验，再运行较长取食/嗅觉门控。见
-   [原生接入报告](native-cuda-mujoco-stage-2026-09-12.md)。
+   WSLg viewer 已通过。bridge 已改为设备端 probe/telemetry 小读回并复用 CUDA 临时
+   缓冲区；固定 probe 也已跨窗口缓存，50 ms profile 的 CUDA copy 调用从 154 次降至
+   92 次。固定 0.2 秒闭环曾测得约 `0.294×` 实时，但 1 秒复测仅约 `0.184×`，证明
+   低活动短测不能代表持续性能。CUDA 已默认使用保持原 i32 arrival 和 tick 顺序的
+   256-edge chunked CSR propagation；1 秒复测的 neural engine 达到约 `2.40×` 实时，
+   完整闭环达到约 `0.800×`，且完整 CNS 与 world gate 均保持一致。下一步重新 profile
+   bridge、MuJoCo、同步和 viewer，再运行较长取食/嗅觉门控。见
+   [原生接入报告](native-cuda-mujoco-stage-2026-09-12.md)与
+   [CUDA 闭环传输优化报告](cuda-native-transfer-optimization-stage-2026-09-12.md)、
+   [probe 缓存与瓶颈复测报告](cuda-native-probe-cache-stage-2026-09-12.md)、
+   [chunked CSR propagation 报告](cuda-chunked-propagation-stage-2026-09-12.md)。
 5. 新世界与果蝇呈现（后续）：更小的室内场景、外观改进、翼运动诊断与相应修正。
 6. 神经驱动清洁行为（后续）：前足相互搓擦、头部和复眼清洁，验证通路与身体协调。
 

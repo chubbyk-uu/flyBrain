@@ -1,0 +1,196 @@
+{
+  "control_hz": 500.0,
+  "duration_seconds": 2.0,
+  "evaluations": {
+    "intact": {
+      "checks": {
+        "airborne_mode_observed": true,
+        "airborne_time_observed": true,
+        "altitude_varied": true,
+        "boundaries_stable": true,
+        "brain_output_connection_matches_condition": true,
+        "collision_reflex_stable": true,
+        "command_follows_cns_activity": true,
+        "disconnected_stays_grounded": true,
+        "forward_flight_displacement": true,
+        "motor_output_spikes_present": true,
+        "neural_motor_activity_present": true,
+        "neural_output_source_matches_condition": true,
+        "population_spikes_cover_motor_spikes": true,
+        "sample_output_connection_matches_condition": true,
+        "whole_cns_matches_pack": true,
+        "whole_cns_selected": true,
+        "whole_cns_spikes_present": true,
+        "world_moved": true
+      },
+      "condition": "intact",
+      "metrics": {
+        "altitude_range_mm": 25.636203711066642,
+        "final_position": [
+          14.34965919853505,
+          1.1296351233298034,
+          8.05488989116488
+        ],
+        "flight_seconds": 1.8220000000000014,
+        "forward_flight_distance_mm": 29.142302325076656,
+        "initial_position": [
+          0.496,
+          0.0,
+          2.1
+        ],
+        "initial_state_sha256": "54fd92dbb493a0228056b2b7568f3c571302f58e9840d580032b30cd6fb36b8b",
+        "maximum_boundary_violation_mm": 0.0,
+        "maximum_collision_reflex_seconds": 0.23999999999997357,
+        "minimum_boundary_clearance_mm": 1.0924672819394363,
+        "model": "male-cns-v1-connectome-partial-engineered-motor-embodiment-v2",
+        "motor_output_source": "whole-cns-spikes",
+        "motor_output_spikes": 8345,
+        "motor_outputs_connected": true,
+        "neurons": 166700,
+        "population_spikes": 2071162,
+        "room_bounds_mm": [
+          [
+            -300.0,
+            -220.0,
+            0.0
+          ],
+          [
+            300.0,
+            220.0,
+            220.0
+          ]
+        ],
+        "sample_activity": {
+          "first_command_window": 3,
+          "first_motor_window": 3,
+          "flight_modes": [
+            "CRUISE",
+            "GROUNDED",
+            "TAKEOFF"
+          ],
+          "maximum_collision_reflex_seconds": 0.23999999999997357,
+          "sample_flight_activation_sum": 145.63710962107413,
+          "sample_motor_output_spikes": 1407,
+          "sample_motor_rate_activity": 67964.22188436652,
+          "sample_outputs_connected": true,
+          "sample_population_spikes": 365938,
+          "sample_steering_activity_sum": 39.12512976675975,
+          "sample_walking_activation_sum": 76.61639629591852
+        },
+        "sensory_neurons": 2324,
+        "world_displacement_mm": 15.121529761135704
+      },
+      "passed": true
+    },
+    "neural-output-disconnected": {
+      "checks": {
+        "airborne_mode_observed": true,
+        "airborne_time_observed": true,
+        "altitude_varied": true,
+        "boundaries_stable": true,
+        "brain_output_connection_matches_condition": true,
+        "collision_reflex_stable": true,
+        "command_follows_cns_activity": true,
+        "disconnected_stays_grounded": true,
+        "forward_flight_displacement": true,
+        "motor_output_spikes_present": true,
+        "neural_motor_activity_present": true,
+        "neural_output_source_matches_condition": true,
+        "population_spikes_cover_motor_spikes": true,
+        "sample_output_connection_matches_condition": true,
+        "whole_cns_matches_pack": true,
+        "whole_cns_selected": true,
+        "whole_cns_spikes_present": true,
+        "world_moved": true
+      },
+      "condition": "neural-output-disconnected",
+      "metrics": {
+        "altitude_range_mm": 1.0185233216138996,
+        "final_position": [
+          0.5814850583669119,
+          5.567709184787281e-06,
+          1.0815193028013845
+        ],
+        "flight_seconds": 0.0,
+        "forward_flight_distance_mm": 0.0,
+        "initial_position": [
+          0.496,
+          0.0,
+          2.1
+        ],
+        "initial_state_sha256": "54fd92dbb493a0228056b2b7568f3c571302f58e9840d580032b30cd6fb36b8b",
+        "maximum_boundary_violation_mm": 0.0,
+        "maximum_collision_reflex_seconds": 0.0,
+        "minimum_boundary_clearance_mm": 1.0814766783861005,
+        "model": "male-cns-v1-connectome-partial-engineered-motor-embodiment-v2",
+        "motor_output_source": "disconnected",
+        "motor_output_spikes": 8612,
+        "motor_outputs_connected": false,
+        "neurons": 166700,
+        "population_spikes": 2072049,
+        "room_bounds_mm": [
+          [
+            -300.0,
+            -220.0,
+            0.0
+          ],
+          [
+            300.0,
+            220.0,
+            220.0
+          ]
+        ],
+        "sample_activity": {
+          "first_command_window": null,
+          "first_motor_window": 3,
+          "flight_modes": [
+            "GROUNDED"
+          ],
+          "maximum_collision_reflex_seconds": 0.0,
+          "sample_flight_activation_sum": 0.0,
+          "sample_motor_output_spikes": 1447,
+          "sample_motor_rate_activity": 70114.79325320231,
+          "sample_outputs_connected": false,
+          "sample_population_spikes": 367687,
+          "sample_steering_activity_sum": 0.0,
+          "sample_walking_activation_sum": 0.0
+        },
+        "sensory_neurons": 2324,
+        "world_displacement_mm": 1.0220619481230928
+      },
+      "passed": true
+    }
+  },
+  "expected_neuron_count": 166700,
+  "failures": [],
+  "lesion_comparison": {
+    "checks": {
+      "disconnected_outputs_disabled": true,
+      "intact_outputs_connected": true,
+      "matched_initial_position": true,
+      "matched_initial_state": true,
+      "neural_activity_survives_disconnection": true,
+      "world_behavior_changes": true
+    },
+    "metrics": {
+      "disconnected_initial_state_sha256": "54fd92dbb493a0228056b2b7568f3c571302f58e9840d580032b30cd6fb36b8b",
+      "disconnected_motor_output_spikes": 8612,
+      "disconnected_population_spikes": 2072049,
+      "final_position_delta_mm": 15.474707733898542,
+      "intact_initial_state_sha256": "54fd92dbb493a0228056b2b7568f3c571302f58e9840d580032b30cd6fb36b8b",
+      "intact_motor_output_spikes": 8345,
+      "intact_population_spikes": 2071162
+    },
+    "passed": true
+  },
+  "passed": true,
+  "schema": "flybrain.cns-world-verification-v1",
+  "schema_version": 1,
+  "thresholds": {
+    "max_boundary_violation_mm": 0.0,
+    "max_collision_reflex_seconds": 5.0,
+    "min_altitude_range_mm": 2.0,
+    "min_forward_displacement_mm": 0.5,
+    "min_lesion_world_delta_mm": 0.25
+  }
+}

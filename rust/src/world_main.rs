@@ -441,6 +441,9 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     let mut population_spikes = 0_u64;
     let mut motor_output_spikes = 0_u64;
     let mut forward_flight_distance_mm = 0.0;
+    let mut brain_wall_seconds = 0.0;
+    let mut brain_encoding_seconds = 0.0;
+    let mut brain_engine_seconds = 0.0;
     let mut samples = Vec::new();
     let period = simulation.control_period().as_secs_f64();
     let mut next_sample_time = 0.0;
@@ -463,6 +466,9 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         previous_position = snapshot.root_position;
         population_spikes += snapshot.population_spike_delta;
         motor_output_spikes += snapshot.cns_motor.map_or(0, |motor| motor.spike_delta);
+        brain_wall_seconds += snapshot.brain_wall_seconds;
+        brain_encoding_seconds += snapshot.brain_encoding_seconds;
+        brain_engine_seconds += snapshot.brain_engine_seconds;
         if snapshot.flight_mode != FlightMode::Grounded {
             flight_seconds += period;
             if snapshot.root_position[2] > initial_position[2] + 3.0 {
@@ -587,6 +593,9 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
             "path_length_mm": path_length_mm, "flight_seconds": flight_seconds,
             "feeding_seconds": feeding_seconds, "maximum_speed_mm_s": maximum_speed_mm_s,
             "maximum_abs_pitch_deg": maximum_abs_pitch_deg,
+            "brain_wall_seconds": brain_wall_seconds,
+            "brain_encoding_seconds": brain_encoding_seconds,
+            "brain_engine_seconds": brain_engine_seconds,
             "elapsed_seconds": started.elapsed().as_secs_f64()},
         "samples": samples,
     });

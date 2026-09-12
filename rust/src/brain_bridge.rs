@@ -718,12 +718,12 @@ impl BrainBodyBridge {
         let (population_spike_delta, filtered_population_rate_hz) = if self.telemetry_enabled
             && self.population_telemetry_elapsed_ms >= POPULATION_TELEMETRY_PERIOD_MS
         {
-            let total_spikes = engine_total_spike_count(&self.engine)?;
+            let (total_spikes, spiking_neuron_count) = engine_population_counts(&self.engine)?;
             let delta = total_spikes
                 .checked_sub(self.previous_total_spikes)
                 .context("whole-brain spike count moved backwards")?;
             self.previous_total_spikes = total_spikes;
-            self.spiking_neuron_count = engine_spiking_neuron_count(&self.engine)?;
+            self.spiking_neuron_count = spiking_neuron_count;
             let rate_hz = delta as f64 * 1000.0 / self.population_telemetry_elapsed_ms;
             let population_alpha = 1.0
                 - (-self.population_telemetry_elapsed_ms
@@ -898,8 +898,9 @@ impl BrainBodyBridge {
 
     pub fn set_telemetry_enabled(&mut self, enabled: bool) -> Result<()> {
         if enabled && !self.telemetry_enabled {
-            self.previous_total_spikes = engine_total_spike_count(&self.engine)?;
-            self.spiking_neuron_count = engine_spiking_neuron_count(&self.engine)?;
+            let (total_spikes, spiking_neuron_count) = engine_population_counts(&self.engine)?;
+            self.previous_total_spikes = total_spikes;
+            self.spiking_neuron_count = spiking_neuron_count;
             self.population_telemetry_elapsed_ms = 0.0;
             self.filtered_population_rate_hz = 0.0;
             self.brain_signal.reset();
@@ -913,23 +914,13 @@ impl BrainBodyBridge {
 }
 
 #[cfg(all(target_os = "linux", feature = "cuda"))]
-fn engine_total_spike_count(engine: &NeuralEngine) -> Result<u64> {
-    engine.total_spike_count()
+fn engine_population_counts(engine: &NeuralEngine) -> Result<(u64, usize)> {
+    engine.population_counts()
 }
 
 #[cfg(not(all(target_os = "linux", feature = "cuda")))]
-fn engine_total_spike_count(engine: &NeuralEngine) -> Result<u64> {
-    Ok(engine.total_spike_count())
-}
-
-#[cfg(all(target_os = "linux", feature = "cuda"))]
-fn engine_spiking_neuron_count(engine: &NeuralEngine) -> Result<usize> {
-    engine.spiking_neuron_count()
-}
-
-#[cfg(not(all(target_os = "linux", feature = "cuda")))]
-fn engine_spiking_neuron_count(engine: &NeuralEngine) -> Result<usize> {
-    Ok(engine.spiking_neuron_count())
+fn engine_population_counts(engine: &NeuralEngine) -> Result<(u64, usize)> {
+    Ok((engine.total_spike_count(), engine.spiking_neuron_count()))
 }
 
 #[cfg(all(target_os = "linux", feature = "cuda"))]

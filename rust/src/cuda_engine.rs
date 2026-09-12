@@ -38,6 +38,13 @@ struct RawCudaEngine {
     _private: [u8; 0],
 }
 
+#[repr(C)]
+struct CudaMetrics {
+    total_spikes: u64,
+    active_neurons: u32,
+    voltage_sum: f64,
+}
+
 unsafe extern "C" {
     fn flybrain_cuda_last_error() -> *const c_char;
     fn flybrain_cuda_create(
@@ -51,6 +58,9 @@ unsafe extern "C" {
         initial_voltage: *const f32,
         initial_conductance: *const f32,
         refractory_lengths: *const i32,
+        external_targets: *const u32,
+        external_target_count: u32,
+        chunked_propagation: u8,
         neuron_count: u32,
         delay_steps: u32,
         resting_mv: f32,
@@ -72,15 +82,24 @@ unsafe extern "C" {
         steps: u32,
         chunk_steps: u32,
     ) -> i32;
-    fn flybrain_cuda_run_sparse(
+    fn flybrain_cuda_run_sparse_probed(
         engine: *mut RawCudaEngine,
-        targets: *const u32,
-        target_count: u32,
         step_offsets: *const u32,
         lanes: *const u32,
         counts: *const u8,
         event_count: u32,
         steps: u32,
+        probes: *const u32,
+        probe_count: u32,
+        refresh_probes: u8,
+        before: *mut u32,
+        after: *mut u32,
+    ) -> i32;
+    fn flybrain_cuda_read_metrics(
+        engine: *mut RawCudaEngine,
+        total_spikes: *mut u64,
+        active_neurons: *mut u32,
+        voltage_sum: *mut f64,
     ) -> i32;
     fn flybrain_cuda_copy_state(
         engine: *mut RawCudaEngine,
@@ -94,9 +113,14 @@ unsafe extern "C" {
 pub struct CudaEngine {
     raw: NonNull<RawCudaEngine>,
     device_name: String,
+    propagation_mode: &'static str,
     neuron_count: usize,
     external_targets: Vec<u32>,
     allocated_bytes: usize,
+    probe_capacity: usize,
+    sparse_event_capacity: usize,
+    cached_probe_indices: Vec<u32>,
+    cached_probe_counts: Vec<u32>,
 }
 
 impl CudaEngine {
@@ -137,6 +161,24 @@ impl CudaEngine {
         }
 
         let mut raw = std::ptr::null_mut();
+        let chunked_propagation = match std::env::var("FLYBRAIN_CUDA_PROPAGATION") {
+            Ok(value) if value == "chunked-256" => true,
+            Ok(value) if value == "source-serial" => false,
+            Ok(value) => bail!(
+                "unsupported FLYBRAIN_CUDA_PROPAGATION={value:?}; expected source-serial or chunked-256"
+            ),
+            Err(std::env::VarError::NotPresent) => true,
+            Err(error) => return Err(error).context("reading FLYBRAIN_CUDA_PROPAGATION"),
+        };
+        let propagation_task_count = if chunked_propagation {
+            connectome
+                .row_ptr
+                .windows(2)
+                .map(|row| (row[1] - row[0]).div_ceil(256) as usize)
+                .sum()
+        } else {
+            0
+        };
         let status = unsafe {
             flybrain_cuda_create(
                 &mut raw,
@@ -149,6 +191,9 @@ impl CudaEngine {
                 initial_voltage.as_ptr(),
                 initial_conductance.as_ptr(),
                 refractory_lengths.as_ptr(),
+                zero_refractory.as_ptr(),
+                u32::try_from(zero_refractory.len()).context("external target count overflow")?,
+                u8::from(chunked_propagation),
                 neuron_count_u32,
                 delay_steps,
                 parameters.resting_mv as f32,
@@ -185,9 +230,21 @@ impl CudaEngine {
         Ok(Self {
             raw,
             device_name,
+            propagation_mode: if chunked_propagation {
+                "chunked-256"
+            } else {
+                "source-serial"
+            },
             neuron_count,
             external_targets: zero_refractory.to_vec(),
-            allocated_bytes,
+            allocated_bytes: allocated_bytes
+                + size_of::<CudaMetrics>()
+                + size_of_val(zero_refractory)
+                + propagation_task_count * 3 * size_of::<u32>(),
+            probe_capacity: 0,
+            sparse_event_capacity: 0,
+            cached_probe_indices: Vec::new(),
+            cached_probe_counts: Vec::new(),
         })
     }
 
@@ -197,6 +254,7 @@ impl CudaEngine {
         chunk_steps: usize,
     ) -> Result<CudaRun> {
         self.validate_schedule(schedule)?;
+        self.invalidate_probe_cache();
         let steps = u32::try_from(schedule.steps()).context("schedule step count overflow")?;
         let target_count =
             u32::try_from(schedule.targets().len()).context("target count overflow")?;
@@ -224,6 +282,7 @@ impl CudaEngine {
 
     pub fn run_recorded(&mut self, schedule: &EventSchedule) -> Result<Vec<CudaStep>> {
         self.validate_schedule(schedule)?;
+        self.invalidate_probe_cache();
         let target_count =
             u32::try_from(schedule.targets().len()).context("target count overflow")?;
         let mut trace = Vec::with_capacity(schedule.steps());
@@ -257,7 +316,9 @@ impl CudaEngine {
     ) -> Result<CudaWindow> {
         self.validate_schedule(schedule)?;
         validate_indices(probe_neurons, self.neuron_count, "probe neuron")?;
-        let before = self.spike_counts()?;
+        self.invalidate_probe_cache();
+        let before_counts = self.spike_counts()?;
+        let before = probe_counts(&before_counts, probe_neurons);
         let steps = u32::try_from(schedule.steps()).context("schedule step count overflow")?;
         let target_count =
             u32::try_from(schedule.targets().len()).context("target count overflow")?;
@@ -273,7 +334,8 @@ impl CudaEngine {
             )
         })?;
         let elapsed = started.elapsed();
-        self.window_result(before, probe_neurons, elapsed)
+        let after_counts = self.spike_counts()?;
+        window_result(before, probe_counts(&after_counts, probe_neurons), elapsed)
     }
 
     pub fn run_window_sparse(
@@ -286,30 +348,60 @@ impl CudaEngine {
     ) -> Result<CudaWindow> {
         self.validate_sparse_window(steps, step_offsets, lanes, counts)?;
         validate_indices(probe_neurons, self.neuron_count, "probe neuron")?;
-        let before = self.spike_counts()?;
         let steps_u32 = u32::try_from(steps).context("sparse step count overflow")?;
-        let target_count =
-            u32::try_from(self.external_targets.len()).context("target count overflow")?;
         let event_count = u32::try_from(lanes.len()).context("event count overflow")?;
+        let probe_count = u32::try_from(probe_neurons.len()).context("probe count overflow")?;
+        let refresh_probes = self.cached_probe_indices.as_slice() != probe_neurons;
+        let mut before = if refresh_probes {
+            vec![0; probe_neurons.len()]
+        } else {
+            self.cached_probe_counts.clone()
+        };
+        let mut after = vec![0; probe_neurons.len()];
         let started = Instant::now();
         check_cuda(unsafe {
-            flybrain_cuda_run_sparse(
+            flybrain_cuda_run_sparse_probed(
                 self.raw.as_ptr(),
-                self.external_targets.as_ptr(),
-                target_count,
                 step_offsets.as_ptr(),
                 lanes.as_ptr(),
                 counts.as_ptr(),
                 event_count,
                 steps_u32,
+                probe_neurons.as_ptr(),
+                probe_count,
+                u8::from(refresh_probes),
+                if refresh_probes {
+                    before.as_mut_ptr()
+                } else {
+                    std::ptr::null_mut()
+                },
+                after.as_mut_ptr(),
             )
         })?;
         let elapsed = started.elapsed();
-        self.window_result(before, probe_neurons, elapsed)
+        if probe_neurons.len() > self.probe_capacity {
+            self.allocated_bytes +=
+                (probe_neurons.len() - self.probe_capacity) * 3 * size_of::<u32>();
+            self.probe_capacity = probe_neurons.len();
+        }
+        if lanes.len() > self.sparse_event_capacity {
+            self.allocated_bytes +=
+                (lanes.len() - self.sparse_event_capacity) * (size_of::<u32>() + size_of::<u8>());
+            self.sparse_event_capacity = lanes.len();
+        }
+        if refresh_probes {
+            self.cached_probe_indices = probe_neurons.to_vec();
+        }
+        self.cached_probe_counts.clone_from(&after);
+        window_result(before, after, elapsed)
     }
 
     pub fn device_name(&self) -> &str {
         &self.device_name
+    }
+
+    pub fn propagation_mode(&self) -> &str {
+        self.propagation_mode
     }
 
     pub fn allocated_bytes(&self) -> usize {
@@ -317,24 +409,21 @@ impl CudaEngine {
     }
 
     pub fn total_spike_count(&self) -> Result<u64> {
-        Ok(self.spike_counts()?.into_iter().map(u64::from).sum())
+        Ok(self.metrics()?.0)
     }
 
     pub fn spiking_neuron_count(&self) -> Result<usize> {
-        Ok(self
-            .spike_counts()?
-            .into_iter()
-            .filter(|&count| count != 0)
-            .count())
+        Ok(self.metrics()?.1)
+    }
+
+    pub fn population_counts(&self) -> Result<(u64, usize)> {
+        let (total, active, _) = self.metrics()?;
+        Ok((total, active))
     }
 
     pub fn mean_voltage_deviation_mv(&self, resting_mv: f64) -> Result<f64> {
-        let (_, _, voltage, _) = self.copy_state()?;
-        Ok(voltage
-            .into_iter()
-            .map(|value| f64::from(value) - resting_mv)
-            .sum::<f64>()
-            / self.neuron_count as f64)
+        let (_, _, voltage_sum) = self.metrics()?;
+        Ok(voltage_sum / self.neuron_count as f64 - resting_mv)
     }
 
     fn validate_schedule(&self, schedule: &EventSchedule) -> Result<()> {
@@ -379,27 +468,6 @@ impl CudaEngine {
         Ok(())
     }
 
-    fn window_result(
-        &self,
-        before: Vec<u32>,
-        probes: &[u32],
-        elapsed: Duration,
-    ) -> Result<CudaWindow> {
-        let after = self.spike_counts()?;
-        let spike_count_deltas = probes
-            .iter()
-            .map(|&probe| {
-                after[probe as usize]
-                    .checked_sub(before[probe as usize])
-                    .context("CUDA probe spike count moved backwards")
-            })
-            .collect::<Result<Vec<_>>>()?;
-        Ok(CudaWindow {
-            elapsed,
-            spike_count_deltas,
-        })
-    }
-
     fn spike_counts(&self) -> Result<Vec<u32>> {
         let (_, counts, _, _) = self.copy_state()?;
         Ok(counts)
@@ -421,6 +489,46 @@ impl CudaEngine {
         })?;
         Ok((spikes, spike_counts, voltage, conductance))
     }
+
+    fn metrics(&self) -> Result<(u64, usize, f64)> {
+        let mut total_spikes = 0;
+        let mut active_neurons = 0;
+        let mut voltage_sum = 0.0;
+        check_cuda(unsafe {
+            flybrain_cuda_read_metrics(
+                self.raw.as_ptr(),
+                &mut total_spikes,
+                &mut active_neurons,
+                &mut voltage_sum,
+            )
+        })?;
+        Ok((total_spikes, active_neurons as usize, voltage_sum))
+    }
+
+    fn invalidate_probe_cache(&mut self) {
+        self.cached_probe_indices.clear();
+        self.cached_probe_counts.clear();
+    }
+}
+
+fn window_result(before: Vec<u32>, after: Vec<u32>, elapsed: Duration) -> Result<CudaWindow> {
+    let spike_count_deltas = before
+        .into_iter()
+        .zip(after)
+        .map(|(before, after)| {
+            after
+                .checked_sub(before)
+                .context("CUDA probe spike count moved backwards")
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(CudaWindow {
+        elapsed,
+        spike_count_deltas,
+    })
+}
+
+fn probe_counts(counts: &[u32], probes: &[u32]) -> Vec<u32> {
+    probes.iter().map(|&probe| counts[probe as usize]).collect()
 }
 
 impl Drop for CudaEngine {

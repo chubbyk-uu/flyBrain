@@ -1,0 +1,4804 @@
+{
+  "acceptance_pass": true,
+  "acceptance_policy": {
+    "body_behavior_evaluated": false,
+    "cuda_repeats_exact": true,
+    "expected_pathway_response_reproduced_all_seeds": false,
+    "input_relay_and_each_motor_pool_match_reference_exactly": true,
+    "long_run_cpu_f64_per_neuron_equality_required": false,
+    "population_totals_match_reference_exactly": true,
+    "software_controls_pass": true
+  },
+  "body_behavior": "not_simulated",
+  "cases": [
+    {
+      "control": "intact",
+      "duration_ms": 200.0,
+      "hashes": {
+        "conductance_final_mv_sha256": "6c80a5d783176ce20218a8b8824f4edc09dc45502169f3dbf95056141984d746",
+        "spike_counts_sha256": "1d29917d912c2d3c2db00dd8ef02ef5875443570c0f7aba49337a7dfce6f4e23",
+        "state_sha256": "fe9a40f008fa854a9a77a5da07f18f2d25f4c5370e9b687ccea8932f85ddf0c6",
+        "voltage_final_mv_sha256": "eb20c6127300dd653260646916484f31bfa93e495bcc280a3fb09bb79f46c277"
+      },
+      "input": {
+        "active_neurons": 2,
+        "mean_rate_hz": 112.5,
+        "neuron_count": 2,
+        "spike_counts": [
+          22,
+          23
+        ],
+        "total_spikes": 45
+      },
+      "neural_io_groups": {
+        "feeding_mn9": {
+          "active_neurons": 1,
+          "mean_rate_hz": 10.0,
+          "neuron_count": 1,
+          "total_spikes": 2
+        },
+        "flight_dng02_left": {
+          "active_neurons": 4,
+          "mean_rate_hz": 3.0,
+          "neuron_count": 15,
+          "total_spikes": 9
+        },
+        "flight_dng02_right": {
+          "active_neurons": 5,
+          "mean_rate_hz": 3.5714285714285716,
+          "neuron_count": 14,
+          "total_spikes": 10
+        },
+        "flight_dng07_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_dng07_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 0.625,
+          "neuron_count": 8,
+          "total_spikes": 1
+        },
+        "flight_state_sapp_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 75,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 73,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_left": {
+          "active_neurons": 3,
+          "mean_rate_hz": 5.833333333333333,
+          "neuron_count": 6,
+          "total_spikes": 7
+        },
+        "flight_steering_dn_right": {
+          "active_neurons": 4,
+          "mean_rate_hz": 5.833333333333333,
+          "neuron_count": 6,
+          "total_spikes": 7
+        },
+        "landing_dn_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 57.5,
+          "neuron_count": 2,
+          "total_spikes": 23
+        },
+        "landing_dn_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 47.5,
+          "neuron_count": 2,
+          "total_spikes": 19
+        },
+        "motor_flight_power_left": {
+          "active_neurons": 12,
+          "mean_rate_hz": 98.33333333333333,
+          "neuron_count": 12,
+          "total_spikes": 236
+        },
+        "motor_flight_power_right": {
+          "active_neurons": 12,
+          "mean_rate_hz": 100.83333333333333,
+          "neuron_count": 12,
+          "total_spikes": 242
+        },
+        "motor_flight_steering_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 13.333333333333334,
+          "neuron_count": 3,
+          "total_spikes": 8
+        },
+        "motor_flight_steering_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 11.666666666666666,
+          "neuron_count": 3,
+          "total_spikes": 7
+        },
+        "motor_landing_left": {
+          "active_neurons": 4,
+          "mean_rate_hz": 15.833333333333334,
+          "neuron_count": 6,
+          "total_spikes": 19
+        },
+        "motor_landing_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 5.833333333333333,
+          "neuron_count": 6,
+          "total_spikes": 7
+        },
+        "motor_walking_left": {
+          "active_neurons": 5,
+          "mean_rate_hz": 11.818181818181818,
+          "neuron_count": 11,
+          "total_spikes": 26
+        },
+        "motor_walking_right": {
+          "active_neurons": 3,
+          "mean_rate_hz": 3.3333333333333335,
+          "neuron_count": 12,
+          "total_spikes": 8
+        },
+        "olfaction_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 798,
+          "total_spikes": 0
+        },
+        "olfaction_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1247,
+          "total_spikes": 0
+        },
+        "taste_sugar": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 85,
+          "total_spikes": 0
+        },
+        "visual_loom_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 110.0,
+          "neuron_count": 1,
+          "total_spikes": 22
+        },
+        "visual_loom_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 115.0,
+          "neuron_count": 1,
+          "total_spikes": 23
+        },
+        "visual_motion_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 21,
+          "total_spikes": 0
+        },
+        "visual_motion_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 23,
+          "total_spikes": 0
+        },
+        "walking_dn_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 2.5,
+          "neuron_count": 4,
+          "total_spikes": 2
+        },
+        "walking_dn_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 2.5,
+          "neuron_count": 4,
+          "total_spikes": 2
+        }
+      },
+      "population": {
+        "active_neurons": 3414,
+        "mean_rate_hz": 0.3077384523095381,
+        "neuron_count": 166700,
+        "total_spikes": 10260
+      },
+      "rate_hz": 150.0,
+      "readouts": {
+        "tibia_extensor_fl_L": {
+          "active_neurons": 1,
+          "mean_rate_hz": 10.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            4,
+            0
+          ],
+          "total_spikes": 4
+        },
+        "tibia_extensor_fl_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 10.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            4
+          ],
+          "total_spikes": 4
+        },
+        "tibia_extensor_hl_L": {
+          "active_neurons": 1,
+          "mean_rate_hz": 7.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            3,
+            0
+          ],
+          "total_spikes": 3
+        },
+        "tibia_extensor_hl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_L": {
+          "active_neurons": 2,
+          "mean_rate_hz": 30.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            5,
+            7
+          ],
+          "total_spikes": 12
+        },
+        "tibia_extensor_ml_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 7.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            3,
+            0
+          ],
+          "total_spikes": 3
+        }
+      },
+      "reference": {
+        "first_difference": null,
+        "input_relay_motor_groups_match": true,
+        "path": "outputs/cns/verification-final/seed-1-intact.json",
+        "population_match": true,
+        "sha256": "d771a2f7e084c043e4c57e73e839899cab240aaf2c6bd00d4705b42312e32271",
+        "spike_count_hash_match": true
+      },
+      "relay": {
+        "active_neurons": 2,
+        "mean_rate_hz": 55.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          10,
+          12
+        ],
+        "total_spikes": 22
+      },
+      "repeat_hashes": [
+        {
+          "conductance_final_mv_sha256": "6c80a5d783176ce20218a8b8824f4edc09dc45502169f3dbf95056141984d746",
+          "spike_counts_sha256": "1d29917d912c2d3c2db00dd8ef02ef5875443570c0f7aba49337a7dfce6f4e23",
+          "state_sha256": "fe9a40f008fa854a9a77a5da07f18f2d25f4c5370e9b687ccea8932f85ddf0c6",
+          "voltage_final_mv_sha256": "eb20c6127300dd653260646916484f31bfa93e495bcc280a3fb09bb79f46c277"
+        },
+        {
+          "conductance_final_mv_sha256": "6c80a5d783176ce20218a8b8824f4edc09dc45502169f3dbf95056141984d746",
+          "spike_counts_sha256": "1d29917d912c2d3c2db00dd8ef02ef5875443570c0f7aba49337a7dfce6f4e23",
+          "state_sha256": "fe9a40f008fa854a9a77a5da07f18f2d25f4c5370e9b687ccea8932f85ddf0c6",
+          "voltage_final_mv_sha256": "eb20c6127300dd653260646916484f31bfa93e495bcc280a3fb09bb79f46c277"
+        }
+      ],
+      "seed": 1,
+      "steps": 2000,
+      "stimulus_event_count": 47,
+      "timing": {
+        "allocated_bytes": 154818104,
+        "biological_seconds": 0.2,
+        "chunk_steps": 256,
+        "construction_seconds": 0.158901567,
+        "device_name": "NVIDIA GeForce RTX 5080",
+        "run_seconds": 0.176867565,
+        "simulation_realtime_factor": 1.1307895825896626
+      }
+    },
+    {
+      "control": "no-input",
+      "duration_ms": 200.0,
+      "hashes": {
+        "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+        "spike_counts_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+        "state_sha256": "e484f648303ab9e73e6fae7d34ba3921b76c64c57824f19c35321810cc5dda04",
+        "voltage_final_mv_sha256": "6fcb234cad5fb8c919026fb8744cb417110ed1cad7f2943298f154e0cbcae469"
+      },
+      "input": {
+        "active_neurons": 0,
+        "mean_rate_hz": 0.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          0,
+          0
+        ],
+        "total_spikes": 0
+      },
+      "neural_io_groups": {
+        "feeding_mn9": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "flight_dng02_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 15,
+          "total_spikes": 0
+        },
+        "flight_dng02_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 14,
+          "total_spikes": 0
+        },
+        "flight_dng07_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_dng07_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 75,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 73,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "landing_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "total_spikes": 0
+        },
+        "landing_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "total_spikes": 0
+        },
+        "motor_flight_power_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "motor_flight_power_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "motor_flight_steering_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 3,
+          "total_spikes": 0
+        },
+        "motor_flight_steering_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 3,
+          "total_spikes": 0
+        },
+        "motor_landing_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "motor_landing_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "motor_walking_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 11,
+          "total_spikes": 0
+        },
+        "motor_walking_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "olfaction_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 798,
+          "total_spikes": 0
+        },
+        "olfaction_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1247,
+          "total_spikes": 0
+        },
+        "taste_sugar": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 85,
+          "total_spikes": 0
+        },
+        "visual_loom_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "visual_loom_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "visual_motion_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 21,
+          "total_spikes": 0
+        },
+        "visual_motion_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 23,
+          "total_spikes": 0
+        },
+        "walking_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 4,
+          "total_spikes": 0
+        },
+        "walking_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 4,
+          "total_spikes": 0
+        }
+      },
+      "population": {
+        "active_neurons": 0,
+        "mean_rate_hz": 0.0,
+        "neuron_count": 166700,
+        "total_spikes": 0
+      },
+      "rate_hz": 150.0,
+      "readouts": {
+        "tibia_extensor_fl_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_fl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_hl_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_hl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        }
+      },
+      "reference": {
+        "first_difference": null,
+        "input_relay_motor_groups_match": true,
+        "path": "outputs/cns/verification-final/seed-1-no-input.json",
+        "population_match": true,
+        "sha256": "5b21ecd5855fded631ef5a6cd2a82c154d35f8e7a9d7fabb3138d1e687884826",
+        "spike_count_hash_match": true
+      },
+      "relay": {
+        "active_neurons": 0,
+        "mean_rate_hz": 0.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          0,
+          0
+        ],
+        "total_spikes": 0
+      },
+      "repeat_hashes": [
+        {
+          "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "spike_counts_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "state_sha256": "e484f648303ab9e73e6fae7d34ba3921b76c64c57824f19c35321810cc5dda04",
+          "voltage_final_mv_sha256": "6fcb234cad5fb8c919026fb8744cb417110ed1cad7f2943298f154e0cbcae469"
+        },
+        {
+          "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "spike_counts_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "state_sha256": "e484f648303ab9e73e6fae7d34ba3921b76c64c57824f19c35321810cc5dda04",
+          "voltage_final_mv_sha256": "6fcb234cad5fb8c919026fb8744cb417110ed1cad7f2943298f154e0cbcae469"
+        }
+      ],
+      "seed": 1,
+      "steps": 2000,
+      "stimulus_event_count": 0,
+      "timing": {
+        "allocated_bytes": 154818104,
+        "biological_seconds": 0.2,
+        "chunk_steps": 256,
+        "construction_seconds": 0.027456476,
+        "device_name": "NVIDIA GeForce RTX 5080",
+        "run_seconds": 0.043676646,
+        "simulation_realtime_factor": 4.579106188694068
+      }
+    },
+    {
+      "control": "input-disconnected",
+      "duration_ms": 200.0,
+      "hashes": {
+        "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+        "spike_counts_sha256": "9b12880c0ffd3e95667697f97c72b9fc64d7f27ed6b649f4f4f60983a525ade0",
+        "state_sha256": "1ec44c34927b0b99149d00db536d4df998618fcd456c07d6021d5ed3da3deab8",
+        "voltage_final_mv_sha256": "12fa64a7ac5d0dec1ffc418e7880767d4802d1cf7ab5080711907531f4fea408"
+      },
+      "input": {
+        "active_neurons": 2,
+        "mean_rate_hz": 112.5,
+        "neuron_count": 2,
+        "spike_counts": [
+          22,
+          23
+        ],
+        "total_spikes": 45
+      },
+      "neural_io_groups": {
+        "feeding_mn9": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "flight_dng02_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 15,
+          "total_spikes": 0
+        },
+        "flight_dng02_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 14,
+          "total_spikes": 0
+        },
+        "flight_dng07_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_dng07_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 75,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 73,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "landing_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "total_spikes": 0
+        },
+        "landing_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "total_spikes": 0
+        },
+        "motor_flight_power_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "motor_flight_power_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "motor_flight_steering_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 3,
+          "total_spikes": 0
+        },
+        "motor_flight_steering_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 3,
+          "total_spikes": 0
+        },
+        "motor_landing_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "motor_landing_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "motor_walking_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 11,
+          "total_spikes": 0
+        },
+        "motor_walking_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "olfaction_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 798,
+          "total_spikes": 0
+        },
+        "olfaction_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1247,
+          "total_spikes": 0
+        },
+        "taste_sugar": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 85,
+          "total_spikes": 0
+        },
+        "visual_loom_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 110.0,
+          "neuron_count": 1,
+          "total_spikes": 22
+        },
+        "visual_loom_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 115.0,
+          "neuron_count": 1,
+          "total_spikes": 23
+        },
+        "visual_motion_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 21,
+          "total_spikes": 0
+        },
+        "visual_motion_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 23,
+          "total_spikes": 0
+        },
+        "walking_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 4,
+          "total_spikes": 0
+        },
+        "walking_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 4,
+          "total_spikes": 0
+        }
+      },
+      "population": {
+        "active_neurons": 2,
+        "mean_rate_hz": 0.0013497300539892022,
+        "neuron_count": 166700,
+        "total_spikes": 45
+      },
+      "rate_hz": 150.0,
+      "readouts": {
+        "tibia_extensor_fl_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_fl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_hl_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_hl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        }
+      },
+      "reference": {
+        "first_difference": null,
+        "input_relay_motor_groups_match": true,
+        "path": "outputs/cns/verification-final/seed-1-input-disconnected.json",
+        "population_match": true,
+        "sha256": "771a18d4bc76eeca65bd105cc03d4947089955731f269ee11dbedf3e80007e14",
+        "spike_count_hash_match": true
+      },
+      "relay": {
+        "active_neurons": 0,
+        "mean_rate_hz": 0.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          0,
+          0
+        ],
+        "total_spikes": 0
+      },
+      "repeat_hashes": [
+        {
+          "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "spike_counts_sha256": "9b12880c0ffd3e95667697f97c72b9fc64d7f27ed6b649f4f4f60983a525ade0",
+          "state_sha256": "1ec44c34927b0b99149d00db536d4df998618fcd456c07d6021d5ed3da3deab8",
+          "voltage_final_mv_sha256": "12fa64a7ac5d0dec1ffc418e7880767d4802d1cf7ab5080711907531f4fea408"
+        },
+        {
+          "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "spike_counts_sha256": "9b12880c0ffd3e95667697f97c72b9fc64d7f27ed6b649f4f4f60983a525ade0",
+          "state_sha256": "1ec44c34927b0b99149d00db536d4df998618fcd456c07d6021d5ed3da3deab8",
+          "voltage_final_mv_sha256": "12fa64a7ac5d0dec1ffc418e7880767d4802d1cf7ab5080711907531f4fea408"
+        }
+      ],
+      "seed": 1,
+      "steps": 2000,
+      "stimulus_event_count": 47,
+      "timing": {
+        "allocated_bytes": 154818104,
+        "biological_seconds": 0.2,
+        "chunk_steps": 256,
+        "construction_seconds": 0.02048991,
+        "device_name": "NVIDIA GeForce RTX 5080",
+        "run_seconds": 0.052276051,
+        "simulation_realtime_factor": 3.825843692745652
+      }
+    },
+    {
+      "control": "relay-disconnected",
+      "duration_ms": 200.0,
+      "hashes": {
+        "conductance_final_mv_sha256": "10e2b8041c960fd468eb113db13daab0468f708278af657b2df01a5efa230f6d",
+        "spike_counts_sha256": "c3b5ebc2ad2eeebd48479b197264425999dcead21de10eb67548de8c99b2c060",
+        "state_sha256": "f67f26fac1efbfd071dc0d066769554969b1eb4afdc019bfd301f3d855ab68c7",
+        "voltage_final_mv_sha256": "448f1fcd865f5245fe2b0eca29ac1904ce5ddc5210f2e95f8eeaefdde2dfc2d9"
+      },
+      "input": {
+        "active_neurons": 2,
+        "mean_rate_hz": 112.5,
+        "neuron_count": 2,
+        "spike_counts": [
+          22,
+          23
+        ],
+        "total_spikes": 45
+      },
+      "neural_io_groups": {
+        "feeding_mn9": {
+          "active_neurons": 1,
+          "mean_rate_hz": 10.0,
+          "neuron_count": 1,
+          "total_spikes": 2
+        },
+        "flight_dng02_left": {
+          "active_neurons": 5,
+          "mean_rate_hz": 6.0,
+          "neuron_count": 15,
+          "total_spikes": 18
+        },
+        "flight_dng02_right": {
+          "active_neurons": 5,
+          "mean_rate_hz": 6.785714285714286,
+          "neuron_count": 14,
+          "total_spikes": 19
+        },
+        "flight_dng07_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 0.625,
+          "neuron_count": 8,
+          "total_spikes": 1
+        },
+        "flight_dng07_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 1.875,
+          "neuron_count": 8,
+          "total_spikes": 3
+        },
+        "flight_state_sapp_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 75,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 73,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_left": {
+          "active_neurons": 3,
+          "mean_rate_hz": 6.666666666666667,
+          "neuron_count": 6,
+          "total_spikes": 8
+        },
+        "flight_steering_dn_right": {
+          "active_neurons": 4,
+          "mean_rate_hz": 6.666666666666667,
+          "neuron_count": 6,
+          "total_spikes": 8
+        },
+        "landing_dn_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 50.0,
+          "neuron_count": 2,
+          "total_spikes": 20
+        },
+        "landing_dn_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 47.5,
+          "neuron_count": 2,
+          "total_spikes": 19
+        },
+        "motor_flight_power_left": {
+          "active_neurons": 12,
+          "mean_rate_hz": 112.08333333333333,
+          "neuron_count": 12,
+          "total_spikes": 269
+        },
+        "motor_flight_power_right": {
+          "active_neurons": 12,
+          "mean_rate_hz": 112.08333333333333,
+          "neuron_count": 12,
+          "total_spikes": 269
+        },
+        "motor_flight_steering_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 8.333333333333334,
+          "neuron_count": 3,
+          "total_spikes": 5
+        },
+        "motor_flight_steering_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 6.666666666666667,
+          "neuron_count": 3,
+          "total_spikes": 4
+        },
+        "motor_landing_left": {
+          "active_neurons": 4,
+          "mean_rate_hz": 14.166666666666666,
+          "neuron_count": 6,
+          "total_spikes": 17
+        },
+        "motor_landing_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 6.666666666666667,
+          "neuron_count": 6,
+          "total_spikes": 8
+        },
+        "motor_walking_left": {
+          "active_neurons": 6,
+          "mean_rate_hz": 11.818181818181818,
+          "neuron_count": 11,
+          "total_spikes": 26
+        },
+        "motor_walking_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 3.3333333333333335,
+          "neuron_count": 12,
+          "total_spikes": 8
+        },
+        "olfaction_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 798,
+          "total_spikes": 0
+        },
+        "olfaction_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1247,
+          "total_spikes": 0
+        },
+        "taste_sugar": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 85,
+          "total_spikes": 0
+        },
+        "visual_loom_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 110.0,
+          "neuron_count": 1,
+          "total_spikes": 22
+        },
+        "visual_loom_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 115.0,
+          "neuron_count": 1,
+          "total_spikes": 23
+        },
+        "visual_motion_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 21,
+          "total_spikes": 0
+        },
+        "visual_motion_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 23,
+          "total_spikes": 0
+        },
+        "walking_dn_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 4,
+          "total_spikes": 4
+        },
+        "walking_dn_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 3.75,
+          "neuron_count": 4,
+          "total_spikes": 3
+        }
+      },
+      "population": {
+        "active_neurons": 4003,
+        "mean_rate_hz": 0.41436712657468505,
+        "neuron_count": 166700,
+        "total_spikes": 13815
+      },
+      "rate_hz": 150.0,
+      "readouts": {
+        "tibia_extensor_fl_L": {
+          "active_neurons": 1,
+          "mean_rate_hz": 7.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            3,
+            0
+          ],
+          "total_spikes": 3
+        },
+        "tibia_extensor_fl_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 7.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            3
+          ],
+          "total_spikes": 3
+        },
+        "tibia_extensor_hl_L": {
+          "active_neurons": 1,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            2,
+            0
+          ],
+          "total_spikes": 2
+        },
+        "tibia_extensor_hl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_L": {
+          "active_neurons": 2,
+          "mean_rate_hz": 30.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            5,
+            7
+          ],
+          "total_spikes": 12
+        },
+        "tibia_extensor_ml_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 12.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            5,
+            0
+          ],
+          "total_spikes": 5
+        }
+      },
+      "reference": {
+        "first_difference": null,
+        "input_relay_motor_groups_match": true,
+        "path": "outputs/cns/verification-final/seed-1-relay-disconnected.json",
+        "population_match": true,
+        "sha256": "184702d1d0c407e1ba3bb5e27ef4a01145a3f59cd6a25452fafb128191e26505",
+        "spike_count_hash_match": true
+      },
+      "relay": {
+        "active_neurons": 2,
+        "mean_rate_hz": 57.5,
+        "neuron_count": 2,
+        "spike_counts": [
+          11,
+          12
+        ],
+        "total_spikes": 23
+      },
+      "repeat_hashes": [
+        {
+          "conductance_final_mv_sha256": "10e2b8041c960fd468eb113db13daab0468f708278af657b2df01a5efa230f6d",
+          "spike_counts_sha256": "c3b5ebc2ad2eeebd48479b197264425999dcead21de10eb67548de8c99b2c060",
+          "state_sha256": "f67f26fac1efbfd071dc0d066769554969b1eb4afdc019bfd301f3d855ab68c7",
+          "voltage_final_mv_sha256": "448f1fcd865f5245fe2b0eca29ac1904ce5ddc5210f2e95f8eeaefdde2dfc2d9"
+        },
+        {
+          "conductance_final_mv_sha256": "10e2b8041c960fd468eb113db13daab0468f708278af657b2df01a5efa230f6d",
+          "spike_counts_sha256": "c3b5ebc2ad2eeebd48479b197264425999dcead21de10eb67548de8c99b2c060",
+          "state_sha256": "f67f26fac1efbfd071dc0d066769554969b1eb4afdc019bfd301f3d855ab68c7",
+          "voltage_final_mv_sha256": "448f1fcd865f5245fe2b0eca29ac1904ce5ddc5210f2e95f8eeaefdde2dfc2d9"
+        }
+      ],
+      "seed": 1,
+      "steps": 2000,
+      "stimulus_event_count": 47,
+      "timing": {
+        "allocated_bytes": 154818104,
+        "biological_seconds": 0.2,
+        "chunk_steps": 256,
+        "construction_seconds": 0.016277944,
+        "device_name": "NVIDIA GeForce RTX 5080",
+        "run_seconds": 0.21028341,
+        "simulation_realtime_factor": 0.951097378533095
+      }
+    },
+    {
+      "control": "relay-driven",
+      "duration_ms": 200.0,
+      "hashes": {
+        "conductance_final_mv_sha256": "c1288f25064a3d2ab7e847fb2d0019c59dfb5e8f6f56177af9ecc93340565de5",
+        "spike_counts_sha256": "17abbfc1401fa2d81a6592d431133bbcc4a58705dfc65f6906470c67a8f900b9",
+        "state_sha256": "a0edde83bf4266d0fe93abb903e64de9b34e0928f41329d17902880e13dba4d6",
+        "voltage_final_mv_sha256": "85e359b38e152007f5e87056839742e50347b139f2fe85338e73290986890949"
+      },
+      "input": {
+        "active_neurons": 0,
+        "mean_rate_hz": 0.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          0,
+          0
+        ],
+        "total_spikes": 0
+      },
+      "neural_io_groups": {
+        "feeding_mn9": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "flight_dng02_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 15,
+          "total_spikes": 0
+        },
+        "flight_dng02_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 14,
+          "total_spikes": 0
+        },
+        "flight_dng07_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_dng07_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 75,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 73,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 2.5,
+          "neuron_count": 6,
+          "total_spikes": 3
+        },
+        "flight_steering_dn_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 0.8333333333333334,
+          "neuron_count": 6,
+          "total_spikes": 1
+        },
+        "landing_dn_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 55.0,
+          "neuron_count": 2,
+          "total_spikes": 22
+        },
+        "landing_dn_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 57.5,
+          "neuron_count": 2,
+          "total_spikes": 23
+        },
+        "motor_flight_power_left": {
+          "active_neurons": 12,
+          "mean_rate_hz": 89.58333333333333,
+          "neuron_count": 12,
+          "total_spikes": 215
+        },
+        "motor_flight_power_right": {
+          "active_neurons": 12,
+          "mean_rate_hz": 90.41666666666667,
+          "neuron_count": 12,
+          "total_spikes": 217
+        },
+        "motor_flight_steering_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 6.666666666666667,
+          "neuron_count": 3,
+          "total_spikes": 4
+        },
+        "motor_flight_steering_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 6.666666666666667,
+          "neuron_count": 3,
+          "total_spikes": 4
+        },
+        "motor_landing_left": {
+          "active_neurons": 3,
+          "mean_rate_hz": 5.833333333333333,
+          "neuron_count": 6,
+          "total_spikes": 7
+        },
+        "motor_landing_right": {
+          "active_neurons": 4,
+          "mean_rate_hz": 5.833333333333333,
+          "neuron_count": 6,
+          "total_spikes": 7
+        },
+        "motor_walking_left": {
+          "active_neurons": 4,
+          "mean_rate_hz": 4.545454545454546,
+          "neuron_count": 11,
+          "total_spikes": 10
+        },
+        "motor_walking_right": {
+          "active_neurons": 5,
+          "mean_rate_hz": 3.3333333333333335,
+          "neuron_count": 12,
+          "total_spikes": 8
+        },
+        "olfaction_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 798,
+          "total_spikes": 0
+        },
+        "olfaction_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1247,
+          "total_spikes": 0
+        },
+        "taste_sugar": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 85,
+          "total_spikes": 0
+        },
+        "visual_loom_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "visual_loom_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "visual_motion_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 21,
+          "total_spikes": 0
+        },
+        "visual_motion_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 23,
+          "total_spikes": 0
+        },
+        "walking_dn_left": {
+          "active_neurons": 4,
+          "mean_rate_hz": 8.75,
+          "neuron_count": 4,
+          "total_spikes": 7
+        },
+        "walking_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 4,
+          "total_spikes": 0
+        }
+      },
+      "population": {
+        "active_neurons": 2632,
+        "mean_rate_hz": 0.19973005398920216,
+        "neuron_count": 166700,
+        "total_spikes": 6659
+      },
+      "rate_hz": 150.0,
+      "readouts": {
+        "tibia_extensor_fl_L": {
+          "active_neurons": 1,
+          "mean_rate_hz": 2.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            1,
+            0
+          ],
+          "total_spikes": 1
+        },
+        "tibia_extensor_fl_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 2.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            1
+          ],
+          "total_spikes": 1
+        },
+        "tibia_extensor_hl_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_hl_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 2.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            1,
+            0
+          ],
+          "total_spikes": 1
+        },
+        "tibia_extensor_ml_L": {
+          "active_neurons": 2,
+          "mean_rate_hz": 15.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            4,
+            2
+          ],
+          "total_spikes": 6
+        },
+        "tibia_extensor_ml_R": {
+          "active_neurons": 2,
+          "mean_rate_hz": 12.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            4,
+            1
+          ],
+          "total_spikes": 5
+        }
+      },
+      "reference": {
+        "first_difference": null,
+        "input_relay_motor_groups_match": true,
+        "path": "outputs/cns/verification-final/seed-1-relay-driven.json",
+        "population_match": true,
+        "sha256": "a442e3fecf149dd522ee9a191a16bc43e695c668c48103d0e3c7c80ec049e53b",
+        "spike_count_hash_match": true
+      },
+      "relay": {
+        "active_neurons": 2,
+        "mean_rate_hz": 112.5,
+        "neuron_count": 2,
+        "spike_counts": [
+          22,
+          23
+        ],
+        "total_spikes": 45
+      },
+      "repeat_hashes": [
+        {
+          "conductance_final_mv_sha256": "c1288f25064a3d2ab7e847fb2d0019c59dfb5e8f6f56177af9ecc93340565de5",
+          "spike_counts_sha256": "17abbfc1401fa2d81a6592d431133bbcc4a58705dfc65f6906470c67a8f900b9",
+          "state_sha256": "a0edde83bf4266d0fe93abb903e64de9b34e0928f41329d17902880e13dba4d6",
+          "voltage_final_mv_sha256": "85e359b38e152007f5e87056839742e50347b139f2fe85338e73290986890949"
+        },
+        {
+          "conductance_final_mv_sha256": "c1288f25064a3d2ab7e847fb2d0019c59dfb5e8f6f56177af9ecc93340565de5",
+          "spike_counts_sha256": "17abbfc1401fa2d81a6592d431133bbcc4a58705dfc65f6906470c67a8f900b9",
+          "state_sha256": "a0edde83bf4266d0fe93abb903e64de9b34e0928f41329d17902880e13dba4d6",
+          "voltage_final_mv_sha256": "85e359b38e152007f5e87056839742e50347b139f2fe85338e73290986890949"
+        }
+      ],
+      "seed": 1,
+      "steps": 2000,
+      "stimulus_event_count": 47,
+      "timing": {
+        "allocated_bytes": 154818104,
+        "biological_seconds": 0.2,
+        "chunk_steps": 256,
+        "construction_seconds": 0.018776969,
+        "device_name": "NVIDIA GeForce RTX 5080",
+        "run_seconds": 0.156710728,
+        "simulation_realtime_factor": 1.2762368125812038
+      }
+    },
+    {
+      "control": "intact",
+      "duration_ms": 200.0,
+      "hashes": {
+        "conductance_final_mv_sha256": "75630233e60fd6535c987f3e8e70fe43fd3cf74c80c8b20ce2be905365077a59",
+        "spike_counts_sha256": "a1662546a8be67d04b4d13d882bc8442ca3c33c854bda72613ba03cbfeef8689",
+        "state_sha256": "0889a01bea68c81249a887353870afd730f7f8af63b2a37a571f0032d92687b5",
+        "voltage_final_mv_sha256": "3e3b2447826d3469f6d8af93d014fbe5020e88eb6657962eacbcc3424200250a"
+      },
+      "input": {
+        "active_neurons": 2,
+        "mean_rate_hz": 125.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          30,
+          20
+        ],
+        "total_spikes": 50
+      },
+      "neural_io_groups": {
+        "feeding_mn9": {
+          "active_neurons": 1,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 1,
+          "total_spikes": 1
+        },
+        "flight_dng02_left": {
+          "active_neurons": 5,
+          "mean_rate_hz": 3.0,
+          "neuron_count": 15,
+          "total_spikes": 9
+        },
+        "flight_dng02_right": {
+          "active_neurons": 5,
+          "mean_rate_hz": 3.2142857142857144,
+          "neuron_count": 14,
+          "total_spikes": 9
+        },
+        "flight_dng07_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_dng07_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 0.625,
+          "neuron_count": 8,
+          "total_spikes": 1
+        },
+        "flight_state_sapp_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 75,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 73,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_left": {
+          "active_neurons": 3,
+          "mean_rate_hz": 7.5,
+          "neuron_count": 6,
+          "total_spikes": 9
+        },
+        "flight_steering_dn_right": {
+          "active_neurons": 3,
+          "mean_rate_hz": 4.166666666666667,
+          "neuron_count": 6,
+          "total_spikes": 5
+        },
+        "landing_dn_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 55.0,
+          "neuron_count": 2,
+          "total_spikes": 22
+        },
+        "landing_dn_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 35.0,
+          "neuron_count": 2,
+          "total_spikes": 14
+        },
+        "motor_flight_power_left": {
+          "active_neurons": 12,
+          "mean_rate_hz": 100.41666666666667,
+          "neuron_count": 12,
+          "total_spikes": 241
+        },
+        "motor_flight_power_right": {
+          "active_neurons": 12,
+          "mean_rate_hz": 99.16666666666667,
+          "neuron_count": 12,
+          "total_spikes": 238
+        },
+        "motor_flight_steering_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 8.333333333333334,
+          "neuron_count": 3,
+          "total_spikes": 5
+        },
+        "motor_flight_steering_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 3,
+          "total_spikes": 3
+        },
+        "motor_landing_left": {
+          "active_neurons": 4,
+          "mean_rate_hz": 12.5,
+          "neuron_count": 6,
+          "total_spikes": 15
+        },
+        "motor_landing_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 8.333333333333334,
+          "neuron_count": 6,
+          "total_spikes": 10
+        },
+        "motor_walking_left": {
+          "active_neurons": 5,
+          "mean_rate_hz": 9.545454545454545,
+          "neuron_count": 11,
+          "total_spikes": 21
+        },
+        "motor_walking_right": {
+          "active_neurons": 3,
+          "mean_rate_hz": 4.583333333333333,
+          "neuron_count": 12,
+          "total_spikes": 11
+        },
+        "olfaction_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 798,
+          "total_spikes": 0
+        },
+        "olfaction_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1247,
+          "total_spikes": 0
+        },
+        "taste_sugar": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 85,
+          "total_spikes": 0
+        },
+        "visual_loom_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 150.0,
+          "neuron_count": 1,
+          "total_spikes": 30
+        },
+        "visual_loom_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 100.0,
+          "neuron_count": 1,
+          "total_spikes": 20
+        },
+        "visual_motion_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 21,
+          "total_spikes": 0
+        },
+        "visual_motion_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 23,
+          "total_spikes": 0
+        },
+        "walking_dn_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 4,
+          "total_spikes": 4
+        },
+        "walking_dn_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 1.25,
+          "neuron_count": 4,
+          "total_spikes": 1
+        }
+      },
+      "population": {
+        "active_neurons": 3638,
+        "mean_rate_hz": 0.2853629274145171,
+        "neuron_count": 166700,
+        "total_spikes": 9514
+      },
+      "rate_hz": 150.0,
+      "readouts": {
+        "tibia_extensor_fl_L": {
+          "active_neurons": 1,
+          "mean_rate_hz": 10.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            4,
+            0
+          ],
+          "total_spikes": 4
+        },
+        "tibia_extensor_fl_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 12.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            5
+          ],
+          "total_spikes": 5
+        },
+        "tibia_extensor_hl_L": {
+          "active_neurons": 1,
+          "mean_rate_hz": 7.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            3,
+            0
+          ],
+          "total_spikes": 3
+        },
+        "tibia_extensor_hl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_L": {
+          "active_neurons": 2,
+          "mean_rate_hz": 20.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            5,
+            3
+          ],
+          "total_spikes": 8
+        },
+        "tibia_extensor_ml_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 12.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            5,
+            0
+          ],
+          "total_spikes": 5
+        }
+      },
+      "reference": {
+        "first_difference": null,
+        "input_relay_motor_groups_match": true,
+        "path": "outputs/cns/verification-final/seed-2-intact.json",
+        "population_match": true,
+        "sha256": "41b28b5076d85848101a311ef15b9d5c0c6d4b02e67cd61097276c41cc4392ec",
+        "spike_count_hash_match": true
+      },
+      "relay": {
+        "active_neurons": 2,
+        "mean_rate_hz": 45.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          10,
+          8
+        ],
+        "total_spikes": 18
+      },
+      "repeat_hashes": [
+        {
+          "conductance_final_mv_sha256": "75630233e60fd6535c987f3e8e70fe43fd3cf74c80c8b20ce2be905365077a59",
+          "spike_counts_sha256": "a1662546a8be67d04b4d13d882bc8442ca3c33c854bda72613ba03cbfeef8689",
+          "state_sha256": "0889a01bea68c81249a887353870afd730f7f8af63b2a37a571f0032d92687b5",
+          "voltage_final_mv_sha256": "3e3b2447826d3469f6d8af93d014fbe5020e88eb6657962eacbcc3424200250a"
+        },
+        {
+          "conductance_final_mv_sha256": "75630233e60fd6535c987f3e8e70fe43fd3cf74c80c8b20ce2be905365077a59",
+          "spike_counts_sha256": "a1662546a8be67d04b4d13d882bc8442ca3c33c854bda72613ba03cbfeef8689",
+          "state_sha256": "0889a01bea68c81249a887353870afd730f7f8af63b2a37a571f0032d92687b5",
+          "voltage_final_mv_sha256": "3e3b2447826d3469f6d8af93d014fbe5020e88eb6657962eacbcc3424200250a"
+        }
+      ],
+      "seed": 2,
+      "steps": 2000,
+      "stimulus_event_count": 51,
+      "timing": {
+        "allocated_bytes": 154818104,
+        "biological_seconds": 0.2,
+        "chunk_steps": 256,
+        "construction_seconds": 0.022533829,
+        "device_name": "NVIDIA GeForce RTX 5080",
+        "run_seconds": 0.203265734,
+        "simulation_realtime_factor": 0.9839336717717508
+      }
+    },
+    {
+      "control": "no-input",
+      "duration_ms": 200.0,
+      "hashes": {
+        "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+        "spike_counts_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+        "state_sha256": "e484f648303ab9e73e6fae7d34ba3921b76c64c57824f19c35321810cc5dda04",
+        "voltage_final_mv_sha256": "6fcb234cad5fb8c919026fb8744cb417110ed1cad7f2943298f154e0cbcae469"
+      },
+      "input": {
+        "active_neurons": 0,
+        "mean_rate_hz": 0.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          0,
+          0
+        ],
+        "total_spikes": 0
+      },
+      "neural_io_groups": {
+        "feeding_mn9": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "flight_dng02_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 15,
+          "total_spikes": 0
+        },
+        "flight_dng02_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 14,
+          "total_spikes": 0
+        },
+        "flight_dng07_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_dng07_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 75,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 73,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "landing_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "total_spikes": 0
+        },
+        "landing_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "total_spikes": 0
+        },
+        "motor_flight_power_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "motor_flight_power_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "motor_flight_steering_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 3,
+          "total_spikes": 0
+        },
+        "motor_flight_steering_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 3,
+          "total_spikes": 0
+        },
+        "motor_landing_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "motor_landing_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "motor_walking_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 11,
+          "total_spikes": 0
+        },
+        "motor_walking_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "olfaction_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 798,
+          "total_spikes": 0
+        },
+        "olfaction_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1247,
+          "total_spikes": 0
+        },
+        "taste_sugar": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 85,
+          "total_spikes": 0
+        },
+        "visual_loom_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "visual_loom_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "visual_motion_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 21,
+          "total_spikes": 0
+        },
+        "visual_motion_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 23,
+          "total_spikes": 0
+        },
+        "walking_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 4,
+          "total_spikes": 0
+        },
+        "walking_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 4,
+          "total_spikes": 0
+        }
+      },
+      "population": {
+        "active_neurons": 0,
+        "mean_rate_hz": 0.0,
+        "neuron_count": 166700,
+        "total_spikes": 0
+      },
+      "rate_hz": 150.0,
+      "readouts": {
+        "tibia_extensor_fl_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_fl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_hl_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_hl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        }
+      },
+      "reference": {
+        "first_difference": null,
+        "input_relay_motor_groups_match": true,
+        "path": "outputs/cns/verification-final/seed-2-no-input.json",
+        "population_match": true,
+        "sha256": "a1743a8ff396c016069c404040a2cd6595041c65b5e8caea39e2403809eeeddb",
+        "spike_count_hash_match": true
+      },
+      "relay": {
+        "active_neurons": 0,
+        "mean_rate_hz": 0.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          0,
+          0
+        ],
+        "total_spikes": 0
+      },
+      "repeat_hashes": [
+        {
+          "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "spike_counts_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "state_sha256": "e484f648303ab9e73e6fae7d34ba3921b76c64c57824f19c35321810cc5dda04",
+          "voltage_final_mv_sha256": "6fcb234cad5fb8c919026fb8744cb417110ed1cad7f2943298f154e0cbcae469"
+        },
+        {
+          "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "spike_counts_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "state_sha256": "e484f648303ab9e73e6fae7d34ba3921b76c64c57824f19c35321810cc5dda04",
+          "voltage_final_mv_sha256": "6fcb234cad5fb8c919026fb8744cb417110ed1cad7f2943298f154e0cbcae469"
+        }
+      ],
+      "seed": 2,
+      "steps": 2000,
+      "stimulus_event_count": 0,
+      "timing": {
+        "allocated_bytes": 154818104,
+        "biological_seconds": 0.2,
+        "chunk_steps": 256,
+        "construction_seconds": 0.019056712,
+        "device_name": "NVIDIA GeForce RTX 5080",
+        "run_seconds": 0.038877578,
+        "simulation_realtime_factor": 5.144353385388359
+      }
+    },
+    {
+      "control": "input-disconnected",
+      "duration_ms": 200.0,
+      "hashes": {
+        "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+        "spike_counts_sha256": "6fb23684c79c7eeca3f44a5a2c1e68b7626f399d8db4a7214615def40eddfffb",
+        "state_sha256": "e484f648303ab9e73e6fae7d34ba3921b76c64c57824f19c35321810cc5dda04",
+        "voltage_final_mv_sha256": "6fcb234cad5fb8c919026fb8744cb417110ed1cad7f2943298f154e0cbcae469"
+      },
+      "input": {
+        "active_neurons": 2,
+        "mean_rate_hz": 125.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          30,
+          20
+        ],
+        "total_spikes": 50
+      },
+      "neural_io_groups": {
+        "feeding_mn9": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "flight_dng02_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 15,
+          "total_spikes": 0
+        },
+        "flight_dng02_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 14,
+          "total_spikes": 0
+        },
+        "flight_dng07_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_dng07_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 75,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 73,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "landing_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "total_spikes": 0
+        },
+        "landing_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "total_spikes": 0
+        },
+        "motor_flight_power_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "motor_flight_power_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "motor_flight_steering_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 3,
+          "total_spikes": 0
+        },
+        "motor_flight_steering_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 3,
+          "total_spikes": 0
+        },
+        "motor_landing_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "motor_landing_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "motor_walking_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 11,
+          "total_spikes": 0
+        },
+        "motor_walking_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "olfaction_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 798,
+          "total_spikes": 0
+        },
+        "olfaction_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1247,
+          "total_spikes": 0
+        },
+        "taste_sugar": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 85,
+          "total_spikes": 0
+        },
+        "visual_loom_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 150.0,
+          "neuron_count": 1,
+          "total_spikes": 30
+        },
+        "visual_loom_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 100.0,
+          "neuron_count": 1,
+          "total_spikes": 20
+        },
+        "visual_motion_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 21,
+          "total_spikes": 0
+        },
+        "visual_motion_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 23,
+          "total_spikes": 0
+        },
+        "walking_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 4,
+          "total_spikes": 0
+        },
+        "walking_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 4,
+          "total_spikes": 0
+        }
+      },
+      "population": {
+        "active_neurons": 2,
+        "mean_rate_hz": 0.0014997000599880025,
+        "neuron_count": 166700,
+        "total_spikes": 50
+      },
+      "rate_hz": 150.0,
+      "readouts": {
+        "tibia_extensor_fl_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_fl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_hl_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_hl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        }
+      },
+      "reference": {
+        "first_difference": null,
+        "input_relay_motor_groups_match": true,
+        "path": "outputs/cns/verification-final/seed-2-input-disconnected.json",
+        "population_match": true,
+        "sha256": "8ce483277df59cf4b6effe91681309ad60a7dadf1dc1bbefeeb5a90d45217b4c",
+        "spike_count_hash_match": true
+      },
+      "relay": {
+        "active_neurons": 0,
+        "mean_rate_hz": 0.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          0,
+          0
+        ],
+        "total_spikes": 0
+      },
+      "repeat_hashes": [
+        {
+          "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "spike_counts_sha256": "6fb23684c79c7eeca3f44a5a2c1e68b7626f399d8db4a7214615def40eddfffb",
+          "state_sha256": "e484f648303ab9e73e6fae7d34ba3921b76c64c57824f19c35321810cc5dda04",
+          "voltage_final_mv_sha256": "6fcb234cad5fb8c919026fb8744cb417110ed1cad7f2943298f154e0cbcae469"
+        },
+        {
+          "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "spike_counts_sha256": "6fb23684c79c7eeca3f44a5a2c1e68b7626f399d8db4a7214615def40eddfffb",
+          "state_sha256": "e484f648303ab9e73e6fae7d34ba3921b76c64c57824f19c35321810cc5dda04",
+          "voltage_final_mv_sha256": "6fcb234cad5fb8c919026fb8744cb417110ed1cad7f2943298f154e0cbcae469"
+        }
+      ],
+      "seed": 2,
+      "steps": 2000,
+      "stimulus_event_count": 51,
+      "timing": {
+        "allocated_bytes": 154818104,
+        "biological_seconds": 0.2,
+        "chunk_steps": 256,
+        "construction_seconds": 0.019105928,
+        "device_name": "NVIDIA GeForce RTX 5080",
+        "run_seconds": 0.052292822,
+        "simulation_realtime_factor": 3.82461669404646
+      }
+    },
+    {
+      "control": "relay-disconnected",
+      "duration_ms": 200.0,
+      "hashes": {
+        "conductance_final_mv_sha256": "e91a037f3b71b12cc4005ec62284ff05fd19ce1a6259312b0bb18ecfefdcbf9d",
+        "spike_counts_sha256": "6b7baba7ea99a19fb5575568fabffc60d7892a07fb1c5fa451a3ab0a095e2c51",
+        "state_sha256": "8ee1837f8f1c93b17e3517d6f8af16538384edbf2528a58ac5df12e020316706",
+        "voltage_final_mv_sha256": "3ac714cb720ddab58716459e595976f31ae08ef29e27aaefc7f9564ed61031c1"
+      },
+      "input": {
+        "active_neurons": 2,
+        "mean_rate_hz": 125.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          30,
+          20
+        ],
+        "total_spikes": 50
+      },
+      "neural_io_groups": {
+        "feeding_mn9": {
+          "active_neurons": 1,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 1,
+          "total_spikes": 1
+        },
+        "flight_dng02_left": {
+          "active_neurons": 5,
+          "mean_rate_hz": 5.666666666666667,
+          "neuron_count": 15,
+          "total_spikes": 17
+        },
+        "flight_dng02_right": {
+          "active_neurons": 5,
+          "mean_rate_hz": 6.071428571428571,
+          "neuron_count": 14,
+          "total_spikes": 17
+        },
+        "flight_dng07_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 0.625,
+          "neuron_count": 8,
+          "total_spikes": 1
+        },
+        "flight_dng07_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 1.25,
+          "neuron_count": 8,
+          "total_spikes": 2
+        },
+        "flight_state_sapp_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 75,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 73,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_left": {
+          "active_neurons": 4,
+          "mean_rate_hz": 9.166666666666666,
+          "neuron_count": 6,
+          "total_spikes": 11
+        },
+        "flight_steering_dn_right": {
+          "active_neurons": 3,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 6,
+          "total_spikes": 6
+        },
+        "landing_dn_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 70.0,
+          "neuron_count": 2,
+          "total_spikes": 28
+        },
+        "landing_dn_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 55.0,
+          "neuron_count": 2,
+          "total_spikes": 22
+        },
+        "motor_flight_power_left": {
+          "active_neurons": 12,
+          "mean_rate_hz": 80.0,
+          "neuron_count": 12,
+          "total_spikes": 192
+        },
+        "motor_flight_power_right": {
+          "active_neurons": 12,
+          "mean_rate_hz": 81.66666666666667,
+          "neuron_count": 12,
+          "total_spikes": 196
+        },
+        "motor_flight_steering_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 8.333333333333334,
+          "neuron_count": 3,
+          "total_spikes": 5
+        },
+        "motor_flight_steering_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 3.3333333333333335,
+          "neuron_count": 3,
+          "total_spikes": 2
+        },
+        "motor_landing_left": {
+          "active_neurons": 4,
+          "mean_rate_hz": 14.166666666666666,
+          "neuron_count": 6,
+          "total_spikes": 17
+        },
+        "motor_landing_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 6.666666666666667,
+          "neuron_count": 6,
+          "total_spikes": 8
+        },
+        "motor_walking_left": {
+          "active_neurons": 5,
+          "mean_rate_hz": 10.909090909090908,
+          "neuron_count": 11,
+          "total_spikes": 24
+        },
+        "motor_walking_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 3.3333333333333335,
+          "neuron_count": 12,
+          "total_spikes": 8
+        },
+        "olfaction_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 798,
+          "total_spikes": 0
+        },
+        "olfaction_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1247,
+          "total_spikes": 0
+        },
+        "taste_sugar": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 85,
+          "total_spikes": 0
+        },
+        "visual_loom_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 150.0,
+          "neuron_count": 1,
+          "total_spikes": 30
+        },
+        "visual_loom_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 100.0,
+          "neuron_count": 1,
+          "total_spikes": 20
+        },
+        "visual_motion_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 21,
+          "total_spikes": 0
+        },
+        "visual_motion_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 23,
+          "total_spikes": 0
+        },
+        "walking_dn_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 7.5,
+          "neuron_count": 4,
+          "total_spikes": 6
+        },
+        "walking_dn_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 2.5,
+          "neuron_count": 4,
+          "total_spikes": 2
+        }
+      },
+      "population": {
+        "active_neurons": 3992,
+        "mean_rate_hz": 0.3952309538092382,
+        "neuron_count": 166700,
+        "total_spikes": 13177
+      },
+      "rate_hz": 150.0,
+      "readouts": {
+        "tibia_extensor_fl_L": {
+          "active_neurons": 1,
+          "mean_rate_hz": 7.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            3,
+            0
+          ],
+          "total_spikes": 3
+        },
+        "tibia_extensor_fl_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 7.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            3
+          ],
+          "total_spikes": 3
+        },
+        "tibia_extensor_hl_L": {
+          "active_neurons": 1,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            2,
+            0
+          ],
+          "total_spikes": 2
+        },
+        "tibia_extensor_hl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_L": {
+          "active_neurons": 2,
+          "mean_rate_hz": 30.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            5,
+            7
+          ],
+          "total_spikes": 12
+        },
+        "tibia_extensor_ml_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 12.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            5,
+            0
+          ],
+          "total_spikes": 5
+        }
+      },
+      "reference": {
+        "first_difference": null,
+        "input_relay_motor_groups_match": true,
+        "path": "outputs/cns/verification-final/seed-2-relay-disconnected.json",
+        "population_match": true,
+        "sha256": "5de311ab384e7145ecda8a65525bdd1e8d64bceabd89b18e9054ca4875b31974",
+        "spike_count_hash_match": true
+      },
+      "relay": {
+        "active_neurons": 2,
+        "mean_rate_hz": 80.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          17,
+          15
+        ],
+        "total_spikes": 32
+      },
+      "repeat_hashes": [
+        {
+          "conductance_final_mv_sha256": "e91a037f3b71b12cc4005ec62284ff05fd19ce1a6259312b0bb18ecfefdcbf9d",
+          "spike_counts_sha256": "6b7baba7ea99a19fb5575568fabffc60d7892a07fb1c5fa451a3ab0a095e2c51",
+          "state_sha256": "8ee1837f8f1c93b17e3517d6f8af16538384edbf2528a58ac5df12e020316706",
+          "voltage_final_mv_sha256": "3ac714cb720ddab58716459e595976f31ae08ef29e27aaefc7f9564ed61031c1"
+        },
+        {
+          "conductance_final_mv_sha256": "e91a037f3b71b12cc4005ec62284ff05fd19ce1a6259312b0bb18ecfefdcbf9d",
+          "spike_counts_sha256": "6b7baba7ea99a19fb5575568fabffc60d7892a07fb1c5fa451a3ab0a095e2c51",
+          "state_sha256": "8ee1837f8f1c93b17e3517d6f8af16538384edbf2528a58ac5df12e020316706",
+          "voltage_final_mv_sha256": "3ac714cb720ddab58716459e595976f31ae08ef29e27aaefc7f9564ed61031c1"
+        }
+      ],
+      "seed": 2,
+      "steps": 2000,
+      "stimulus_event_count": 51,
+      "timing": {
+        "allocated_bytes": 154818104,
+        "biological_seconds": 0.2,
+        "chunk_steps": 256,
+        "construction_seconds": 0.01773626,
+        "device_name": "NVIDIA GeForce RTX 5080",
+        "run_seconds": 0.208447559,
+        "simulation_realtime_factor": 0.9594739365597464
+      }
+    },
+    {
+      "control": "relay-driven",
+      "duration_ms": 200.0,
+      "hashes": {
+        "conductance_final_mv_sha256": "e9af2e61657bf5c39f70777e5a5d0d40e11e938ef17628a349b7ff8468a6d328",
+        "spike_counts_sha256": "dcf238f04ee418a6116938367ce23196ec83fbfc1da5999b0b0440d315aec8f6",
+        "state_sha256": "59354b6a51a987c4ace6e2a2e5c3364bb5ab061b195506ae3dc3ef70684819a3",
+        "voltage_final_mv_sha256": "f8765e0f23c3547a1846d206b49b2fef27215dcc0280ace1d633c320406b863c"
+      },
+      "input": {
+        "active_neurons": 0,
+        "mean_rate_hz": 0.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          0,
+          0
+        ],
+        "total_spikes": 0
+      },
+      "neural_io_groups": {
+        "feeding_mn9": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "flight_dng02_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 15,
+          "total_spikes": 0
+        },
+        "flight_dng02_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 0.35714285714285715,
+          "neuron_count": 14,
+          "total_spikes": 1
+        },
+        "flight_dng07_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_dng07_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 75,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 73,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_left": {
+          "active_neurons": 3,
+          "mean_rate_hz": 6.666666666666667,
+          "neuron_count": 6,
+          "total_spikes": 8
+        },
+        "flight_steering_dn_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 0.8333333333333334,
+          "neuron_count": 6,
+          "total_spikes": 1
+        },
+        "landing_dn_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 77.5,
+          "neuron_count": 2,
+          "total_spikes": 31
+        },
+        "landing_dn_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 52.5,
+          "neuron_count": 2,
+          "total_spikes": 21
+        },
+        "motor_flight_power_left": {
+          "active_neurons": 12,
+          "mean_rate_hz": 93.75,
+          "neuron_count": 12,
+          "total_spikes": 225
+        },
+        "motor_flight_power_right": {
+          "active_neurons": 12,
+          "mean_rate_hz": 93.33333333333333,
+          "neuron_count": 12,
+          "total_spikes": 224
+        },
+        "motor_flight_steering_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 10.0,
+          "neuron_count": 3,
+          "total_spikes": 6
+        },
+        "motor_flight_steering_right": {
+          "active_neurons": 3,
+          "mean_rate_hz": 10.0,
+          "neuron_count": 3,
+          "total_spikes": 6
+        },
+        "motor_landing_left": {
+          "active_neurons": 4,
+          "mean_rate_hz": 7.5,
+          "neuron_count": 6,
+          "total_spikes": 9
+        },
+        "motor_landing_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 5.833333333333333,
+          "neuron_count": 6,
+          "total_spikes": 7
+        },
+        "motor_walking_left": {
+          "active_neurons": 7,
+          "mean_rate_hz": 6.818181818181818,
+          "neuron_count": 11,
+          "total_spikes": 15
+        },
+        "motor_walking_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 2.9166666666666665,
+          "neuron_count": 12,
+          "total_spikes": 7
+        },
+        "olfaction_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 798,
+          "total_spikes": 0
+        },
+        "olfaction_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1247,
+          "total_spikes": 0
+        },
+        "taste_sugar": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 85,
+          "total_spikes": 0
+        },
+        "visual_loom_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "visual_loom_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "visual_motion_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 21,
+          "total_spikes": 0
+        },
+        "visual_motion_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 23,
+          "total_spikes": 0
+        },
+        "walking_dn_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 8.75,
+          "neuron_count": 4,
+          "total_spikes": 7
+        },
+        "walking_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 4,
+          "total_spikes": 0
+        }
+      },
+      "population": {
+        "active_neurons": 2845,
+        "mean_rate_hz": 0.2876124775044991,
+        "neuron_count": 166700,
+        "total_spikes": 9589
+      },
+      "rate_hz": 150.0,
+      "readouts": {
+        "tibia_extensor_fl_L": {
+          "active_neurons": 2,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            1,
+            1
+          ],
+          "total_spikes": 2
+        },
+        "tibia_extensor_fl_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 2.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            1
+          ],
+          "total_spikes": 1
+        },
+        "tibia_extensor_hl_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_hl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_L": {
+          "active_neurons": 2,
+          "mean_rate_hz": 17.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            5,
+            2
+          ],
+          "total_spikes": 7
+        },
+        "tibia_extensor_ml_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 15.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            6,
+            0
+          ],
+          "total_spikes": 6
+        }
+      },
+      "reference": {
+        "first_difference": null,
+        "input_relay_motor_groups_match": true,
+        "path": "outputs/cns/verification-final/seed-2-relay-driven.json",
+        "population_match": true,
+        "sha256": "f03f738fe8296a05da0682302d3849d15f4956cc2e70010fc27d3cc24190f5fd",
+        "spike_count_hash_match": true
+      },
+      "relay": {
+        "active_neurons": 2,
+        "mean_rate_hz": 130.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          31,
+          21
+        ],
+        "total_spikes": 52
+      },
+      "repeat_hashes": [
+        {
+          "conductance_final_mv_sha256": "e9af2e61657bf5c39f70777e5a5d0d40e11e938ef17628a349b7ff8468a6d328",
+          "spike_counts_sha256": "dcf238f04ee418a6116938367ce23196ec83fbfc1da5999b0b0440d315aec8f6",
+          "state_sha256": "59354b6a51a987c4ace6e2a2e5c3364bb5ab061b195506ae3dc3ef70684819a3",
+          "voltage_final_mv_sha256": "f8765e0f23c3547a1846d206b49b2fef27215dcc0280ace1d633c320406b863c"
+        },
+        {
+          "conductance_final_mv_sha256": "e9af2e61657bf5c39f70777e5a5d0d40e11e938ef17628a349b7ff8468a6d328",
+          "spike_counts_sha256": "dcf238f04ee418a6116938367ce23196ec83fbfc1da5999b0b0440d315aec8f6",
+          "state_sha256": "59354b6a51a987c4ace6e2a2e5c3364bb5ab061b195506ae3dc3ef70684819a3",
+          "voltage_final_mv_sha256": "f8765e0f23c3547a1846d206b49b2fef27215dcc0280ace1d633c320406b863c"
+        }
+      ],
+      "seed": 2,
+      "steps": 2000,
+      "stimulus_event_count": 51,
+      "timing": {
+        "allocated_bytes": 154818104,
+        "biological_seconds": 0.2,
+        "chunk_steps": 256,
+        "construction_seconds": 0.021807541,
+        "device_name": "NVIDIA GeForce RTX 5080",
+        "run_seconds": 0.219572918,
+        "simulation_realtime_factor": 0.9108591433848868
+      }
+    },
+    {
+      "control": "intact",
+      "duration_ms": 200.0,
+      "hashes": {
+        "conductance_final_mv_sha256": "b2c646cc527059a2a9fade885eb0cddae78e831c432cd0f9aa69308793d4b6e2",
+        "spike_counts_sha256": "c1de4b557738727cdcb9109c16f35eacb9271775232eabdd81318214d7390b8e",
+        "state_sha256": "0079678dad6c311cf2006fbfcdee9f38a8e90fa8936aaea6efa01c8f56c8bfe1",
+        "voltage_final_mv_sha256": "a070792021163168e2f9205936a54e4e8390f3dd5690aa9e453dbfbfd9db652b"
+      },
+      "input": {
+        "active_neurons": 2,
+        "mean_rate_hz": 120.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          24,
+          24
+        ],
+        "total_spikes": 48
+      },
+      "neural_io_groups": {
+        "feeding_mn9": {
+          "active_neurons": 1,
+          "mean_rate_hz": 10.0,
+          "neuron_count": 1,
+          "total_spikes": 2
+        },
+        "flight_dng02_left": {
+          "active_neurons": 4,
+          "mean_rate_hz": 3.3333333333333335,
+          "neuron_count": 15,
+          "total_spikes": 10
+        },
+        "flight_dng02_right": {
+          "active_neurons": 5,
+          "mean_rate_hz": 3.2142857142857144,
+          "neuron_count": 14,
+          "total_spikes": 9
+        },
+        "flight_dng07_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_dng07_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 0.625,
+          "neuron_count": 8,
+          "total_spikes": 1
+        },
+        "flight_state_sapp_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 75,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 73,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_left": {
+          "active_neurons": 3,
+          "mean_rate_hz": 5.833333333333333,
+          "neuron_count": 6,
+          "total_spikes": 7
+        },
+        "flight_steering_dn_right": {
+          "active_neurons": 3,
+          "mean_rate_hz": 2.5,
+          "neuron_count": 6,
+          "total_spikes": 3
+        },
+        "landing_dn_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 40.0,
+          "neuron_count": 2,
+          "total_spikes": 16
+        },
+        "landing_dn_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 30.0,
+          "neuron_count": 2,
+          "total_spikes": 12
+        },
+        "motor_flight_power_left": {
+          "active_neurons": 12,
+          "mean_rate_hz": 84.16666666666667,
+          "neuron_count": 12,
+          "total_spikes": 202
+        },
+        "motor_flight_power_right": {
+          "active_neurons": 12,
+          "mean_rate_hz": 83.33333333333333,
+          "neuron_count": 12,
+          "total_spikes": 200
+        },
+        "motor_flight_steering_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 6.666666666666667,
+          "neuron_count": 3,
+          "total_spikes": 4
+        },
+        "motor_flight_steering_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 1.6666666666666667,
+          "neuron_count": 3,
+          "total_spikes": 1
+        },
+        "motor_landing_left": {
+          "active_neurons": 4,
+          "mean_rate_hz": 8.333333333333334,
+          "neuron_count": 6,
+          "total_spikes": 10
+        },
+        "motor_landing_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 5.833333333333333,
+          "neuron_count": 6,
+          "total_spikes": 7
+        },
+        "motor_walking_left": {
+          "active_neurons": 7,
+          "mean_rate_hz": 9.090909090909092,
+          "neuron_count": 11,
+          "total_spikes": 20
+        },
+        "motor_walking_right": {
+          "active_neurons": 3,
+          "mean_rate_hz": 3.3333333333333335,
+          "neuron_count": 12,
+          "total_spikes": 8
+        },
+        "olfaction_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 798,
+          "total_spikes": 0
+        },
+        "olfaction_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1247,
+          "total_spikes": 0
+        },
+        "taste_sugar": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 85,
+          "total_spikes": 0
+        },
+        "visual_loom_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 120.0,
+          "neuron_count": 1,
+          "total_spikes": 24
+        },
+        "visual_loom_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 120.0,
+          "neuron_count": 1,
+          "total_spikes": 24
+        },
+        "visual_motion_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 21,
+          "total_spikes": 0
+        },
+        "visual_motion_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 23,
+          "total_spikes": 0
+        },
+        "walking_dn_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 4,
+          "total_spikes": 4
+        },
+        "walking_dn_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 1.25,
+          "neuron_count": 4,
+          "total_spikes": 1
+        }
+      },
+      "population": {
+        "active_neurons": 3702,
+        "mean_rate_hz": 0.2823335332933413,
+        "neuron_count": 166700,
+        "total_spikes": 9413
+      },
+      "rate_hz": 150.0,
+      "readouts": {
+        "tibia_extensor_fl_L": {
+          "active_neurons": 1,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            2,
+            0
+          ],
+          "total_spikes": 2
+        },
+        "tibia_extensor_fl_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 7.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            3
+          ],
+          "total_spikes": 3
+        },
+        "tibia_extensor_hl_L": {
+          "active_neurons": 1,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            2,
+            0
+          ],
+          "total_spikes": 2
+        },
+        "tibia_extensor_hl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_L": {
+          "active_neurons": 2,
+          "mean_rate_hz": 15.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            3,
+            3
+          ],
+          "total_spikes": 6
+        },
+        "tibia_extensor_ml_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 10.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            4,
+            0
+          ],
+          "total_spikes": 4
+        }
+      },
+      "reference": {
+        "first_difference": null,
+        "input_relay_motor_groups_match": true,
+        "path": "outputs/cns/verification-final/seed-3-intact.json",
+        "population_match": true,
+        "sha256": "b8a786ea51f438fc6a77fa892df59c6373a203c761ff815315b674fe32bb54ae",
+        "spike_count_hash_match": true
+      },
+      "relay": {
+        "active_neurons": 2,
+        "mean_rate_hz": 40.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          9,
+          7
+        ],
+        "total_spikes": 16
+      },
+      "repeat_hashes": [
+        {
+          "conductance_final_mv_sha256": "b2c646cc527059a2a9fade885eb0cddae78e831c432cd0f9aa69308793d4b6e2",
+          "spike_counts_sha256": "c1de4b557738727cdcb9109c16f35eacb9271775232eabdd81318214d7390b8e",
+          "state_sha256": "0079678dad6c311cf2006fbfcdee9f38a8e90fa8936aaea6efa01c8f56c8bfe1",
+          "voltage_final_mv_sha256": "a070792021163168e2f9205936a54e4e8390f3dd5690aa9e453dbfbfd9db652b"
+        },
+        {
+          "conductance_final_mv_sha256": "b2c646cc527059a2a9fade885eb0cddae78e831c432cd0f9aa69308793d4b6e2",
+          "spike_counts_sha256": "c1de4b557738727cdcb9109c16f35eacb9271775232eabdd81318214d7390b8e",
+          "state_sha256": "0079678dad6c311cf2006fbfcdee9f38a8e90fa8936aaea6efa01c8f56c8bfe1",
+          "voltage_final_mv_sha256": "a070792021163168e2f9205936a54e4e8390f3dd5690aa9e453dbfbfd9db652b"
+        }
+      ],
+      "seed": 3,
+      "steps": 2000,
+      "stimulus_event_count": 49,
+      "timing": {
+        "allocated_bytes": 154818104,
+        "biological_seconds": 0.2,
+        "chunk_steps": 256,
+        "construction_seconds": 0.022338388,
+        "device_name": "NVIDIA GeForce RTX 5080",
+        "run_seconds": 0.187913113,
+        "simulation_realtime_factor": 1.0643216793497536
+      }
+    },
+    {
+      "control": "no-input",
+      "duration_ms": 200.0,
+      "hashes": {
+        "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+        "spike_counts_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+        "state_sha256": "e484f648303ab9e73e6fae7d34ba3921b76c64c57824f19c35321810cc5dda04",
+        "voltage_final_mv_sha256": "6fcb234cad5fb8c919026fb8744cb417110ed1cad7f2943298f154e0cbcae469"
+      },
+      "input": {
+        "active_neurons": 0,
+        "mean_rate_hz": 0.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          0,
+          0
+        ],
+        "total_spikes": 0
+      },
+      "neural_io_groups": {
+        "feeding_mn9": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "flight_dng02_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 15,
+          "total_spikes": 0
+        },
+        "flight_dng02_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 14,
+          "total_spikes": 0
+        },
+        "flight_dng07_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_dng07_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 75,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 73,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "landing_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "total_spikes": 0
+        },
+        "landing_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "total_spikes": 0
+        },
+        "motor_flight_power_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "motor_flight_power_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "motor_flight_steering_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 3,
+          "total_spikes": 0
+        },
+        "motor_flight_steering_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 3,
+          "total_spikes": 0
+        },
+        "motor_landing_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "motor_landing_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "motor_walking_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 11,
+          "total_spikes": 0
+        },
+        "motor_walking_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "olfaction_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 798,
+          "total_spikes": 0
+        },
+        "olfaction_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1247,
+          "total_spikes": 0
+        },
+        "taste_sugar": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 85,
+          "total_spikes": 0
+        },
+        "visual_loom_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "visual_loom_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "visual_motion_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 21,
+          "total_spikes": 0
+        },
+        "visual_motion_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 23,
+          "total_spikes": 0
+        },
+        "walking_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 4,
+          "total_spikes": 0
+        },
+        "walking_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 4,
+          "total_spikes": 0
+        }
+      },
+      "population": {
+        "active_neurons": 0,
+        "mean_rate_hz": 0.0,
+        "neuron_count": 166700,
+        "total_spikes": 0
+      },
+      "rate_hz": 150.0,
+      "readouts": {
+        "tibia_extensor_fl_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_fl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_hl_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_hl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        }
+      },
+      "reference": {
+        "first_difference": null,
+        "input_relay_motor_groups_match": true,
+        "path": "outputs/cns/verification-final/seed-3-no-input.json",
+        "population_match": true,
+        "sha256": "2b9786d430724a816f9646e4647acf4fb93e6a1e89074ec2bb439c5cee824b98",
+        "spike_count_hash_match": true
+      },
+      "relay": {
+        "active_neurons": 0,
+        "mean_rate_hz": 0.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          0,
+          0
+        ],
+        "total_spikes": 0
+      },
+      "repeat_hashes": [
+        {
+          "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "spike_counts_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "state_sha256": "e484f648303ab9e73e6fae7d34ba3921b76c64c57824f19c35321810cc5dda04",
+          "voltage_final_mv_sha256": "6fcb234cad5fb8c919026fb8744cb417110ed1cad7f2943298f154e0cbcae469"
+        },
+        {
+          "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "spike_counts_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "state_sha256": "e484f648303ab9e73e6fae7d34ba3921b76c64c57824f19c35321810cc5dda04",
+          "voltage_final_mv_sha256": "6fcb234cad5fb8c919026fb8744cb417110ed1cad7f2943298f154e0cbcae469"
+        }
+      ],
+      "seed": 3,
+      "steps": 2000,
+      "stimulus_event_count": 0,
+      "timing": {
+        "allocated_bytes": 154818104,
+        "biological_seconds": 0.2,
+        "chunk_steps": 256,
+        "construction_seconds": 0.01918879,
+        "device_name": "NVIDIA GeForce RTX 5080",
+        "run_seconds": 0.040262553,
+        "simulation_realtime_factor": 4.9673948892411275
+      }
+    },
+    {
+      "control": "input-disconnected",
+      "duration_ms": 200.0,
+      "hashes": {
+        "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+        "spike_counts_sha256": "87e27aefcf3e9cbcc6f6ce291bb2ab775bd629c0813abe57190d5022388f1d4c",
+        "state_sha256": "e484f648303ab9e73e6fae7d34ba3921b76c64c57824f19c35321810cc5dda04",
+        "voltage_final_mv_sha256": "6fcb234cad5fb8c919026fb8744cb417110ed1cad7f2943298f154e0cbcae469"
+      },
+      "input": {
+        "active_neurons": 2,
+        "mean_rate_hz": 120.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          24,
+          24
+        ],
+        "total_spikes": 48
+      },
+      "neural_io_groups": {
+        "feeding_mn9": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "flight_dng02_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 15,
+          "total_spikes": 0
+        },
+        "flight_dng02_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 14,
+          "total_spikes": 0
+        },
+        "flight_dng07_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_dng07_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 75,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 73,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "landing_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "total_spikes": 0
+        },
+        "landing_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "total_spikes": 0
+        },
+        "motor_flight_power_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "motor_flight_power_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "motor_flight_steering_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 3,
+          "total_spikes": 0
+        },
+        "motor_flight_steering_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 3,
+          "total_spikes": 0
+        },
+        "motor_landing_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "motor_landing_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 6,
+          "total_spikes": 0
+        },
+        "motor_walking_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 11,
+          "total_spikes": 0
+        },
+        "motor_walking_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 12,
+          "total_spikes": 0
+        },
+        "olfaction_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 798,
+          "total_spikes": 0
+        },
+        "olfaction_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1247,
+          "total_spikes": 0
+        },
+        "taste_sugar": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 85,
+          "total_spikes": 0
+        },
+        "visual_loom_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 120.0,
+          "neuron_count": 1,
+          "total_spikes": 24
+        },
+        "visual_loom_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 120.0,
+          "neuron_count": 1,
+          "total_spikes": 24
+        },
+        "visual_motion_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 21,
+          "total_spikes": 0
+        },
+        "visual_motion_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 23,
+          "total_spikes": 0
+        },
+        "walking_dn_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 4,
+          "total_spikes": 0
+        },
+        "walking_dn_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 4,
+          "total_spikes": 0
+        }
+      },
+      "population": {
+        "active_neurons": 2,
+        "mean_rate_hz": 0.0014397120575884823,
+        "neuron_count": 166700,
+        "total_spikes": 48
+      },
+      "rate_hz": 150.0,
+      "readouts": {
+        "tibia_extensor_fl_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_fl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_hl_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_hl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        }
+      },
+      "reference": {
+        "first_difference": null,
+        "input_relay_motor_groups_match": true,
+        "path": "outputs/cns/verification-final/seed-3-input-disconnected.json",
+        "population_match": true,
+        "sha256": "1ce5fd1d87c62f64a198eded0bd164d442e772a59e96f18005da468610bb3f61",
+        "spike_count_hash_match": true
+      },
+      "relay": {
+        "active_neurons": 0,
+        "mean_rate_hz": 0.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          0,
+          0
+        ],
+        "total_spikes": 0
+      },
+      "repeat_hashes": [
+        {
+          "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "spike_counts_sha256": "87e27aefcf3e9cbcc6f6ce291bb2ab775bd629c0813abe57190d5022388f1d4c",
+          "state_sha256": "e484f648303ab9e73e6fae7d34ba3921b76c64c57824f19c35321810cc5dda04",
+          "voltage_final_mv_sha256": "6fcb234cad5fb8c919026fb8744cb417110ed1cad7f2943298f154e0cbcae469"
+        },
+        {
+          "conductance_final_mv_sha256": "59bc68b376b730245aa0a6187794bf1b8bb5cf893925f731adc6d454c4034d10",
+          "spike_counts_sha256": "87e27aefcf3e9cbcc6f6ce291bb2ab775bd629c0813abe57190d5022388f1d4c",
+          "state_sha256": "e484f648303ab9e73e6fae7d34ba3921b76c64c57824f19c35321810cc5dda04",
+          "voltage_final_mv_sha256": "6fcb234cad5fb8c919026fb8744cb417110ed1cad7f2943298f154e0cbcae469"
+        }
+      ],
+      "seed": 3,
+      "steps": 2000,
+      "stimulus_event_count": 49,
+      "timing": {
+        "allocated_bytes": 154818104,
+        "biological_seconds": 0.2,
+        "chunk_steps": 256,
+        "construction_seconds": 0.019602096,
+        "device_name": "NVIDIA GeForce RTX 5080",
+        "run_seconds": 0.055987327,
+        "simulation_realtime_factor": 3.572236981415455
+      }
+    },
+    {
+      "control": "relay-disconnected",
+      "duration_ms": 200.0,
+      "hashes": {
+        "conductance_final_mv_sha256": "9f1fa6ea5b9a3b6bb619c1045552110ae66edbec155aab50e13c3797937be842",
+        "spike_counts_sha256": "de3a816bfcf6f8c6782252a8143879659a26404c4cf49c19450828e3d682f7d2",
+        "state_sha256": "c1aa491229af4f2ef6f41cf02004f29250eed6f3d183ba781a65eeb9903623a3",
+        "voltage_final_mv_sha256": "24a6cf78f1bf3a3102973ff594c0cffe72c23c4c8c3c79f0d1133b285517b63c"
+      },
+      "input": {
+        "active_neurons": 2,
+        "mean_rate_hz": 120.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          24,
+          24
+        ],
+        "total_spikes": 48
+      },
+      "neural_io_groups": {
+        "feeding_mn9": {
+          "active_neurons": 1,
+          "mean_rate_hz": 10.0,
+          "neuron_count": 1,
+          "total_spikes": 2
+        },
+        "flight_dng02_left": {
+          "active_neurons": 5,
+          "mean_rate_hz": 4.0,
+          "neuron_count": 15,
+          "total_spikes": 12
+        },
+        "flight_dng02_right": {
+          "active_neurons": 5,
+          "mean_rate_hz": 3.5714285714285716,
+          "neuron_count": 14,
+          "total_spikes": 10
+        },
+        "flight_dng07_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_dng07_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 0.625,
+          "neuron_count": 8,
+          "total_spikes": 1
+        },
+        "flight_state_sapp_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 75,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 73,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_left": {
+          "active_neurons": 4,
+          "mean_rate_hz": 6.666666666666667,
+          "neuron_count": 6,
+          "total_spikes": 8
+        },
+        "flight_steering_dn_right": {
+          "active_neurons": 3,
+          "mean_rate_hz": 2.5,
+          "neuron_count": 6,
+          "total_spikes": 3
+        },
+        "landing_dn_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 45.0,
+          "neuron_count": 2,
+          "total_spikes": 18
+        },
+        "landing_dn_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 37.5,
+          "neuron_count": 2,
+          "total_spikes": 15
+        },
+        "motor_flight_power_left": {
+          "active_neurons": 12,
+          "mean_rate_hz": 85.83333333333333,
+          "neuron_count": 12,
+          "total_spikes": 206
+        },
+        "motor_flight_power_right": {
+          "active_neurons": 12,
+          "mean_rate_hz": 86.25,
+          "neuron_count": 12,
+          "total_spikes": 207
+        },
+        "motor_flight_steering_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 6.666666666666667,
+          "neuron_count": 3,
+          "total_spikes": 4
+        },
+        "motor_flight_steering_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 1.6666666666666667,
+          "neuron_count": 3,
+          "total_spikes": 1
+        },
+        "motor_landing_left": {
+          "active_neurons": 4,
+          "mean_rate_hz": 9.166666666666666,
+          "neuron_count": 6,
+          "total_spikes": 11
+        },
+        "motor_landing_right": {
+          "active_neurons": 3,
+          "mean_rate_hz": 6.666666666666667,
+          "neuron_count": 6,
+          "total_spikes": 8
+        },
+        "motor_walking_left": {
+          "active_neurons": 6,
+          "mean_rate_hz": 6.818181818181818,
+          "neuron_count": 11,
+          "total_spikes": 15
+        },
+        "motor_walking_right": {
+          "active_neurons": 3,
+          "mean_rate_hz": 3.3333333333333335,
+          "neuron_count": 12,
+          "total_spikes": 8
+        },
+        "olfaction_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 798,
+          "total_spikes": 0
+        },
+        "olfaction_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1247,
+          "total_spikes": 0
+        },
+        "taste_sugar": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 85,
+          "total_spikes": 0
+        },
+        "visual_loom_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 120.0,
+          "neuron_count": 1,
+          "total_spikes": 24
+        },
+        "visual_loom_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 120.0,
+          "neuron_count": 1,
+          "total_spikes": 24
+        },
+        "visual_motion_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 21,
+          "total_spikes": 0
+        },
+        "visual_motion_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 23,
+          "total_spikes": 0
+        },
+        "walking_dn_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 2.5,
+          "neuron_count": 4,
+          "total_spikes": 2
+        },
+        "walking_dn_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 1.25,
+          "neuron_count": 4,
+          "total_spikes": 1
+        }
+      },
+      "population": {
+        "active_neurons": 3767,
+        "mean_rate_hz": 0.31286742651469707,
+        "neuron_count": 166700,
+        "total_spikes": 10431
+      },
+      "rate_hz": 150.0,
+      "readouts": {
+        "tibia_extensor_fl_L": {
+          "active_neurons": 1,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            2,
+            0
+          ],
+          "total_spikes": 2
+        },
+        "tibia_extensor_fl_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            2
+          ],
+          "total_spikes": 2
+        },
+        "tibia_extensor_hl_L": {
+          "active_neurons": 1,
+          "mean_rate_hz": 2.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            1,
+            0
+          ],
+          "total_spikes": 1
+        },
+        "tibia_extensor_hl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_L": {
+          "active_neurons": 2,
+          "mean_rate_hz": 20.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            4,
+            4
+          ],
+          "total_spikes": 8
+        },
+        "tibia_extensor_ml_R": {
+          "active_neurons": 2,
+          "mean_rate_hz": 15.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            5,
+            1
+          ],
+          "total_spikes": 6
+        }
+      },
+      "reference": {
+        "first_difference": null,
+        "input_relay_motor_groups_match": true,
+        "path": "outputs/cns/verification-final/seed-3-relay-disconnected.json",
+        "population_match": true,
+        "sha256": "81951c8f82f69f1937ffcd022e994d42f1eeb065b4b934a4990e12cc92990288",
+        "spike_count_hash_match": true
+      },
+      "relay": {
+        "active_neurons": 2,
+        "mean_rate_hz": 62.5,
+        "neuron_count": 2,
+        "spike_counts": [
+          13,
+          12
+        ],
+        "total_spikes": 25
+      },
+      "repeat_hashes": [
+        {
+          "conductance_final_mv_sha256": "9f1fa6ea5b9a3b6bb619c1045552110ae66edbec155aab50e13c3797937be842",
+          "spike_counts_sha256": "de3a816bfcf6f8c6782252a8143879659a26404c4cf49c19450828e3d682f7d2",
+          "state_sha256": "c1aa491229af4f2ef6f41cf02004f29250eed6f3d183ba781a65eeb9903623a3",
+          "voltage_final_mv_sha256": "24a6cf78f1bf3a3102973ff594c0cffe72c23c4c8c3c79f0d1133b285517b63c"
+        },
+        {
+          "conductance_final_mv_sha256": "9f1fa6ea5b9a3b6bb619c1045552110ae66edbec155aab50e13c3797937be842",
+          "spike_counts_sha256": "de3a816bfcf6f8c6782252a8143879659a26404c4cf49c19450828e3d682f7d2",
+          "state_sha256": "c1aa491229af4f2ef6f41cf02004f29250eed6f3d183ba781a65eeb9903623a3",
+          "voltage_final_mv_sha256": "24a6cf78f1bf3a3102973ff594c0cffe72c23c4c8c3c79f0d1133b285517b63c"
+        }
+      ],
+      "seed": 3,
+      "steps": 2000,
+      "stimulus_event_count": 49,
+      "timing": {
+        "allocated_bytes": 154818104,
+        "biological_seconds": 0.2,
+        "chunk_steps": 256,
+        "construction_seconds": 0.019696406,
+        "device_name": "NVIDIA GeForce RTX 5080",
+        "run_seconds": 0.192143723,
+        "simulation_realtime_factor": 1.0408875027366886
+      }
+    },
+    {
+      "control": "relay-driven",
+      "duration_ms": 200.0,
+      "hashes": {
+        "conductance_final_mv_sha256": "10d2bee5230e30e35fca2c8542ae5fbd6d3c1fc78bbe251c1a1f775473980494",
+        "spike_counts_sha256": "e254e0c0b296ea88b6d64c97b52c193c0aa97f8a5ba8a3284e011c126c9e6930",
+        "state_sha256": "5925ae3cad733500baeb2650d08e73432d102393b90810e08e934a5e54b6102b",
+        "voltage_final_mv_sha256": "c723ecd7661918c228104ff6465af0e304437b93acfc601ea245462ef28be02f"
+      },
+      "input": {
+        "active_neurons": 0,
+        "mean_rate_hz": 0.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          0,
+          0
+        ],
+        "total_spikes": 0
+      },
+      "neural_io_groups": {
+        "feeding_mn9": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "flight_dng02_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 0.6666666666666666,
+          "neuron_count": 15,
+          "total_spikes": 2
+        },
+        "flight_dng02_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 0.7142857142857143,
+          "neuron_count": 14,
+          "total_spikes": 2
+        },
+        "flight_dng07_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_dng07_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 8,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 75,
+          "total_spikes": 0
+        },
+        "flight_state_sapp_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 73,
+          "total_spikes": 0
+        },
+        "flight_steering_dn_left": {
+          "active_neurons": 3,
+          "mean_rate_hz": 4.166666666666667,
+          "neuron_count": 6,
+          "total_spikes": 5
+        },
+        "flight_steering_dn_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 1.6666666666666667,
+          "neuron_count": 6,
+          "total_spikes": 2
+        },
+        "landing_dn_left": {
+          "active_neurons": 1,
+          "mean_rate_hz": 62.5,
+          "neuron_count": 2,
+          "total_spikes": 25
+        },
+        "landing_dn_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 62.5,
+          "neuron_count": 2,
+          "total_spikes": 25
+        },
+        "motor_flight_power_left": {
+          "active_neurons": 12,
+          "mean_rate_hz": 90.0,
+          "neuron_count": 12,
+          "total_spikes": 216
+        },
+        "motor_flight_power_right": {
+          "active_neurons": 12,
+          "mean_rate_hz": 90.83333333333333,
+          "neuron_count": 12,
+          "total_spikes": 218
+        },
+        "motor_flight_steering_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 10.0,
+          "neuron_count": 3,
+          "total_spikes": 6
+        },
+        "motor_flight_steering_right": {
+          "active_neurons": 2,
+          "mean_rate_hz": 11.666666666666666,
+          "neuron_count": 3,
+          "total_spikes": 7
+        },
+        "motor_landing_left": {
+          "active_neurons": 4,
+          "mean_rate_hz": 6.666666666666667,
+          "neuron_count": 6,
+          "total_spikes": 8
+        },
+        "motor_landing_right": {
+          "active_neurons": 3,
+          "mean_rate_hz": 5.833333333333333,
+          "neuron_count": 6,
+          "total_spikes": 7
+        },
+        "motor_walking_left": {
+          "active_neurons": 6,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 11,
+          "total_spikes": 11
+        },
+        "motor_walking_right": {
+          "active_neurons": 3,
+          "mean_rate_hz": 2.9166666666666665,
+          "neuron_count": 12,
+          "total_spikes": 7
+        },
+        "olfaction_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 798,
+          "total_spikes": 0
+        },
+        "olfaction_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1247,
+          "total_spikes": 0
+        },
+        "taste_sugar": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 85,
+          "total_spikes": 0
+        },
+        "visual_loom_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "visual_loom_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 1,
+          "total_spikes": 0
+        },
+        "visual_motion_left": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 21,
+          "total_spikes": 0
+        },
+        "visual_motion_right": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 23,
+          "total_spikes": 0
+        },
+        "walking_dn_left": {
+          "active_neurons": 2,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 4,
+          "total_spikes": 4
+        },
+        "walking_dn_right": {
+          "active_neurons": 1,
+          "mean_rate_hz": 1.25,
+          "neuron_count": 4,
+          "total_spikes": 1
+        }
+      },
+      "population": {
+        "active_neurons": 3500,
+        "mean_rate_hz": 0.29157168566286745,
+        "neuron_count": 166700,
+        "total_spikes": 9721
+      },
+      "rate_hz": 150.0,
+      "readouts": {
+        "tibia_extensor_fl_L": {
+          "active_neurons": 2,
+          "mean_rate_hz": 10.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            2,
+            2
+          ],
+          "total_spikes": 4
+        },
+        "tibia_extensor_fl_R": {
+          "active_neurons": 1,
+          "mean_rate_hz": 5.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            2
+          ],
+          "total_spikes": 2
+        },
+        "tibia_extensor_hl_L": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_hl_R": {
+          "active_neurons": 0,
+          "mean_rate_hz": 0.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            0,
+            0
+          ],
+          "total_spikes": 0
+        },
+        "tibia_extensor_ml_L": {
+          "active_neurons": 2,
+          "mean_rate_hz": 10.0,
+          "neuron_count": 2,
+          "spike_counts": [
+            3,
+            1
+          ],
+          "total_spikes": 4
+        },
+        "tibia_extensor_ml_R": {
+          "active_neurons": 2,
+          "mean_rate_hz": 12.5,
+          "neuron_count": 2,
+          "spike_counts": [
+            4,
+            1
+          ],
+          "total_spikes": 5
+        }
+      },
+      "reference": {
+        "first_difference": null,
+        "input_relay_motor_groups_match": true,
+        "path": "outputs/cns/verification-final/seed-3-relay-driven.json",
+        "population_match": true,
+        "sha256": "d767908f611c5d4f39fd9b0b183498691db68805379c435c940ee96abf3071c7",
+        "spike_count_hash_match": true
+      },
+      "relay": {
+        "active_neurons": 2,
+        "mean_rate_hz": 125.0,
+        "neuron_count": 2,
+        "spike_counts": [
+          25,
+          25
+        ],
+        "total_spikes": 50
+      },
+      "repeat_hashes": [
+        {
+          "conductance_final_mv_sha256": "10d2bee5230e30e35fca2c8542ae5fbd6d3c1fc78bbe251c1a1f775473980494",
+          "spike_counts_sha256": "e254e0c0b296ea88b6d64c97b52c193c0aa97f8a5ba8a3284e011c126c9e6930",
+          "state_sha256": "5925ae3cad733500baeb2650d08e73432d102393b90810e08e934a5e54b6102b",
+          "voltage_final_mv_sha256": "c723ecd7661918c228104ff6465af0e304437b93acfc601ea245462ef28be02f"
+        },
+        {
+          "conductance_final_mv_sha256": "10d2bee5230e30e35fca2c8542ae5fbd6d3c1fc78bbe251c1a1f775473980494",
+          "spike_counts_sha256": "e254e0c0b296ea88b6d64c97b52c193c0aa97f8a5ba8a3284e011c126c9e6930",
+          "state_sha256": "5925ae3cad733500baeb2650d08e73432d102393b90810e08e934a5e54b6102b",
+          "voltage_final_mv_sha256": "c723ecd7661918c228104ff6465af0e304437b93acfc601ea245462ef28be02f"
+        }
+      ],
+      "seed": 3,
+      "steps": 2000,
+      "stimulus_event_count": 49,
+      "timing": {
+        "allocated_bytes": 154818104,
+        "biological_seconds": 0.2,
+        "chunk_steps": 256,
+        "construction_seconds": 0.020343295,
+        "device_name": "NVIDIA GeForce RTX 5080",
+        "run_seconds": 0.197891602,
+        "simulation_realtime_factor": 1.0106543076042207
+      }
+    }
+  ],
+  "determinism": {
+    "all_repeat_hashes_exact": true,
+    "chunk_alternate": 37,
+    "chunk_final_f32_state_exact": true,
+    "chunk_primary": 256,
+    "chunk_spike_counts_exact": true,
+    "repeat_runs": 2
+  },
+  "engine": "rust-cuda",
+  "experimental_gate": {
+    "checks": [
+      {
+        "all_six_motor_pools_active": false,
+        "all_twelve_motor_neurons_active": false,
+        "both_relays_active": true,
+        "input_disconnect_blocks_all_downstream_spikes": true,
+        "input_disconnect_preserves_stimulus": true,
+        "intact_reaches_relay_and_motors": true,
+        "no_input_is_quiet": true,
+        "relay_disconnect_reduces_motor_spikes": true,
+        "seed": 1
+      },
+      {
+        "all_six_motor_pools_active": false,
+        "all_twelve_motor_neurons_active": false,
+        "both_relays_active": true,
+        "input_disconnect_blocks_all_downstream_spikes": true,
+        "input_disconnect_preserves_stimulus": true,
+        "intact_reaches_relay_and_motors": true,
+        "no_input_is_quiet": true,
+        "relay_disconnect_reduces_motor_spikes": false,
+        "seed": 2
+      },
+      {
+        "all_six_motor_pools_active": false,
+        "all_twelve_motor_neurons_active": false,
+        "both_relays_active": true,
+        "input_disconnect_blocks_all_downstream_spikes": true,
+        "input_disconnect_preserves_stimulus": true,
+        "intact_reaches_relay_and_motors": true,
+        "no_input_is_quiet": true,
+        "relay_disconnect_reduces_motor_spikes": false,
+        "seed": 3
+      }
+    ],
+    "interpretation": "Computational intervention check only; body behavior is not simulated.",
+    "pathway_response_reproduced_all_seeds": false,
+    "rows": [
+      {
+        "control": "intact",
+        "input_spikes": 45,
+        "motor_spikes": 26,
+        "population_spikes": 10260,
+        "relay_spikes": 22,
+        "seed": 1
+      },
+      {
+        "control": "no-input",
+        "input_spikes": 0,
+        "motor_spikes": 0,
+        "population_spikes": 0,
+        "relay_spikes": 0,
+        "seed": 1
+      },
+      {
+        "control": "input-disconnected",
+        "input_spikes": 45,
+        "motor_spikes": 0,
+        "population_spikes": 45,
+        "relay_spikes": 0,
+        "seed": 1
+      },
+      {
+        "control": "relay-disconnected",
+        "input_spikes": 45,
+        "motor_spikes": 25,
+        "population_spikes": 13815,
+        "relay_spikes": 23,
+        "seed": 1
+      },
+      {
+        "control": "relay-driven",
+        "input_spikes": 0,
+        "motor_spikes": 14,
+        "population_spikes": 6659,
+        "relay_spikes": 45,
+        "seed": 1
+      },
+      {
+        "control": "intact",
+        "input_spikes": 50,
+        "motor_spikes": 25,
+        "population_spikes": 9514,
+        "relay_spikes": 18,
+        "seed": 2
+      },
+      {
+        "control": "no-input",
+        "input_spikes": 0,
+        "motor_spikes": 0,
+        "population_spikes": 0,
+        "relay_spikes": 0,
+        "seed": 2
+      },
+      {
+        "control": "input-disconnected",
+        "input_spikes": 50,
+        "motor_spikes": 0,
+        "population_spikes": 50,
+        "relay_spikes": 0,
+        "seed": 2
+      },
+      {
+        "control": "relay-disconnected",
+        "input_spikes": 50,
+        "motor_spikes": 25,
+        "population_spikes": 13177,
+        "relay_spikes": 32,
+        "seed": 2
+      },
+      {
+        "control": "relay-driven",
+        "input_spikes": 0,
+        "motor_spikes": 16,
+        "population_spikes": 9589,
+        "relay_spikes": 52,
+        "seed": 2
+      },
+      {
+        "control": "intact",
+        "input_spikes": 48,
+        "motor_spikes": 17,
+        "population_spikes": 9413,
+        "relay_spikes": 16,
+        "seed": 3
+      },
+      {
+        "control": "no-input",
+        "input_spikes": 0,
+        "motor_spikes": 0,
+        "population_spikes": 0,
+        "relay_spikes": 0,
+        "seed": 3
+      },
+      {
+        "control": "input-disconnected",
+        "input_spikes": 48,
+        "motor_spikes": 0,
+        "population_spikes": 48,
+        "relay_spikes": 0,
+        "seed": 3
+      },
+      {
+        "control": "relay-disconnected",
+        "input_spikes": 48,
+        "motor_spikes": 19,
+        "population_spikes": 10431,
+        "relay_spikes": 25,
+        "seed": 3
+      },
+      {
+        "control": "relay-driven",
+        "input_spikes": 0,
+        "motor_spikes": 15,
+        "population_spikes": 9721,
+        "relay_spikes": 50,
+        "seed": 3
+      }
+    ],
+    "software_controls_pass": true
+  },
+  "model_parameters": {
+    "delay_ms": 1.8,
+    "dt_ms": 0.1,
+    "external_weight_mv": 68.75,
+    "membrane_tau_ms": 20.0,
+    "refractory_ms": 2.2,
+    "reset_mv": -52.0,
+    "resting_mv": -52.0,
+    "synapse_tau_ms": 5.0,
+    "synapse_weight_mv": 0.275,
+    "threshold_mv": -45.0
+  },
+  "neural_io": {
+    "group_count": 28,
+    "path": "assets/neuromechfly/male_cns_v1_neural_io.json",
+    "sha256": "b1d7f6f96e619f681e12c34c2082980429af307cecff9af53db92ea6fccaa560"
+  },
+  "pack": {
+    "array_sha256": {
+      "destinations.npy": "3e61173a407dd01c23280782e13e9c619f2c33eac120585ab1ca4ad4a8286af9",
+      "neuron_ids.npy": "ddfa789213c8c5066400c026b65c112c267781c2e3ab380a39dd437866e704d6",
+      "row_ptr.npy": "b38878452b4871cdd8563f29463231dab67b61780a5ee540900811e3bbf41511",
+      "signed_counts.npy": "6b2b9918174273d67eaef951c2bfd72a25ae5a07d3c7861ab249c8ca7dd38421"
+    },
+    "contact_sum": 120260398,
+    "edge_count": 24469412,
+    "materialization": "male-cns-v1.0-superclass-non-null-known-nt",
+    "neuron_count": 166700,
+    "path": "outputs/packs/male_cns_v1"
+  },
+  "pathway": {
+    "anatomical_edge_count": 31,
+    "name": "MaleCNS MeVP24-DNp10 tibial-extensor pathway",
+    "path": "outputs/cns/mevp24-dnp10-bilateral.json",
+    "sha256": "7983ca6dedcd1ecd7a613feb3e645b3314fbb732326abde1cafc1828ab5abc5a"
+  },
+  "protocol": {
+    "path": "experiments/male_cns_cuda_validation_v1.json",
+    "sha256": "9a981b56f68da74b5a8e008540d51197da5a939113ad1477cf5eae9563e816e2"
+  },
+  "reference_comparison": {
+    "first_difference": null,
+    "input_relay_motor_groups_all_match": true,
+    "population_totals_all_match": true
+  },
+  "reference_gate": {
+    "pathway_response_reproduced_all_seeds": false,
+    "software_controls_pass": true,
+    "summary_path": "outputs/cns/verification-final/summary.json",
+    "summary_sha256": "a96d9a6ca01515bb904c3e300713d271efc7dc1367bcf1600b09bf09598d0b9e"
+  },
+  "schema": "flybrain.cuda-full-cns-validation-report",
+  "schema_version": 1,
+  "short_metal_f32_reference": {
+    "cuda_hashes": {
+      "conductance_final_mv_sha256": "bd198db4adbb433f560273037c8f50df718b78897d46884fbe266e6a82d2d04a",
+      "spike_counts_sha256": "81549cb5540989d80ade85d2d6bc2e86cf072fb90d1d90a076f1782ddbac5ab9",
+      "state_sha256": "e202f34e88ba280d6bdb24d0a60a21016e5aa30c90ad2c040de87f7bb6477eea",
+      "voltage_final_mv_sha256": "7c8e50022ee2e1c12b9e1e3665472f076a981cc5b96992418151a73fe7188d36"
+    },
+    "final_f32_state_hash_required": false,
+    "path": "outputs/cns/verification-final/cpu-parity-20ms.json",
+    "reference_hashes": {
+      "conductance_final_mv_sha256": "bd198db4adbb433f560273037c8f50df718b78897d46884fbe266e6a82d2d04a",
+      "spike_counts_sha256": "81549cb5540989d80ade85d2d6bc2e86cf072fb90d1d90a076f1782ddbac5ab9",
+      "state_sha256": "e202f34e88ba280d6bdb24d0a60a21016e5aa30c90ad2c040de87f7bb6477eea",
+      "voltage_final_mv_sha256": "7c8e50022ee2e1c12b9e1e3665472f076a981cc5b96992418151a73fe7188d36"
+    },
+    "sha256": "f112a365b6f7c692dccee48a04670754e96b004722c0bbf9b49ca7fc3dc26bf0",
+    "spike_count_hash_match": true,
+    "state_hash_match_diagnostic": true,
+    "steps": 200
+  }
+}

@@ -427,6 +427,7 @@ fn run_case(
     )?;
     let construction_seconds = construction_started.elapsed().as_secs_f64();
     let device_name = engine.device_name().to_owned();
+    let propagation_mode = engine.propagation_mode().to_owned();
     let allocated_bytes = engine.allocated_bytes();
     let run = engine.run_schedule(&schedule, chunk_steps)?;
     let duration_seconds = steps as f64 * parameters.dt_ms / 1000.0;
@@ -475,6 +476,7 @@ fn run_case(
             "biological_seconds": duration_seconds,
             "simulation_realtime_factor": duration_seconds / run.elapsed.as_secs_f64(),
             "device_name": device_name,
+            "propagation_mode": propagation_mode,
             "allocated_bytes": allocated_bytes,
             "chunk_steps": chunk_steps,
         },

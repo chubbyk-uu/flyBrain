@@ -4,11 +4,19 @@
 #include <cstdint>
 #include <new>
 #include <string>
+#include <vector>
 
 namespace {
 
 constexpr unsigned int THREADS = 256;
+constexpr uint32_t EDGES_PER_TASK = 256;
 thread_local std::string last_error;
+
+struct MetricResults {
+    uint64_t total_spikes = 0;
+    uint32_t active_neurons = 0;
+    double voltage_sum = 0.0;
+};
 
 struct Engine {
     uint32_t neuron_count = 0;
@@ -26,6 +34,11 @@ struct Engine {
     uint32_t* row_ptr = nullptr;
     uint32_t* destinations = nullptr;
     int16_t* signed_counts = nullptr;
+    uint32_t* task_sources = nullptr;
+    uint32_t* task_starts = nullptr;
+    uint32_t* task_ends = nullptr;
+    uint32_t task_count = 0;
+    bool chunked_propagation = false;
     uint8_t* silenced_sources = nullptr;
     float* voltage = nullptr;
     float* conductance = nullptr;
@@ -35,12 +48,25 @@ struct Engine {
     uint32_t* spike_counts = nullptr;
     uint8_t* spike_ring = nullptr;
     int32_t* arrivals = nullptr;
+    uint32_t* external_targets = nullptr;
+    uint32_t external_target_count = 0;
+    uint32_t* sparse_lanes = nullptr;
+    uint8_t* sparse_counts = nullptr;
+    uint32_t sparse_event_capacity = 0;
+    uint32_t* probe_indices = nullptr;
+    uint32_t* probe_before = nullptr;
+    uint32_t* probe_after = nullptr;
+    uint32_t probe_capacity = 0;
+    MetricResults* metrics = nullptr;
     std::string device_name;
 
     ~Engine() {
         cudaFree(row_ptr);
         cudaFree(destinations);
         cudaFree(signed_counts);
+        cudaFree(task_sources);
+        cudaFree(task_starts);
+        cudaFree(task_ends);
         cudaFree(silenced_sources);
         cudaFree(voltage);
         cudaFree(conductance);
@@ -50,6 +76,13 @@ struct Engine {
         cudaFree(spike_counts);
         cudaFree(spike_ring);
         cudaFree(arrivals);
+        cudaFree(external_targets);
+        cudaFree(sparse_lanes);
+        cudaFree(sparse_counts);
+        cudaFree(probe_indices);
+        cudaFree(probe_before);
+        cudaFree(probe_after);
+        cudaFree(metrics);
     }
 };
 
@@ -194,6 +227,79 @@ __global__ void propagate_csr(
     }
 }
 
+__global__ void propagate_csr_chunked(
+    const uint32_t* task_sources,
+    const uint32_t* task_starts,
+    const uint32_t* task_ends,
+    const uint32_t* destinations,
+    const int16_t* signed_counts,
+    const uint8_t* delayed_spikes,
+    const uint8_t* silenced_sources,
+    int32_t* arrivals,
+    uint32_t task_count) {
+    const uint32_t task = blockIdx.x * blockDim.x + threadIdx.x;
+    if (task >= task_count) {
+        return;
+    }
+    const uint32_t source = task_sources[task];
+    if (delayed_spikes[source] == 0 || silenced_sources[source] != 0) {
+        return;
+    }
+    for (uint32_t edge = task_starts[task]; edge < task_ends[task]; ++edge) {
+        atomicAdd(&arrivals[destinations[edge]], static_cast<int32_t>(signed_counts[edge]));
+    }
+}
+
+__global__ void decay_threshold_propagate_delayed_chunked(
+    float* voltage,
+    float* conductance,
+    int32_t* refractory_remaining,
+    uint8_t* spikes,
+    uint32_t* spike_counts,
+    const uint32_t* task_sources,
+    const uint32_t* task_starts,
+    const uint32_t* task_ends,
+    const uint32_t* destinations,
+    const int16_t* signed_counts,
+    const uint8_t* delayed_spikes,
+    const uint8_t* silenced_sources,
+    int32_t* arrivals,
+    uint32_t neuron_count,
+    uint32_t task_count,
+    float resting_mv,
+    float threshold_mv,
+    float membrane_decay,
+    float synapse_decay,
+    float coupling) {
+    const uint32_t index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index < neuron_count) {
+        const int32_t remaining = refractory_remaining[index] > 0
+            ? refractory_remaining[index] - 1
+            : 0;
+        refractory_remaining[index] = remaining;
+        const bool can_update = remaining == 0;
+        const float old_g = conductance[index];
+        if (can_update) {
+            voltage[index] = updated_voltage(
+                voltage[index], old_g, resting_mv, membrane_decay, coupling);
+            conductance[index] = __fmul_rn(synapse_decay, old_g);
+        }
+        const bool fired = can_update && voltage[index] > threshold_mv;
+        spikes[index] = fired ? 1 : 0;
+        if (fired) {
+            spike_counts[index] += 1;
+        }
+    }
+    if (index < task_count) {
+        const uint32_t source = task_sources[index];
+        if (delayed_spikes[source] != 0 && silenced_sources[source] == 0) {
+            for (uint32_t edge = task_starts[index]; edge < task_ends[index]; ++edge) {
+                atomicAdd(&arrivals[destinations[edge]], static_cast<int32_t>(signed_counts[edge]));
+            }
+        }
+    }
+}
+
 __global__ void apply_external(
     float* voltage,
     const uint32_t* targets,
@@ -257,8 +363,117 @@ __global__ void reset_store(
     }
 }
 
+__global__ void gather_spike_counts(
+    const uint32_t* spike_counts,
+    const uint32_t* probe_indices,
+    uint32_t* output,
+    uint32_t probe_count) {
+    const uint32_t probe = blockIdx.x * blockDim.x + threadIdx.x;
+    if (probe < probe_count) {
+        output[probe] = spike_counts[probe_indices[probe]];
+    }
+}
+
+__global__ void reduce_metrics(
+    const uint32_t* spike_counts,
+    const float* voltage,
+    uint32_t neuron_count,
+    MetricResults* metrics) {
+    __shared__ uint64_t spike_sums[THREADS];
+    __shared__ uint32_t active_sums[THREADS];
+    __shared__ double voltage_sums[THREADS];
+    uint64_t spike_sum = 0;
+    uint32_t active_sum = 0;
+    double voltage_value_sum = 0.0;
+    for (uint32_t neuron = threadIdx.x; neuron < neuron_count; neuron += blockDim.x) {
+        const uint32_t count = spike_counts[neuron];
+        spike_sum += count;
+        active_sum += count != 0;
+        voltage_value_sum += static_cast<double>(voltage[neuron]);
+    }
+    spike_sums[threadIdx.x] = spike_sum;
+    active_sums[threadIdx.x] = active_sum;
+    voltage_sums[threadIdx.x] = voltage_value_sum;
+    __syncthreads();
+    for (uint32_t stride = blockDim.x / 2; stride != 0; stride /= 2) {
+        if (threadIdx.x < stride) {
+            spike_sums[threadIdx.x] += spike_sums[threadIdx.x + stride];
+            active_sums[threadIdx.x] += active_sums[threadIdx.x + stride];
+            voltage_sums[threadIdx.x] += voltage_sums[threadIdx.x + stride];
+        }
+        __syncthreads();
+    }
+    if (threadIdx.x == 0) {
+        metrics->total_spikes = spike_sums[0];
+        metrics->active_neurons = active_sums[0];
+        metrics->voltage_sum = voltage_sums[0];
+    }
+}
+
 int check_launch(const char* operation) {
     return check(cudaPeekAtLastError(), operation);
+}
+
+int reserve_probes(Engine* engine, uint32_t probe_count) {
+    if (probe_count <= engine->probe_capacity) {
+        return 0;
+    }
+    uint32_t* indices = nullptr;
+    uint32_t* before = nullptr;
+    uint32_t* after = nullptr;
+    if (check(cudaMalloc(reinterpret_cast<void**>(&indices), probe_count * sizeof(uint32_t)),
+              "allocate probe indices")) goto failure;
+    if (check(cudaMalloc(reinterpret_cast<void**>(&before), probe_count * sizeof(uint32_t)),
+              "allocate probe before counts")) goto failure;
+    if (check(cudaMalloc(reinterpret_cast<void**>(&after), probe_count * sizeof(uint32_t)),
+              "allocate probe after counts")) goto failure;
+    cudaFree(engine->probe_indices);
+    cudaFree(engine->probe_before);
+    cudaFree(engine->probe_after);
+    engine->probe_indices = indices;
+    engine->probe_before = before;
+    engine->probe_after = after;
+    engine->probe_capacity = probe_count;
+    return 0;
+
+failure:
+    cudaFree(indices);
+    cudaFree(before);
+    cudaFree(after);
+    return 1;
+}
+
+int reserve_sparse_events(Engine* engine, uint32_t event_count) {
+    if (event_count <= engine->sparse_event_capacity) {
+        return 0;
+    }
+    uint32_t* lanes = nullptr;
+    uint8_t* counts = nullptr;
+    if (check(cudaMalloc(reinterpret_cast<void**>(&lanes), event_count * sizeof(uint32_t)),
+              "allocate sparse lanes")) goto failure;
+    if (check(cudaMalloc(reinterpret_cast<void**>(&counts), event_count * sizeof(uint8_t)),
+              "allocate sparse counts")) goto failure;
+    cudaFree(engine->sparse_lanes);
+    cudaFree(engine->sparse_counts);
+    engine->sparse_lanes = lanes;
+    engine->sparse_counts = counts;
+    engine->sparse_event_capacity = event_count;
+    return 0;
+
+failure:
+    cudaFree(lanes);
+    cudaFree(counts);
+    return 1;
+}
+
+int gather_probes(Engine* engine, uint32_t* output, uint32_t probe_count, const char* operation) {
+    if (probe_count == 0) {
+        return 0;
+    }
+    const unsigned int blocks = (probe_count + THREADS - 1) / THREADS;
+    gather_spike_counts<<<blocks, THREADS>>>(
+        engine->spike_counts, engine->probe_indices, output, probe_count);
+    return check_launch(operation);
 }
 
 int launch_tick_dense(
@@ -276,22 +491,47 @@ int launch_tick_dense(
             engine->resting_mv, engine->threshold_mv, engine->membrane_decay,
             engine->synapse_decay, engine->coupling);
         if (check_launch("launch decay_threshold")) return 1;
-        propagate_csr<<<blocks, THREADS>>>(
-            engine->row_ptr, engine->destinations, engine->signed_counts,
-            engine->spikes, engine->silenced_sources, engine->arrivals,
-            engine->neuron_count);
-        if (check_launch("launch propagate_csr")) return 1;
+        if (engine->chunked_propagation && engine->task_count != 0) {
+            const unsigned int task_blocks = (engine->task_count + THREADS - 1) / THREADS;
+            propagate_csr_chunked<<<task_blocks, THREADS>>>(
+                engine->task_sources, engine->task_starts, engine->task_ends,
+                engine->destinations, engine->signed_counts, engine->spikes,
+                engine->silenced_sources, engine->arrivals, engine->task_count);
+            if (check_launch("launch propagate_csr_chunked")) return 1;
+        } else {
+            propagate_csr<<<blocks, THREADS>>>(
+                engine->row_ptr, engine->destinations, engine->signed_counts,
+                engine->spikes, engine->silenced_sources, engine->arrivals,
+                engine->neuron_count);
+            if (check_launch("launch propagate_csr")) return 1;
+        }
     } else {
         const uint8_t* delayed = engine->spike_ring
             + static_cast<size_t>(ring_slot) * engine->neuron_count;
-        decay_threshold_propagate_delayed<<<blocks, THREADS>>>(
-            engine->voltage, engine->conductance, engine->refractory_remaining,
-            engine->spikes, engine->spike_counts, engine->row_ptr,
-            engine->destinations, engine->signed_counts, delayed,
-            engine->silenced_sources, engine->arrivals, engine->neuron_count,
-            engine->resting_mv, engine->threshold_mv, engine->membrane_decay,
-            engine->synapse_decay, engine->coupling);
-        if (check_launch("launch decay_threshold_propagate_delayed")) return 1;
+        if (engine->chunked_propagation) {
+            const uint32_t work_count = engine->task_count > engine->neuron_count
+                ? engine->task_count
+                : engine->neuron_count;
+            const unsigned int work_blocks = (work_count + THREADS - 1) / THREADS;
+            decay_threshold_propagate_delayed_chunked<<<work_blocks, THREADS>>>(
+                engine->voltage, engine->conductance, engine->refractory_remaining,
+                engine->spikes, engine->spike_counts, engine->task_sources,
+                engine->task_starts, engine->task_ends, engine->destinations,
+                engine->signed_counts, delayed, engine->silenced_sources,
+                engine->arrivals, engine->neuron_count, engine->task_count,
+                engine->resting_mv, engine->threshold_mv, engine->membrane_decay,
+                engine->synapse_decay, engine->coupling);
+            if (check_launch("launch decay_threshold_propagate_delayed_chunked")) return 1;
+        } else {
+            decay_threshold_propagate_delayed<<<blocks, THREADS>>>(
+                engine->voltage, engine->conductance, engine->refractory_remaining,
+                engine->spikes, engine->spike_counts, engine->row_ptr,
+                engine->destinations, engine->signed_counts, delayed,
+                engine->silenced_sources, engine->arrivals, engine->neuron_count,
+                engine->resting_mv, engine->threshold_mv, engine->membrane_decay,
+                engine->synapse_decay, engine->coupling);
+            if (check_launch("launch decay_threshold_propagate_delayed")) return 1;
+        }
     }
     if (target_count != 0) {
         const unsigned int event_blocks = (target_count + THREADS - 1) / THREADS;
@@ -326,22 +566,47 @@ int launch_tick_sparse(
             engine->resting_mv, engine->threshold_mv, engine->membrane_decay,
             engine->synapse_decay, engine->coupling);
         if (check_launch("launch decay_threshold")) return 1;
-        propagate_csr<<<blocks, THREADS>>>(
-            engine->row_ptr, engine->destinations, engine->signed_counts,
-            engine->spikes, engine->silenced_sources, engine->arrivals,
-            engine->neuron_count);
-        if (check_launch("launch propagate_csr")) return 1;
+        if (engine->chunked_propagation && engine->task_count != 0) {
+            const unsigned int task_blocks = (engine->task_count + THREADS - 1) / THREADS;
+            propagate_csr_chunked<<<task_blocks, THREADS>>>(
+                engine->task_sources, engine->task_starts, engine->task_ends,
+                engine->destinations, engine->signed_counts, engine->spikes,
+                engine->silenced_sources, engine->arrivals, engine->task_count);
+            if (check_launch("launch propagate_csr_chunked")) return 1;
+        } else {
+            propagate_csr<<<blocks, THREADS>>>(
+                engine->row_ptr, engine->destinations, engine->signed_counts,
+                engine->spikes, engine->silenced_sources, engine->arrivals,
+                engine->neuron_count);
+            if (check_launch("launch propagate_csr")) return 1;
+        }
     } else {
         const uint8_t* delayed = engine->spike_ring
             + static_cast<size_t>(ring_slot) * engine->neuron_count;
-        decay_threshold_propagate_delayed<<<blocks, THREADS>>>(
-            engine->voltage, engine->conductance, engine->refractory_remaining,
-            engine->spikes, engine->spike_counts, engine->row_ptr,
-            engine->destinations, engine->signed_counts, delayed,
-            engine->silenced_sources, engine->arrivals, engine->neuron_count,
-            engine->resting_mv, engine->threshold_mv, engine->membrane_decay,
-            engine->synapse_decay, engine->coupling);
-        if (check_launch("launch decay_threshold_propagate_delayed")) return 1;
+        if (engine->chunked_propagation) {
+            const uint32_t work_count = engine->task_count > engine->neuron_count
+                ? engine->task_count
+                : engine->neuron_count;
+            const unsigned int work_blocks = (work_count + THREADS - 1) / THREADS;
+            decay_threshold_propagate_delayed_chunked<<<work_blocks, THREADS>>>(
+                engine->voltage, engine->conductance, engine->refractory_remaining,
+                engine->spikes, engine->spike_counts, engine->task_sources,
+                engine->task_starts, engine->task_ends, engine->destinations,
+                engine->signed_counts, delayed, engine->silenced_sources,
+                engine->arrivals, engine->neuron_count, engine->task_count,
+                engine->resting_mv, engine->threshold_mv, engine->membrane_decay,
+                engine->synapse_decay, engine->coupling);
+            if (check_launch("launch decay_threshold_propagate_delayed_chunked")) return 1;
+        } else {
+            decay_threshold_propagate_delayed<<<blocks, THREADS>>>(
+                engine->voltage, engine->conductance, engine->refractory_remaining,
+                engine->spikes, engine->spike_counts, engine->row_ptr,
+                engine->destinations, engine->signed_counts, delayed,
+                engine->silenced_sources, engine->arrivals, engine->neuron_count,
+                engine->resting_mv, engine->threshold_mv, engine->membrane_decay,
+                engine->synapse_decay, engine->coupling);
+            if (check_launch("launch decay_threshold_propagate_delayed")) return 1;
+        }
     }
     if (event_count != 0) {
         const unsigned int event_blocks = (event_count + THREADS - 1) / THREADS;
@@ -377,6 +642,9 @@ extern "C" int flybrain_cuda_create(
     const float* initial_voltage,
     const float* initial_conductance,
     const int32_t* refractory_lengths,
+    const uint32_t* external_targets,
+    uint32_t external_target_count,
+    uint8_t chunked_propagation,
     uint32_t neuron_count,
     uint32_t delay_steps,
     float resting_mv,
@@ -406,6 +674,27 @@ extern "C" int flybrain_cuda_create(
     engine->coupling = coupling;
     engine->synapse_weight_mv = synapse_weight_mv;
     engine->external_weight_mv = external_weight_mv;
+    engine->external_target_count = external_target_count;
+    engine->chunked_propagation = chunked_propagation != 0;
+
+    std::vector<uint32_t> task_sources;
+    std::vector<uint32_t> task_starts;
+    std::vector<uint32_t> task_ends;
+    if (engine->chunked_propagation) {
+        task_sources.reserve(edge_count / EDGES_PER_TASK + neuron_count);
+        task_starts.reserve(edge_count / EDGES_PER_TASK + neuron_count);
+        task_ends.reserve(edge_count / EDGES_PER_TASK + neuron_count);
+        for (uint32_t source = 0; source < neuron_count; ++source) {
+            const uint32_t end = row_ptr[source + 1];
+            for (uint32_t start = row_ptr[source]; start < end; start += EDGES_PER_TASK) {
+                task_sources.push_back(source);
+                task_starts.push_back(start);
+                const uint32_t remaining = end - start;
+                task_ends.push_back(start + (remaining < EDGES_PER_TASK ? remaining : EDGES_PER_TASK));
+            }
+        }
+        engine->task_count = static_cast<uint32_t>(task_sources.size());
+    }
 
     cudaDeviceProp properties{};
     if (check(cudaSetDevice(0), "select CUDA device")) goto failure;
@@ -414,6 +703,12 @@ extern "C" int flybrain_cuda_create(
     if (allocate_copy(&engine->row_ptr, row_ptr, row_ptr_count, "upload row_ptr")) goto failure;
     if (allocate_copy(&engine->destinations, destinations, edge_count, "upload destinations")) goto failure;
     if (allocate_copy(&engine->signed_counts, signed_counts, edge_count, "upload signed_counts")) goto failure;
+    if (allocate_copy(&engine->task_sources, task_sources.data(), task_sources.size(),
+                      "upload propagation task sources")) goto failure;
+    if (allocate_copy(&engine->task_starts, task_starts.data(), task_starts.size(),
+                      "upload propagation task starts")) goto failure;
+    if (allocate_copy(&engine->task_ends, task_ends.data(), task_ends.size(),
+                      "upload propagation task ends")) goto failure;
     if (allocate_copy(&engine->silenced_sources, silenced_sources, neuron_count, "upload silenced_sources")) goto failure;
     if (allocate_copy(&engine->voltage, initial_voltage, neuron_count, "upload voltage")) goto failure;
     if (allocate_copy(&engine->conductance, initial_conductance, neuron_count, "upload conductance")) goto failure;
@@ -426,6 +721,9 @@ extern "C" int flybrain_cuda_create(
             static_cast<size_t>(engine->ring_size) * neuron_count,
             "allocate spike_ring")) goto failure;
     if (allocate_zero(&engine->arrivals, neuron_count, "allocate arrivals")) goto failure;
+    if (allocate_copy(&engine->external_targets, external_targets, external_target_count,
+                      "upload external targets")) goto failure;
+    if (allocate_zero(&engine->metrics, 1, "allocate metric results")) goto failure;
     *output = engine;
     return 0;
 
@@ -505,6 +803,83 @@ failure:
     cudaFree(lanes);
     cudaFree(counts);
     return 1;
+}
+
+extern "C" int flybrain_cuda_run_sparse_probed(
+    void* raw_engine,
+    const uint32_t* host_offsets,
+    const uint32_t* host_lanes,
+    const uint8_t* host_counts,
+    uint32_t event_count,
+    uint32_t steps,
+    const uint32_t* host_probes,
+    uint32_t probe_count,
+    uint8_t refresh_probes,
+    uint32_t* host_before,
+    uint32_t* host_after) {
+    last_error.clear();
+    Engine* engine = static_cast<Engine*>(raw_engine);
+    if (refresh_probes && reserve_probes(engine, probe_count)) goto failure;
+    if (reserve_sparse_events(engine, event_count)) goto failure;
+    if (refresh_probes && probe_count != 0) {
+        if (check(cudaMemcpy(engine->probe_indices, host_probes,
+                             probe_count * sizeof(uint32_t), cudaMemcpyHostToDevice),
+                  "upload probe indices")) goto failure;
+        if (gather_probes(engine, engine->probe_before, probe_count,
+                          "launch gather probe counts before window")) goto failure;
+    }
+    if (event_count != 0) {
+        if (check(cudaMemcpy(engine->sparse_lanes, host_lanes,
+                             event_count * sizeof(uint32_t), cudaMemcpyHostToDevice),
+                  "upload sparse lanes")) goto failure;
+        if (check(cudaMemcpy(engine->sparse_counts, host_counts,
+                             event_count * sizeof(uint8_t), cudaMemcpyHostToDevice),
+                  "upload sparse counts")) goto failure;
+    }
+    for (uint32_t step = 0; step < steps; ++step) {
+        const uint32_t offset = host_offsets[step];
+        const uint32_t step_event_count = host_offsets[step + 1] - offset;
+        if (launch_tick_sparse(engine, engine->external_targets, engine->sparse_lanes,
+                               engine->sparse_counts, offset, step_event_count)) goto failure;
+    }
+    if (gather_probes(engine, engine->probe_after, probe_count,
+                      "launch gather probe counts after window")) goto failure;
+    if (refresh_probes && probe_count != 0) {
+        if (check(cudaMemcpy(host_before, engine->probe_before,
+                             probe_count * sizeof(uint32_t), cudaMemcpyDeviceToHost),
+                  "read probe counts before window")) goto failure;
+    }
+    if (probe_count != 0) {
+        if (check(cudaMemcpy(host_after, engine->probe_after,
+                             probe_count * sizeof(uint32_t), cudaMemcpyDeviceToHost),
+                  "read probe counts after window")) goto failure;
+    } else if (check(cudaDeviceSynchronize(), "synchronize sparse probed window")) {
+        goto failure;
+    }
+    return 0;
+
+failure:
+    return 1;
+}
+
+extern "C" int flybrain_cuda_read_metrics(
+    void* raw_engine,
+    uint64_t* host_total_spikes,
+    uint32_t* host_active_neurons,
+    double* host_voltage_sum) {
+    last_error.clear();
+    Engine* engine = static_cast<Engine*>(raw_engine);
+    reduce_metrics<<<1, THREADS>>>(
+        engine->spike_counts, engine->voltage, engine->neuron_count,
+        engine->metrics);
+    if (check_launch("launch CUDA metrics reduction")) return 1;
+    MetricResults metrics{};
+    if (check(cudaMemcpy(&metrics, engine->metrics, sizeof(metrics), cudaMemcpyDeviceToHost),
+              "read CUDA metrics")) return 1;
+    *host_total_spikes = metrics.total_spikes;
+    *host_active_neurons = metrics.active_neurons;
+    *host_voltage_sum = metrics.voltage_sum;
+    return 0;
 }
 
 extern "C" int flybrain_cuda_copy_state(
