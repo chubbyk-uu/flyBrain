@@ -9,10 +9,13 @@ The Windows Chrome/RTX 5080 full-CNS [baseline is recorded](docs/baseline-rtx508
 Performance diagnosis is now recorded in the baseline report. The isolated
 [CUDA neural core](docs/cuda-engine-stage-2026-09-12.md) builds for the RTX 5080
 and passes deterministic tiny-fixture, chunk, dense/sparse, delay, refractory,
-inhibition and silencing checks. Full MaleCNS population/experimental validation
-and world integration are not implemented yet. After that validation, the WSL/Linux
-runtime will use native Rust + CUDA + native MuJoCo; MuJoCo will not remain in the
-browser/WASM path. Later milestones cover a smaller indoor world
+inhibition and silencing checks. The fixed-replay
+[full MaleCNS CUDA validation](docs/cuda-full-cns-stage-2026-09-12.md) also passes:
+all 15 population and selected-group cases match the existing Metal references,
+while the known failed pathway hypothesis remains failed. Native world integration
+is not implemented yet. The WSL/Linux runtime will use native Rust + CUDA + native
+MuJoCo; MuJoCo will not remain in the browser/WASM path. Later milestones cover a
+smaller indoor world
 with a coffee table, candy and flowering potted plants, improved fly appearance,
 wing-motion diagnosis, and neurally driven foreleg rubbing and head/eye grooming.
 These later features are not implemented; the original baseline remains preserved.

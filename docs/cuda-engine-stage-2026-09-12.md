@@ -65,12 +65,10 @@ was used to locate an initial sparse-offset pointer bug; offsets are now kept on
 the host and passed as scalar kernel arguments, after which serial and parallel
 tests pass. Device sanitizer coverage therefore remains an explicit validation gap.
 
-## Deferred to the next stage
+## Follow-up status
 
-- Load and execute the unchanged full MaleCNS v1.0 pack through CUDA.
-- Define fixed replay stimuli and population-level acceptance thresholds before
-  examining full-CNS results.
-- Measure full-CNS CUDA determinism, throughput, memory, population responses,
-  and first spike/numerical divergence where applicable.
-- Connect `CudaEngine` to `BrainBodyBridge` or native MuJoCo. Native MuJoCo remains
-  mandatory for the later WSL/Linux closed loop, but is outside this core stage.
+The unchanged full MaleCNS v1.0 pack, predeclared fixed replay, population responses,
+determinism, memory and initial throughput were subsequently validated; see the
+[full-CNS CUDA report](cuda-full-cns-stage-2026-09-12.md). Connecting `CudaEngine`
+to `BrainBodyBridge` and native MuJoCo remains the next stage. Native MuJoCo is
+mandatory for the WSL/Linux closed loop and remains outside this isolated core stage.

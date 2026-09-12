@@ -30,6 +30,11 @@ path = "rust/src/bin/cns_numerics.rs"
 name = "flybrain-browser"
 path = "rust/src/bin/flybrain_browser.rs"
 
+[[bin]]
+name = "flybrain-cuda-validate"
+path = "rust/src/bin/cuda_full_cns.rs"
+required-features = ["cuda"]
+
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }

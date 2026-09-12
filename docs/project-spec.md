@@ -105,9 +105,10 @@ CSR 和神经状态常驻设备显存。使用有序 CUDA stream 批量提交窗
 2. 性能诊断（已完成）：GPU timestamps、无观察者和 world-only 对照表明，WebGPU
    compute pass 平均约 `0.506 ms/窗口`，但同步式浏览器 neural-engine 路径约
    `4.000 ms/窗口`；world-only 的 WASM 物理仍只有 `0.301×`。详见实测报告。
-3. 独立 CUDA 神经核心（部分完成）：Rust/CUDA 核心、tiny fixture、自身确定性、
-   chunk/sparse/split-window parity 已通过；完整 MaleCNS 固定输入 population response
-   尚未执行。见 [CUDA 核心阶段报告](cuda-engine-stage-2026-09-12.md)。
+3. 独立 CUDA 神经核心（已完成）：Rust/CUDA 核心、tiny fixture、自身确定性、
+   chunk/sparse/split-window parity 已通过；完整 MaleCNS 的 15 个固定输入 case、关键群体
+   和既有实验门控也已通过预注册验收。见 [CUDA 核心阶段报告](cuda-engine-stage-2026-09-12.md)
+   与 [完整 CNS CUDA 报告](cuda-full-cns-stage-2026-09-12.md)。
 4. 原生世界接入与实验回归（后续）：保持原世界/映射，将 CUDA 接入原生 MuJoCo，
    不经过浏览器/WASM；随后运行 `cns-check`、无感官输入、运动/嗅觉断连及既有门控实验，
    验证 WSLg/GLFW 显示。
@@ -197,13 +198,15 @@ MaleCNS 已具备相应花香识别，也不让控制器直接读取食物坐标
 
 ## 状态管理
 
-当前状态：阶段 1 和性能诊断已完成，独立 CUDA 核心及 tiny/短程检查已完成，见
+当前状态：阶段 1、性能诊断、独立 CUDA 核心及完整 CNS 固定回放验收已完成，见
 [Windows/RTX 5080 基线](baseline-rtx5080-windows.md)和
-[CUDA 核心阶段报告](cuda-engine-stage-2026-09-12.md)。
-2026-09-12 的最新顺序为：完整 CNS CUDA 实验验证 → 原生世界接入回归 →
+[CUDA 核心阶段报告](cuda-engine-stage-2026-09-12.md)、
+[完整 CNS CUDA 报告](cuda-full-cns-stage-2026-09-12.md)。
+2026-09-12 的后续顺序为：原生世界接入回归 →
 新室内世界/果蝇外观/翼运动 → 神经驱动搓脚与头眼清洁。
-当前 CUDA 尚未运行完整 MaleCNS，也未接 `BrainBodyBridge`、MuJoCo/world；没有修改数据、
-映射、行为或模型参数。后续闭环必须使用原生 MuJoCo，不使用浏览器/WASM 物理。
+当前 CUDA 已运行完整 MaleCNS，但尚未接 `BrainBodyBridge`、MuJoCo/world；没有修改数据、
+映射、行为或模型参数。隔离 intact 神经回放初测平均约 `1.23×` 实时，不代表闭环性能。
+后续闭环必须使用原生 MuJoCo，不使用浏览器/WASM 物理。
 本机检查与环境恢复记录见 [环境检查记录](environment-check-2026-09-12.md)。
 历史上游测试结果以原文档为准，不标为本机通过。后续阶段结果单独记录日期、版本、
 输入哈希、命令及通过/失败/未执行状态，再更新本规范的进度描述。
