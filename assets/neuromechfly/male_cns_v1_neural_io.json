@@ -574,6 +574,126 @@
       "selector": "status == Traced and superclass == descending_neuron and type in {DNa03,DNa04,DNa15,DNb01,DNp03,DNp28} and somaSide == {side}",
       "side": "right"
     },
+    "grooming_dn_left": {
+      "biological_scope": "aDN1/aDN2 descending command neurons associated with antennal grooming; used only as a permissive activity gate",
+      "evidence_category": "published_antennal_grooming_descending",
+      "pack_resolution": {
+        "missing_root_ids": [],
+        "present_count": 2,
+        "selected_count": 2
+      },
+      "root_ids": [
+        13624,
+        14537
+      ],
+      "selector": "status == Traced and superclass == descending_neuron and type in {DNg62,DNge078} and somaSide == {side} and synonyms starts Hampel 2015: aDN",
+      "side": "left"
+    },
+    "grooming_dn_right": {
+      "biological_scope": "aDN1/aDN2 descending command neurons associated with antennal grooming; used only as a permissive activity gate",
+      "evidence_category": "published_antennal_grooming_descending",
+      "pack_resolution": {
+        "missing_root_ids": [],
+        "present_count": 2,
+        "selected_count": 2
+      },
+      "root_ids": [
+        15148,
+        36541
+      ],
+      "selector": "status == Traced and superclass == descending_neuron and type in {DNg62,DNge078} and somaSide == {side} and synonyms starts Hampel 2015: aDN",
+      "side": "right"
+    },
+    "grooming_sensory_left": {
+      "biological_scope": "Johnston's-organ grooming mechanosensory population used for an engineered accumulated-dirt input",
+      "evidence_category": "annotated_grooming_mechanosensory",
+      "pack_resolution": {
+        "missing_root_ids": [],
+        "present_count": 40,
+        "selected_count": 40
+      },
+      "root_ids": [
+        38160,
+        60335,
+        92767,
+        127912,
+        146314,
+        154152,
+        162166,
+        170014,
+        179637,
+        224261,
+        227655,
+        231936,
+        237833,
+        240644,
+        246484,
+        247028,
+        249842,
+        279391,
+        287167,
+        303968,
+        308970,
+        324453,
+        331081,
+        336332,
+        343346,
+        360461,
+        403040,
+        407092,
+        426803,
+        482280,
+        166331476,
+        197061019,
+        209837831,
+        238817349,
+        639242246,
+        793720445,
+        812830130,
+        906350022,
+        975904445,
+        987117568
+      ],
+      "selector": "status == Traced and superclass == cb_sensory and class == mechanosensory and subclass == grooming and type in {JO-FV,JO-FD1} and rootSide == {side}",
+      "side": "left"
+    },
+    "grooming_sensory_right": {
+      "biological_scope": "Johnston's-organ grooming mechanosensory population used for an engineered accumulated-dirt input",
+      "evidence_category": "annotated_grooming_mechanosensory",
+      "pack_resolution": {
+        "missing_root_ids": [],
+        "present_count": 24,
+        "selected_count": 24
+      },
+      "root_ids": [
+        26519,
+        31055,
+        89002,
+        183993,
+        218513,
+        303057,
+        304167,
+        383609,
+        390116,
+        407325,
+        422978,
+        464153,
+        471787,
+        535510,
+        535512,
+        556073,
+        943174,
+        106954767,
+        126095791,
+        156608300,
+        205095020,
+        348644043,
+        534464626,
+        762295104
+      ],
+      "selector": "status == Traced and superclass == cb_sensory and class == mechanosensory and subclass == grooming and type in {JO-FV,JO-FD1} and rootSide == {side}",
+      "side": "right"
+    },
     "landing_dn_left": {
       "biological_scope": "annotated landing descending command neurons",
       "evidence_category": "published_landing_descending",
@@ -3122,6 +3242,26 @@
         "present_count": 6,
         "selected_count": 6
       },
+      "grooming_dn_left": {
+        "missing_root_ids": [],
+        "present_count": 2,
+        "selected_count": 2
+      },
+      "grooming_dn_right": {
+        "missing_root_ids": [],
+        "present_count": 2,
+        "selected_count": 2
+      },
+      "grooming_sensory_left": {
+        "missing_root_ids": [],
+        "present_count": 40,
+        "selected_count": 40
+      },
+      "grooming_sensory_right": {
+        "missing_root_ids": [],
+        "present_count": 24,
+        "selected_count": 24
+      },
       "landing_dn_left": {
         "missing_root_ids": [],
         "present_count": 2,
@@ -3225,6 +3365,12 @@
   "schema_version": 1,
   "summary": {
     "category_counts": {
+      "annotated_grooming_mechanosensory": {
+        "groups": 2,
+        "missing_root_ids": 0,
+        "present_root_ids": 64,
+        "selected_root_ids": 64
+      },
       "candidate_flight_power_activation_descending": {
         "groups": 2,
         "missing_root_ids": 0,
@@ -3236,6 +3382,12 @@
         "missing_root_ids": 0,
         "present_root_ids": 16,
         "selected_root_ids": 16
+      },
+      "published_antennal_grooming_descending": {
+        "groups": 2,
+        "missing_root_ids": 0,
+        "present_root_ids": 4,
+        "selected_root_ids": 4
       },
       "published_feeding_motor": {
         "groups": 1,
@@ -3304,9 +3456,9 @@
         "selected_root_ids": 8
       }
     },
-    "group_count": 28,
+    "group_count": 32,
     "missing_root_ids": 0,
-    "present_root_ids": 2459,
-    "selected_root_ids": 2459
+    "present_root_ids": 2527,
+    "selected_root_ids": 2527
   }
 }

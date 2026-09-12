@@ -156,6 +156,7 @@ pub struct SensorySample {
     pub angular_velocity_rad_s: [f64; 3],
     pub flight_angular_speed_rad_s: f64,
     pub flight_mechanosensory: f64,
+    pub grooming_dirt: f64,
 }
 
 impl Default for SensorySample {
@@ -179,6 +180,7 @@ impl Default for SensorySample {
             angular_velocity_rad_s: [0.0; 3],
             flight_angular_speed_rad_s: 0.0,
             flight_mechanosensory: 0.0,
+            grooming_dirt: 0.0,
         }
     }
 }
@@ -209,6 +211,7 @@ impl SensorySample {
             self.visual_contrast_right,
             self.flight_angular_speed_rad_s,
             self.flight_mechanosensory,
+            self.grooming_dirt,
         ]
         .iter()
         .chain(self.food_odor_activation.iter().flatten())
@@ -218,6 +221,7 @@ impl SensorySample {
         .any(|value| !value.is_finite())
             || self.flight_angular_speed_rad_s < 0.0
             || !(0.0..=1.0).contains(&self.flight_mechanosensory)
+            || !(0.0..=1.0).contains(&self.grooming_dirt)
             || self
                 .food_odor_activation
                 .iter()
@@ -264,6 +268,7 @@ pub enum SensoryFeature {
     },
     FlightAngularSpeed,
     FlightMechanosensory,
+    GroomingDirt,
 }
 
 impl SensoryFeature {
@@ -327,6 +332,7 @@ impl SensoryFeature {
             Self::AngularVelocity { axis } => sample.angular_velocity_rad_s[axis],
             Self::FlightAngularSpeed => sample.flight_angular_speed_rad_s,
             Self::FlightMechanosensory => sample.flight_mechanosensory,
+            Self::GroomingDirt => sample.grooming_dirt,
         }
     }
 }

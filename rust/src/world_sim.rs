@@ -21,7 +21,9 @@ use crate::foraging::{
     CnsForagingParameters, ForagingCommand, ForagingController, ForagingInput, ForagingMode,
 };
 use crate::gait::GaitLibrary;
-use crate::grooming::{GroomingController, GroomingInput, GroomingMode, GroomingTrigger};
+use crate::grooming::{
+    GroomingController, GroomingInput, GroomingMode, GroomingParameters, GroomingTrigger,
+};
 use crate::habitat::Habitat;
 use crate::homeostasis::{HomeostasisParameters, HomeostaticController, HomeostaticInput};
 use crate::neural_io::MALE_CNS_MATERIALIZATION;
@@ -58,6 +60,8 @@ pub struct SimulationParameters {
     pub odor_guidance: crate::odor_guidance::OdorGuidanceParameters,
     #[serde(default)]
     pub homeostasis: HomeostasisParameters,
+    #[serde(default)]
+    pub grooming: GroomingParameters,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -152,6 +156,7 @@ impl Default for SimulationParameters {
             cns_foraging: CnsForagingParameters::default(),
             odor_guidance: crate::odor_guidance::OdorGuidanceParameters::default(),
             homeostasis: HomeostasisParameters::default(),
+            grooming: GroomingParameters::default(),
         }
     }
 }
@@ -175,6 +180,7 @@ impl SimulationParameters {
         self.cns_foraging.validate()?;
         self.odor_guidance.validate()?;
         self.homeostasis.validate()?;
+        self.grooming.validate()?;
         if !self.brain_walking_steering_gain.is_finite() || self.brain_walking_steering_gain < 0.0 {
             bail!("brain walking steering gain must be finite and non-negative")
         }
@@ -211,6 +217,13 @@ pub struct SimulationSnapshot {
     pub grooming_active: bool,
     pub grooming_phase: f64,
     pub grooming_support_leg_count: usize,
+    pub dirt: f64,
+    pub grooming_neural_gate_active: bool,
+    pub grooming_stable_support_seconds: f64,
+    pub grooming_completed_bouts: u64,
+    pub grooming_interrupted_bouts: u64,
+    pub front_tarsi_distance_mm: f64,
+    pub front_tarsus_head_eye_min_distance_mm: f64,
     pub contact_count: usize,
     pub wall_support_leg_count: usize,
     pub perched_on_wall: bool,
@@ -236,6 +249,7 @@ pub struct SimulationSnapshot {
     pub flight_power_increase_rate_hz: f64,
     pub flight_power_decrease_rate_hz: f64,
     pub landing_dn_rate_hz: f64,
+    pub grooming_dn_rate_hz: f64,
     pub brain_walking_drive: f64,
     pub brain_walking_steering: f64,
     pub brain_flight_drive: f64,
@@ -399,6 +413,7 @@ pub struct SimulationStepper {
     obstacle_sample_elapsed_seconds: f64,
     wall_escape: WallEscapeState,
     grooming: GroomingController,
+    grooming_neural_gate_connected: bool,
     brain: Option<BrainBodyBridge>,
     brain_telemetry_enabled: bool,
     physics_profile_enabled: bool,
@@ -568,7 +583,8 @@ impl SimulationStepper {
             obstacle_sample,
             obstacle_sample_elapsed_seconds: 0.0,
             wall_escape: WallEscapeState::default(),
-            grooming: GroomingController::new(),
+            grooming: GroomingController::with_parameters(parameters.grooming)?,
+            grooming_neural_gate_connected: true,
             brain,
             brain_telemetry_enabled: false,
             physics_profile_enabled,
@@ -602,6 +618,7 @@ impl SimulationStepper {
                 fatigue: parameters.homeostasis.initial_fatigue,
                 hungry: parameters.homeostasis.initial_hunger
                     >= parameters.homeostasis.hunger_enter,
+                dirt: parameters.grooming.initial_dirt,
                 ..SimulationSnapshot::default()
             },
         };
@@ -810,6 +827,14 @@ impl SimulationStepper {
         } else {
             0.0
         };
+        sample.grooming_dirt = if self.snapshot.flight_mode == FlightMode::Grounded
+            && !self.snapshot.hungry
+            && root_position[2] <= 5.0
+        {
+            self.grooming.state().dirt
+        } else {
+            0.0
+        };
         let contact_count = sample.foot_contacts.iter().filter(|&&value| value).count();
         let wall_support_contacts = self.world.wall_foot_contacts();
         let wall_support_leg_count = wall_support_contacts.iter().filter(|&&value| value).count();
@@ -850,6 +875,7 @@ impl SimulationStepper {
         let mut flight_power_increase_rate_hz = 0.0;
         let mut flight_power_decrease_rate_hz = 0.0;
         let mut landing_dn_rate_hz = 0.0;
+        let mut grooming_dn_rate_hz = 0.0;
         let mut brain_walking_drive = 0.0;
         let mut brain_walking_steering = 0.0;
         let mut brain_flight_drive = 0.0;
@@ -882,6 +908,7 @@ impl SimulationStepper {
             flight_power_increase_rate_hz = result.flight_power_increase_rate_hz;
             flight_power_decrease_rate_hz = result.flight_power_decrease_rate_hz;
             landing_dn_rate_hz = result.landing_dn_rate_hz;
+            grooming_dn_rate_hz = result.grooming_dn_rate_hz;
             brain_walking_drive = result.brain_walking_drive;
             brain_walking_steering = result.brain_walking_steering;
             brain_flight_drive = result.brain_flight_drive;
@@ -986,6 +1013,13 @@ impl SimulationStepper {
             perceived_taste_active,
             behavior.mode,
         );
+        let grooming_intent = self.grooming.autonomous_intent(!homeostasis.hungry)
+            && root_position[2] <= 5.0
+            && contact_count >= crate::grooming::GROOMING_MIN_SUPPORT_LEGS;
+        if grooming_intent {
+            next_motor.0 = 0.0;
+            next_motor.1 = 0.0;
+        }
         let flight_behavior = self.flight_behavior.update(FlightBehaviorInput {
             dt_seconds: window_seconds,
             enabled: self.flight_allowed && !food_contact_blocks_flight,
@@ -1022,7 +1056,9 @@ impl SimulationStepper {
                 .active
                 .then_some(odor_guidance.approach_height_mm),
             landing_request: foraging.landing_request || homeostasis.landing_request,
-            takeoff_inhibited: foraging.takeoff_inhibited || homeostasis.takeoff_inhibited,
+            takeoff_inhibited: foraging.takeoff_inhibited
+                || homeostasis.takeoff_inhibited
+                || grooming_intent,
             collision_escape_active: self.wall_escape.latched
                 || self.wall_escape.release_hold_windows > 0,
             flight_altitude_bounds_mm: self.habitat.room().flight_altitude_bounds_mm,
@@ -1120,24 +1156,45 @@ impl SimulationStepper {
             foraging.horizontal_speed_scale * homeostasis.flight_speed_scale
         }) * cns_motor
             .map_or(1.0, |motor| motor.flight_activation.sqrt());
+        let grooming_completed_before = self.grooming.state().completed_bouts;
         let grooming_command = self.grooming.update(GroomingInput {
             dt_seconds: window_seconds,
             grounded: flight_behavior.mode == FlightMode::Grounded
                 && cns_motor.is_none_or(|motor| motor.outputs_connected),
+            on_ground_surface: root_position[2] <= 5.0,
             contact_count,
             allow_fallback: self.brain.is_none(),
             taste_active: perceived_taste_active,
             taste_valence: habitat_sample.taste_valence,
             feeding_extension: next_motor.2,
+            hungry: homeostasis.hungry,
+            horizontal_speed_mm_s,
+            airborne_powered: flight_behavior.mode != FlightMode::Grounded
+                && self.snapshot.flight_amplitude_scale > 0.1,
+            environment_contact_count: obstacle_sample.environment_contact_count,
+            grooming_probe_rate_hz: if self.grooming_neural_gate_connected {
+                grooming_dn_rate_hz
+            } else {
+                0.0
+            },
+            neural_outputs_connected: self.grooming_neural_gate_connected
+                && cns_motor.is_none_or(|motor| motor.outputs_connected),
+            collision_danger: collision_reflex_active,
         })?;
+        if grooming_command.completed_bouts > grooming_completed_before {
+            self.homeostasis.interrupt_exploration();
+        }
         if flight_behavior.mode == FlightMode::Grounded {
             if was_airborne {
                 self.phase_rad = 0.0;
                 joint_controls = self.standing_joint_controls;
                 adhesion = sample.foot_contacts.map(f64::from);
             }
-            if perched_on_wall || grooming_command.active || self.grooming.preparing() {
+            if perched_on_wall {
                 joint_controls = std::array::from_fn(|index| self.world.neutral_control()[index]);
+                adhesion = [1.0; 6];
+            } else if grooming_command.active || self.grooming.preparing() {
+                joint_controls = self.standing_joint_controls;
                 adhesion = [1.0; 6];
             }
             self.grooming.apply(&mut joint_controls, &mut adhesion);
@@ -1289,6 +1346,17 @@ impl SimulationStepper {
         if grooming_command.active || self.grooming.preparing() {
             self.forward_gain = 0.0;
         }
+        let left_front_tarsus = self.world.body_position("fly/lf_tarsus5")?;
+        let right_front_tarsus = self.world.body_position("fly/rf_tarsus5")?;
+        let head_eye_targets = [
+            self.world.body_position("fly/c_head")?,
+            self.world.body_position("fly/l_eye")?,
+            self.world.body_position("fly/r_eye")?,
+        ];
+        let front_tarsus_head_eye_min_distance_mm = [left_front_tarsus, right_front_tarsus]
+            .into_iter()
+            .flat_map(|foot| head_eye_targets.map(|target| distance(foot, target)))
+            .fold(f64::INFINITY, f64::min);
         self.snapshot = SimulationSnapshot {
             time_seconds: self.world.time(),
             root_position: self.world.root_position(),
@@ -1320,6 +1388,13 @@ impl SimulationStepper {
             grooming_active: grooming_command.active,
             grooming_phase: grooming_command.phase,
             grooming_support_leg_count: grooming_command.support_leg_count,
+            dirt: grooming_command.dirt,
+            grooming_neural_gate_active: grooming_command.neural_gate_active,
+            grooming_stable_support_seconds: grooming_command.stable_support_seconds,
+            grooming_completed_bouts: grooming_command.completed_bouts,
+            grooming_interrupted_bouts: grooming_command.interrupted_bouts,
+            front_tarsi_distance_mm: distance(left_front_tarsus, right_front_tarsus),
+            front_tarsus_head_eye_min_distance_mm,
             contact_count,
             wall_support_leg_count,
             perched_on_wall,
@@ -1347,6 +1422,11 @@ impl SimulationStepper {
             flight_power_increase_rate_hz,
             flight_power_decrease_rate_hz,
             landing_dn_rate_hz,
+            grooming_dn_rate_hz: if self.grooming_neural_gate_connected {
+                grooming_dn_rate_hz
+            } else {
+                0.0
+            },
             brain_walking_drive,
             brain_walking_steering,
             brain_flight_drive,
@@ -1459,6 +1539,7 @@ impl SimulationStepper {
             fatigue: self.parameters.homeostasis.initial_fatigue,
             hungry: self.parameters.homeostasis.initial_hunger
                 >= self.parameters.homeostasis.hunger_enter,
+            dirt: self.parameters.grooming.initial_dirt,
             ..SimulationSnapshot::default()
         };
         self.refresh_environment_snapshot()
@@ -1487,6 +1568,34 @@ impl SimulationStepper {
         self.explorer.reset(seed ^ 0x5eed_f17b_2026_0816);
         self.flight_behavior.reset(seed ^ 0xa17f_1eaf_2026_0816);
         self.homeostasis.reset(seed ^ 0xc011_ab1e_2026_0913);
+        Ok(())
+    }
+
+    pub fn set_initial_dirt(&mut self, dirt: f64) -> Result<()> {
+        if self.world.time() != 0.0 {
+            bail!("initial dirt can only be set before stepping")
+        }
+        self.grooming.set_initial_dirt(dirt)?;
+        self.snapshot.dirt = dirt;
+        Ok(())
+    }
+
+    pub fn set_initial_hunger(&mut self, hunger: f64) -> Result<()> {
+        if self.world.time() != 0.0 {
+            bail!("initial hunger can only be set before stepping")
+        }
+        self.homeostasis.set_initial_hunger(hunger)?;
+        let state = self.homeostasis.state();
+        self.snapshot.hunger = state.hunger;
+        self.snapshot.hungry = state.hungry;
+        Ok(())
+    }
+
+    pub fn set_grooming_neural_gate_connected(&mut self, connected: bool) -> Result<()> {
+        if self.world.time() != 0.0 {
+            bail!("grooming neural gate can only be changed before stepping")
+        }
+        self.grooming_neural_gate_connected = connected;
         Ok(())
     }
 

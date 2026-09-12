@@ -41,6 +41,8 @@ pub const VISUAL_BASELINE_RATE_HZ: f64 = 5.0;
 pub const VISUAL_INPUT_RATE_HZ: f64 = 75.0;
 pub const FLIGHT_STATE_INPUT_MAX_RAD_S: f64 = 200.0;
 pub const FLIGHT_STATE_INPUT_RATE_HZ: f64 = 120.0;
+pub const GROOMING_MECHANOSENSORY_INPUT_RATE_HZ: f64 = 5.0;
+pub const GROOMING_COMMAND_INPUT_RATE_HZ: f64 = 20.0;
 pub const MOTOR_RATE_FILTER_TAU_MS: f64 = 50.0;
 pub const FEEDING_RELEASE_TAU_MS: f64 = 500.0;
 pub const FEEDING_EXTENSION_PER_MN9_SPIKE: f64 = 0.35;
@@ -58,6 +60,10 @@ pub struct BrainBridgeParameters {
     pub visual_input_rate_hz: f64,
     pub flight_state_input_max_rad_s: f64,
     pub flight_state_input_rate_hz: f64,
+    #[serde(default = "default_grooming_mechanosensory_input_rate_hz")]
+    pub grooming_mechanosensory_input_rate_hz: f64,
+    #[serde(default = "default_grooming_command_input_rate_hz")]
+    pub grooming_command_input_rate_hz: f64,
     pub motor_rate_filter_tau_ms: f64,
     pub feeding_release_tau_ms: f64,
     pub feeding_extension_per_mn9_spike: f64,
@@ -90,6 +96,14 @@ fn default_olfactory_baseline_rate_hz() -> f64 {
     ORN_SPONTANEOUS_RATE_HZ
 }
 
+fn default_grooming_mechanosensory_input_rate_hz() -> f64 {
+    GROOMING_MECHANOSENSORY_INPUT_RATE_HZ
+}
+
+fn default_grooming_command_input_rate_hz() -> f64 {
+    GROOMING_COMMAND_INPUT_RATE_HZ
+}
+
 impl Default for BrainBridgeParameters {
     fn default() -> Self {
         Self {
@@ -101,6 +115,8 @@ impl Default for BrainBridgeParameters {
             visual_input_rate_hz: VISUAL_INPUT_RATE_HZ,
             flight_state_input_max_rad_s: FLIGHT_STATE_INPUT_MAX_RAD_S,
             flight_state_input_rate_hz: FLIGHT_STATE_INPUT_RATE_HZ,
+            grooming_mechanosensory_input_rate_hz: GROOMING_MECHANOSENSORY_INPUT_RATE_HZ,
+            grooming_command_input_rate_hz: GROOMING_COMMAND_INPUT_RATE_HZ,
             motor_rate_filter_tau_ms: MOTOR_RATE_FILTER_TAU_MS,
             feeding_release_tau_ms: FEEDING_RELEASE_TAU_MS,
             feeding_extension_per_mn9_spike: FEEDING_EXTENSION_PER_MN9_SPIKE,
@@ -126,6 +142,8 @@ impl BrainBridgeParameters {
             self.visual_baseline_rate_hz,
             self.visual_input_rate_hz,
             self.flight_state_input_rate_hz,
+            self.grooming_mechanosensory_input_rate_hz,
+            self.grooming_command_input_rate_hz,
             self.feeding_extension_per_mn9_spike,
             self.walking_steering_gain,
             self.flight_steering_gain,
@@ -162,6 +180,7 @@ enum SensoryClass {
     Olfactory,
     Visual,
     FlightState,
+    Grooming,
 }
 
 pub struct BrainBodyBridge {
@@ -179,6 +198,7 @@ pub struct BrainBodyBridge {
     flight_power_increase_probe_positions: Vec<usize>,
     flight_power_decrease_probe_positions: Vec<usize>,
     landing_probe_positions: Vec<usize>,
+    grooming_probe_positions: Vec<usize>,
     motor_neuron_id: u64,
     filtered_mn9_rate_hz: f64,
     filtered_population_rate_hz: f64,
@@ -189,6 +209,7 @@ pub struct BrainBodyBridge {
     filtered_flight_power_increase_rate_hz: f64,
     filtered_flight_power_decrease_rate_hz: f64,
     filtered_landing_rate_hz: f64,
+    filtered_grooming_rate_hz: f64,
     previous_total_spikes: u64,
     spiking_neuron_count: usize,
     population_telemetry_elapsed_ms: f64,
@@ -243,6 +264,7 @@ pub struct BrainWindowResult {
     pub olfactory_event_count: u64,
     pub visual_event_count: u64,
     pub flight_state_event_count: u64,
+    pub grooming_event_count: u64,
     pub mn9_spike_delta: u32,
     pub mn9_rate_hz: f64,
     pub filtered_mn9_rate_hz: f64,
@@ -259,6 +281,7 @@ pub struct BrainWindowResult {
     pub flight_power_increase_rate_hz: f64,
     pub flight_power_decrease_rate_hz: f64,
     pub landing_dn_rate_hz: f64,
+    pub grooming_dn_rate_hz: f64,
     pub brain_walking_drive: f64,
     pub brain_walking_steering: f64,
     pub brain_flight_drive: f64,
@@ -476,6 +499,40 @@ impl BrainBodyBridge {
                         &mut sensory_classes,
                     )?;
                 }
+                for group in ["grooming_sensory_left", "grooming_sensory_right"] {
+                    append_population_channels(
+                        pack,
+                        resolution,
+                        group,
+                        SensoryFeature::GroomingDirt,
+                        0.0,
+                        parameters.grooming_mechanosensory_input_rate_hz,
+                        SensoryClass::Grooming,
+                        &mut channels,
+                        &mut sensory_ids,
+                        &mut sensory_indices,
+                        &mut sensory_classes,
+                    )?;
+                }
+                // MaleCNS aDN1/aDN2 are also given the same engineered dirt drive. This
+                // mirrors the published command-neuron activation experiment and makes
+                // their measured spikes, rather than the scalar dirt value alone, the
+                // permissive gate for the downstream whole-bout controller.
+                for group in ["grooming_dn_left", "grooming_dn_right"] {
+                    append_population_channels(
+                        pack,
+                        resolution,
+                        group,
+                        SensoryFeature::GroomingDirt,
+                        0.0,
+                        parameters.grooming_command_input_rate_hz,
+                        SensoryClass::Grooming,
+                        &mut channels,
+                        &mut sensory_ids,
+                        &mut sensory_indices,
+                        &mut sensory_classes,
+                    )?;
+                }
             }
         }
 
@@ -538,6 +595,12 @@ impl BrainBodyBridge {
             &mut probe_indices,
             &mut probe_position_by_index,
         );
+        let grooming_probe_positions = collect_probe_positions(
+            neural_io.as_ref(),
+            "grooming_dn_",
+            &mut probe_indices,
+            &mut probe_position_by_index,
+        );
         let cns_motor_probes = if male_cns {
             Some(CnsMotorProbes::new(
                 neural_io.as_ref().unwrap(),
@@ -573,6 +636,7 @@ impl BrainBodyBridge {
             flight_power_increase_probe_positions,
             flight_power_decrease_probe_positions,
             landing_probe_positions,
+            grooming_probe_positions,
             motor_neuron_id,
             filtered_mn9_rate_hz: 0.0,
             filtered_population_rate_hz: 0.0,
@@ -583,6 +647,7 @@ impl BrainBodyBridge {
             filtered_flight_power_increase_rate_hz: 0.0,
             filtered_flight_power_decrease_rate_hz: 0.0,
             filtered_landing_rate_hz: 0.0,
+            filtered_grooming_rate_hz: 0.0,
             previous_total_spikes: 0,
             spiking_neuron_count: 0,
             population_telemetry_elapsed_ms: 0.0,
@@ -611,7 +676,7 @@ impl BrainBodyBridge {
         }
         let started = Instant::now();
         let sensory_window = self.encoder.encode_window(sample, brain_steps)?;
-        let mut class_event_counts = [0_u64; 4];
+        let mut class_event_counts = [0_u64; 5];
         for (&lane, &count) in sensory_window.lanes().iter().zip(sensory_window.counts()) {
             class_event_counts[class_index(self.sensory_class_by_lane[lane as usize])] +=
                 u64::from(count);
@@ -668,6 +733,11 @@ impl BrainBodyBridge {
             &self.landing_probe_positions,
             window_ms,
         );
+        let grooming_dn_rate_hz = probe_population_rate(
+            &window.spike_count_deltas,
+            &self.grooming_probe_positions,
+            window_ms,
+        );
         update_filtered_rate(
             &mut self.filtered_walking_left_rate_hz,
             walking_left_rate_hz,
@@ -701,6 +771,11 @@ impl BrainBodyBridge {
         update_filtered_rate(
             &mut self.filtered_landing_rate_hz,
             landing_dn_rate_hz,
+            alpha,
+        );
+        update_filtered_rate(
+            &mut self.filtered_grooming_rate_hz,
+            grooming_dn_rate_hz,
             alpha,
         );
 
@@ -816,6 +891,7 @@ impl BrainBodyBridge {
             olfactory_event_count: class_event_counts[1],
             visual_event_count: class_event_counts[2],
             flight_state_event_count: class_event_counts[3],
+            grooming_event_count: class_event_counts[4],
             mn9_spike_delta,
             mn9_rate_hz,
             filtered_mn9_rate_hz: self.filtered_mn9_rate_hz,
@@ -832,6 +908,7 @@ impl BrainBodyBridge {
             flight_power_increase_rate_hz: self.filtered_flight_power_increase_rate_hz,
             flight_power_decrease_rate_hz: self.filtered_flight_power_decrease_rate_hz,
             landing_dn_rate_hz: self.filtered_landing_rate_hz,
+            grooming_dn_rate_hz: self.filtered_grooming_rate_hz,
             brain_walking_drive,
             brain_walking_steering,
             brain_flight_drive,
@@ -1346,6 +1423,7 @@ fn class_index(class: SensoryClass) -> usize {
         SensoryClass::Olfactory => 1,
         SensoryClass::Visual => 2,
         SensoryClass::FlightState => 3,
+        SensoryClass::Grooming => 4,
     }
 }
 

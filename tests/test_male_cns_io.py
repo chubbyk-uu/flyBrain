@@ -53,6 +53,10 @@ def test_builder_binds_real_groups_and_routes_to_the_male_cns_pack(tmp_path: Pat
     assert len(artifact["groups"]["motor_flight_power_right"]["root_ids"]) == 12
     assert len(artifact["groups"]["motor_flight_steering_left"]["root_ids"]) == 3
     assert len(artifact["groups"]["motor_flight_steering_right"]["root_ids"]) == 3
+    assert artifact["groups"]["grooming_dn_left"]["root_ids"] == [13624, 14537]
+    assert artifact["groups"]["grooming_dn_right"]["root_ids"] == [15148, 36541]
+    assert len(artifact["groups"]["grooming_sensory_left"]["root_ids"]) == 40
+    assert len(artifact["groups"]["grooming_sensory_right"]["root_ids"]) == 24
     assert artifact["food_olfaction"]["annotation_field"] == "type"
     assert not any(
         "R1-R6" in row.get("type_counts", {}) for row in evidence["group_census"].values()

@@ -26,6 +26,10 @@
       "source": "https://doi.org/10.1038/nature07983"
     },
     {
+      "claim": "aDN1/aDN2 descending neurons command antennal grooming movements.",
+      "source": "https://doi.org/10.7554/eLife.08758"
+    },
+    {
       "claim": "MaleCNS v1.0 download and licensing provenance.",
       "source": "https://male-cns.janelia.org/download/"
     }
@@ -187,6 +191,57 @@
         "DNb01": 1,
         "DNp03": 1,
         "DNp28": 1
+      }
+    },
+    "grooming_dn_left": {
+      "consensus_nt_counts": {
+        "acetylcholine": 2
+      },
+      "present_in_pack_count": 2,
+      "root_ids_sha256": "52331f9c88ea44231bdc302d8f6934e60b7f2ffdd07af745f2400f943f5cf21b",
+      "selected_count": 2,
+      "selector": "status == Traced and superclass == descending_neuron and type in {DNg62,DNge078} and somaSide == {side} and synonyms starts Hampel 2015: aDN",
+      "type_counts": {
+        "DNg62": 1,
+        "DNge078": 1
+      }
+    },
+    "grooming_dn_right": {
+      "consensus_nt_counts": {
+        "acetylcholine": 2
+      },
+      "present_in_pack_count": 2,
+      "root_ids_sha256": "ca4786042695f1217da5b0d1dd7def224c233ec3d0bcd774e9314024c3432870",
+      "selected_count": 2,
+      "selector": "status == Traced and superclass == descending_neuron and type in {DNg62,DNge078} and somaSide == {side} and synonyms starts Hampel 2015: aDN",
+      "type_counts": {
+        "DNg62": 1,
+        "DNge078": 1
+      }
+    },
+    "grooming_sensory_left": {
+      "consensus_nt_counts": {
+        "acetylcholine": 40
+      },
+      "present_in_pack_count": 40,
+      "root_ids_sha256": "c99a45b562eb7e311703c2b7258dd775eb3d96dcf9b88c910eb9b0200b04a82a",
+      "selected_count": 40,
+      "selector": "status == Traced and superclass == cb_sensory and class == mechanosensory and subclass == grooming and type in {JO-FV,JO-FD1} and rootSide == {side}",
+      "type_counts": {
+        "JO-FD1": 4,
+        "JO-FV": 36
+      }
+    },
+    "grooming_sensory_right": {
+      "consensus_nt_counts": {
+        "acetylcholine": 24
+      },
+      "present_in_pack_count": 24,
+      "root_ids_sha256": "c1b4945d1244bbc5a1ca6f6782273bf309433542dea5fd554904317d96a8bc3e",
+      "selected_count": 24,
+      "selector": "status == Traced and superclass == cb_sensory and class == mechanosensory and subclass == grooming and type in {JO-FV,JO-FD1} and rootSide == {side}",
+      "type_counts": {
+        "JO-FV": 24
       }
     },
     "landing_dn_left": {
@@ -1051,7 +1106,7 @@
     },
     "pack_manifest": {
       "path": "outputs/packs/male_cns_v1/manifest.json",
-      "sha256": "692cc3567695c0891c88b2019e98af3a31f46f18728d2a35060369b35b3a09bb",
+      "sha256": "5e06b34f280b5115b9014c89a4747990054a54ed94d567b801752c01f8007b00",
       "url": "https://male-cns.janelia.org/download/"
     }
   },
@@ -1061,7 +1116,8 @@
     "DNg07 is an unisolated flight-power-decrease candidate, not an isolated altitude controller; coactivation with other descending types remains possible.",
     "DLM/DVM and extensor motor groups include published consensus_nt == unclear rows; their incoming synapses remain in the pack while unknown-NT outgoing edges are omitted by pack policy.",
     "Visual motion and MeVP24 groups are acetylcholine projection proxies; MeVP24 is not claimed to be a verified loom neuron, and no R1-R6 histamine input path is exposed.",
-    "No muscle-to-body torque mapping is asserted by this artifact; motor groups are neural population readouts only."
+    "No muscle-to-body torque mapping is asserted by this artifact; motor groups are neural population readouts only.",
+    "The aDN1/aDN2 activity readout is a permissive neural gate for an engineered whole-bout controller; it is not claimed to reconstruct the complete biological grooming circuit."
   ],
   "unresolved_route_queries": [
     {

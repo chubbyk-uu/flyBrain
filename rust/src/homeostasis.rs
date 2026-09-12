@@ -196,6 +196,19 @@ impl HomeostaticController {
         self.state
     }
 
+    pub fn set_initial_hunger(&mut self, hunger: f64) -> Result<()> {
+        if !hunger.is_finite() || !(0.0..=1.0).contains(&hunger) {
+            bail!("initial hunger must be in [0,1]")
+        }
+        self.state.hunger = hunger;
+        self.state.hungry = hunger >= self.parameters.hunger_enter;
+        Ok(())
+    }
+
+    pub fn interrupt_exploration(&mut self) {
+        self.waypoint_seconds = 0.0;
+    }
+
     pub fn update(&mut self, input: HomeostaticInput) -> Result<HomeostaticCommand> {
         validate_input(input)?;
         if input.dt_seconds == 0.0 {

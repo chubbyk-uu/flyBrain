@@ -438,6 +438,7 @@ def build_male_cns_io(
             "rootSide",
             "somaSide",
             "instance",
+            "synonyms",
             "status",
         ),
     )
@@ -601,6 +602,35 @@ def build_male_cns_io(
             "status == Traced and superclass == descending_neuron and type in {DNa01,DNa02,DNa11,DNg13} and somaSide == {side}",
             "published_walking_descending",
             "annotated walking descending command neurons",
+            side_name,
+        )
+        add(
+            f"grooming_dn_{side_name}",
+            lambda row, side=side: (
+                traced(row)
+                and row.get("superclass") == "descending_neuron"
+                and row.get("type") in {"DNg62", "DNge078"}
+                and row.get("somaSide") == side
+                and str(row.get("synonyms") or "").startswith("Hampel 2015: aDN")
+            ),
+            "status == Traced and superclass == descending_neuron and type in {DNg62,DNge078} and somaSide == {side} and synonyms starts Hampel 2015: aDN",
+            "published_antennal_grooming_descending",
+            "aDN1/aDN2 descending command neurons associated with antennal grooming; used only as a permissive activity gate",
+            side_name,
+        )
+        add(
+            f"grooming_sensory_{side_name}",
+            lambda row, side=side: (
+                traced(row)
+                and row.get("superclass") == "cb_sensory"
+                and row.get("class") == "mechanosensory"
+                and row.get("subclass") == "grooming"
+                and row.get("type") in {"JO-FV", "JO-FD1"}
+                and row.get("rootSide") == side
+            ),
+            "status == Traced and superclass == cb_sensory and class == mechanosensory and subclass == grooming and type in {JO-FV,JO-FD1} and rootSide == {side}",
+            "annotated_grooming_mechanosensory",
+            "Johnston's-organ grooming mechanosensory population used for an engineered accumulated-dirt input",
             side_name,
         )
         add(
@@ -844,6 +874,10 @@ def build_male_cns_io(
                 "source": "https://doi.org/10.1038/nature07983",
             },
             {
+                "claim": "aDN1/aDN2 descending neurons command antennal grooming movements.",
+                "source": "https://doi.org/10.7554/eLife.08758",
+            },
+            {
                 "claim": "MaleCNS v1.0 download and licensing provenance.",
                 "source": DOWNLOAD_URL,
             },
@@ -908,6 +942,7 @@ def build_male_cns_io(
             "DLM/DVM and extensor motor groups include published consensus_nt == unclear rows; their incoming synapses remain in the pack while unknown-NT outgoing edges are omitted by pack policy.",
             "Visual motion and MeVP24 groups are acetylcholine projection proxies; MeVP24 is not claimed to be a verified loom neuron, and no R1-R6 histamine input path is exposed.",
             "No muscle-to-body torque mapping is asserted by this artifact; motor groups are neural population readouts only.",
+            "The aDN1/aDN2 activity readout is a permissive neural gate for an engineered whole-bout controller; it is not claimed to reconstruct the complete biological grooming circuit.",
         ],
     }
     _write_json(output, artifact)

@@ -437,6 +437,12 @@ struct CnsCheckOptions {
     #[arg(long, default_value_t = 20260913)]
     behavior_seed: u64,
     #[arg(long)]
+    initial_dirt: Option<f64>,
+    #[arg(long)]
+    initial_hunger: Option<f64>,
+    #[arg(long)]
+    disconnect_grooming_probe: bool,
+    #[arg(long)]
     parameters: Option<PathBuf>,
     #[arg(long)]
     output: PathBuf,
@@ -493,6 +499,13 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     }
     simulation.set_initial_yaw(options.initial_yaw_deg.to_radians())?;
     simulation.set_behavior_seed(options.behavior_seed)?;
+    if let Some(dirt) = options.initial_dirt {
+        simulation.set_initial_dirt(dirt)?;
+    }
+    if let Some(hunger) = options.initial_hunger {
+        simulation.set_initial_hunger(hunger)?;
+    }
+    simulation.set_grooming_neural_gate_connected(!options.disconnect_grooming_probe)?;
     if !options.keep_scene_food {
         simulation.place_food_ahead(options.start_food_distance)?;
     }
@@ -545,6 +558,9 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         "initial_position_mm": options.initial_position_mm,
         "keep_scene_food": options.keep_scene_food,
         "behavior_seed": options.behavior_seed,
+        "initial_dirt": options.initial_dirt,
+        "initial_hunger": options.initial_hunger,
+        "grooming_probe_connected": !options.disconnect_grooming_probe,
         "sensory_encoder": "deterministic fractional-rate accumulator",
     });
     let initial_state_sha256 = format!("{:x}", Sha256::digest(serde_json::to_vec(&initial_state)?));
@@ -687,6 +703,23 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
                 json!(snapshot.homeostatic_takeoff_inhibited);
             trace_sample["homeostatic_resting"] = json!(snapshot.homeostatic_resting);
             trace_sample["exploration_steering"] = json!(snapshot.exploration_steering);
+            trace_sample["grooming_dn_rate_hz"] = json!(snapshot.grooming_dn_rate_hz);
+            trace_sample["dirt"] = json!(snapshot.dirt);
+            trace_sample["grooming_active"] = json!(snapshot.grooming_active);
+            trace_sample["grooming_phase"] = json!(snapshot.grooming_phase);
+            trace_sample["grooming_support_leg_count"] = json!(snapshot.grooming_support_leg_count);
+            trace_sample["grooming_trigger"] = json!(snapshot.grooming_trigger.label());
+            trace_sample["grooming_neural_gate_active"] =
+                json!(snapshot.grooming_neural_gate_active);
+            trace_sample["grooming_stable_support_seconds"] =
+                json!(snapshot.grooming_stable_support_seconds);
+            trace_sample["grooming_completed_bouts"] = json!(snapshot.grooming_completed_bouts);
+            trace_sample["grooming_interrupted_bouts"] = json!(snapshot.grooming_interrupted_bouts);
+            trace_sample["front_tarsi_distance_mm"] = json!(snapshot.front_tarsi_distance_mm);
+            trace_sample["front_tarsus_head_eye_min_distance_mm"] =
+                json!(snapshot.front_tarsus_head_eye_min_distance_mm);
+            let controls = simulation.world().controls();
+            trace_sample["front_leg_joint_controls"] = json!([&controls[0..7], &controls[21..28]]);
             trace_sample["flight_diagnostics"] = flight_diagnostics;
             samples.push(trace_sample);
             next_sample_time = snapshot.time_seconds + 0.01;
