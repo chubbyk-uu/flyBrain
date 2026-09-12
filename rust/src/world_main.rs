@@ -444,6 +444,8 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     let mut brain_wall_seconds = 0.0;
     let mut brain_encoding_seconds = 0.0;
     let mut brain_engine_seconds = 0.0;
+    let mut physics_wall_seconds = 0.0;
+    let mut window_wall_seconds = 0.0;
     let mut samples = Vec::new();
     let period = simulation.control_period().as_secs_f64();
     let mut next_sample_time = 0.0;
@@ -469,6 +471,8 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         brain_wall_seconds += snapshot.brain_wall_seconds;
         brain_encoding_seconds += snapshot.brain_encoding_seconds;
         brain_engine_seconds += snapshot.brain_engine_seconds;
+        physics_wall_seconds += snapshot.physics_wall_seconds;
+        window_wall_seconds += snapshot.window_wall_seconds;
         if snapshot.flight_mode != FlightMode::Grounded {
             flight_seconds += period;
             if snapshot.root_position[2] > initial_position[2] + 3.0 {
@@ -596,6 +600,10 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
             "brain_wall_seconds": brain_wall_seconds,
             "brain_encoding_seconds": brain_encoding_seconds,
             "brain_engine_seconds": brain_engine_seconds,
+            "physics_wall_seconds": physics_wall_seconds,
+            "non_brain_non_physics_seconds":
+                (window_wall_seconds - brain_wall_seconds - physics_wall_seconds).max(0.0),
+            "window_wall_seconds": window_wall_seconds,
             "elapsed_seconds": started.elapsed().as_secs_f64()},
         "samples": samples,
     });

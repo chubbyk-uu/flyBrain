@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 use mujoco_rs::prelude::MjtObj;
@@ -232,6 +232,8 @@ pub struct SimulationSnapshot {
     pub brain_wall_seconds: f64,
     pub brain_encoding_seconds: f64,
     pub brain_engine_seconds: f64,
+    pub physics_wall_seconds: f64,
+    pub window_wall_seconds: f64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -494,6 +496,7 @@ impl SimulationStepper {
         if window_steps == 0 {
             bail!("simulation window must contain at least one physics step")
         }
+        let window_started = Instant::now();
         let window_seconds = window_steps as f64 * self.world.timestep_seconds();
         let was_airborne = self.snapshot.flight_mode != FlightMode::Grounded;
         let mut sample = self.world.sensory_sample()?;
@@ -1042,6 +1045,7 @@ impl SimulationStepper {
         };
         let mut flight_vertical_force_to_weight = 0.0;
         let mut flight_peak_strip_speed_mm_s = 0.0_f64;
+        let physics_started = Instant::now();
         for _ in 0..window_steps {
             let mut command_base = base_flight_command;
             if wall_escape_active {
@@ -1070,6 +1074,7 @@ impl SimulationStepper {
                     .fold(0.0_f64, f64::max),
             );
         }
+        let physics_wall_seconds = physics_started.elapsed().as_secs_f64();
         flight_vertical_force_to_weight /= window_steps as f64;
         self.phase_rad = self.gait.advance_phase(
             self.phase_rad,
@@ -1193,6 +1198,8 @@ impl SimulationStepper {
             brain_wall_seconds,
             brain_encoding_seconds,
             brain_engine_seconds,
+            physics_wall_seconds,
+            window_wall_seconds: window_started.elapsed().as_secs_f64(),
         };
         Ok(self.snapshot)
     }
