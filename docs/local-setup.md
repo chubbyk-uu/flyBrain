@@ -26,8 +26,19 @@ The Apple/MLX extra is not installed on Linux. PyTorch and a new FlyGym install
 are not required for the existing exported body assets or the Rust CUDA backend.
 
 Python supports data preparation and independent verification. The standalone
-CUDA neural core now builds on Linux. The native embodied runtime still requires
-Linux MuJoCo/GLFW linking and is not implemented by installing this environment.
+CUDA neural core and native embodied runtime now build on Linux. Prepare project-local
+MuJoCo/GLFW links from the active dedicated environment before the first native build:
+
+```bash
+conda activate flybrain
+python tools/setup_mujoco_runtime.py
+cargo build --release --features cuda --bin flybrain-world
+```
+
+The setup script links MuJoCo 3.9.0 and the packaged X11 GLFW into
+`work/mujoco/lib`; it does not copy or modify the Conda libraries. Cargo embeds a
+project-relative runtime search path for binaries under `target/debug` and
+`target/release`.
 Keep the system CUDA Toolkit separate from Conda. WSL uses the Windows GPU driver;
 do not install a Linux NVIDIA display driver inside WSL.
 
@@ -37,6 +48,12 @@ The standalone CUDA neural core uses the system `nvcc`, defaults to the RTX 5080
 ```bash
 cargo build --lib --features cuda
 cargo test --lib --features cuda cuda_engine::tests -- --nocapture
+```
+
+For a short native WSLg viewer run:
+
+```bash
+target/release/flybrain-world view --max-seconds 1
 ```
 
 Set `CUDA_HOME` only if the toolkit is not available at `/usr/local/cuda`. Set

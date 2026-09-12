@@ -109,9 +109,11 @@ CSR 和神经状态常驻设备显存。使用有序 CUDA stream 批量提交窗
    chunk/sparse/split-window parity 已通过；完整 MaleCNS 的 15 个固定输入 case、关键群体
    和既有实验门控也已通过预注册验收。见 [CUDA 核心阶段报告](cuda-engine-stage-2026-09-12.md)
    与 [完整 CNS CUDA 报告](cuda-full-cns-stage-2026-09-12.md)。
-4. 原生世界接入与实验回归（后续）：保持原世界/映射，将 CUDA 接入原生 MuJoCo，
-   不经过浏览器/WASM；随后运行 `cns-check`、无感官输入、运动/嗅觉断连及既有门控实验，
-   验证 WSLg/GLFW 显示。
+4. 原生世界接入与实验回归（进行中）：保持原世界/映射，CUDA 已接入原生 MuJoCo，
+   不经过浏览器/WASM；2 秒 `cns-check` 成对门控、无感官输入、运动/嗅觉断连和
+   WSLg viewer 已通过。当前 bridge 全状态读回导致闭环仅约 `0.271×` 实时，先优化
+   probe/telemetry 读回并复验，再运行较长取食/嗅觉门控。见
+   [原生接入报告](native-cuda-mujoco-stage-2026-09-12.md)。
 5. 新世界与果蝇呈现（后续）：更小的室内场景、外观改进、翼运动诊断与相应修正。
 6. 神经驱动清洁行为（后续）：前足相互搓擦、头部和复眼清洁，验证通路与身体协调。
 
@@ -202,11 +204,12 @@ MaleCNS 已具备相应花香识别，也不让控制器直接读取食物坐标
 [Windows/RTX 5080 基线](baseline-rtx5080-windows.md)和
 [CUDA 核心阶段报告](cuda-engine-stage-2026-09-12.md)、
 [完整 CNS CUDA 报告](cuda-full-cns-stage-2026-09-12.md)。
-2026-09-12 的后续顺序为：原生世界接入回归 →
+2026-09-12 的后续顺序为：CUDA bridge 读回优化及长程原生世界回归 →
 新室内世界/果蝇外观/翼运动 → 神经驱动搓脚与头眼清洁。
-当前 CUDA 已运行完整 MaleCNS，但尚未接 `BrainBodyBridge`、MuJoCo/world；没有修改数据、
-映射、行为或模型参数。隔离 intact 神经回放初测平均约 `1.23×` 实时，不代表闭环性能。
-后续闭环必须使用原生 MuJoCo，不使用浏览器/WASM 物理。
+当前 CUDA 已接 `BrainBodyBridge` 和原生 MuJoCo/world；2 秒成对门控通过，且没有修改
+数据、映射、行为或模型参数。隔离 intact 神经回放初测平均约 `1.23×` 实时，但首版
+兼容 bridge 闭环只有约 `0.271×`，全状态读回优化尚未完成。后续仍只使用原生 MuJoCo，
+不使用浏览器/WASM 物理。
 本机检查与环境恢复记录见 [环境检查记录](environment-check-2026-09-12.md)。
 历史上游测试结果以原文档为准，不标为本机通过。后续阶段结果单独记录日期、版本、
 输入哈希、命令及通过/失败/未执行状态，再更新本规范的进度描述。

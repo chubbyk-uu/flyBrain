@@ -9,6 +9,8 @@ retain the upstream paths.
 
 The GLFW dynamic library comes from the pinned FlyGym/MuJoCo Python environment
 and is linked into `work/mujoco/lib` by `tools/setup_mujoco_runtime.py`.
+The Linux runtime script provides a linker-compatible `libglfw.3.so` alias and
+selects the packaged X11 GLFW library for WSLg.
 
 ## Emscripten linkage
 

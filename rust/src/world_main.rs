@@ -382,7 +382,7 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     }
     simulation.set_initial_yaw(options.initial_yaw_deg.to_radians())?;
     simulation.place_food_ahead(options.start_food_distance)?;
-    simulation.set_brain_telemetry_enabled(true);
+    simulation.set_brain_telemetry_enabled(true)?;
     let started = Instant::now();
     let initial_position = simulation.snapshot().root_position;
     let habitat = flybrain_engine::habitat::Habitat::load(&options.assets)?;
@@ -636,7 +636,7 @@ fn view_world(options: ViewOptions) -> Result<()> {
         options.settle_seconds,
         parameters,
     )?;
-    simulation.set_brain_telemetry_enabled(options.with_brain);
+    simulation.set_brain_telemetry_enabled(options.with_brain)?;
     simulation.place_food_ahead(options.start_food_distance)?;
     let mut viewer = LiveViewer::new(
         simulation.world().model(),
@@ -667,7 +667,7 @@ fn view_world(options: ViewOptions) -> Result<()> {
     let mut paused = false;
     let mut show_eye_view = true;
     let mut show_brain_graph = simulation.brain_enabled();
-    simulation.set_brain_telemetry_enabled(show_brain_graph);
+    simulation.set_brain_telemetry_enabled(show_brain_graph)?;
     let mut anchor_wall = Instant::now();
     let mut anchor_sim = simulation.world().time();
     let mut stats_wall = Instant::now();
@@ -723,7 +723,7 @@ fn view_world(options: ViewOptions) -> Result<()> {
         }
         if input.toggle_brain_graph && simulation.brain_enabled() {
             show_brain_graph = !show_brain_graph;
-            simulation.set_brain_telemetry_enabled(show_brain_graph);
+            simulation.set_brain_telemetry_enabled(show_brain_graph)?;
             if show_brain_graph {
                 viewer.clear_brain_history();
                 last_brain_field_sample_sequence = 0;

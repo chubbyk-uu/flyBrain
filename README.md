@@ -13,8 +13,11 @@ inhibition and silencing checks. The fixed-replay
 [full MaleCNS CUDA validation](docs/cuda-full-cns-stage-2026-09-12.md) also passes:
 all 15 population and selected-group cases match the existing Metal references,
 while the known failed pathway hypothesis remains failed. Native world integration
-is not implemented yet. The WSL/Linux runtime will use native Rust + CUDA + native
-MuJoCo; MuJoCo will not remain in the browser/WASM path. Later milestones cover a
+is now functional: the existing paired CNS/world gate passes with native Rust + CUDA +
+native MuJoCo, and the WSLg viewer opens successfully. See the
+[native integration report](docs/native-cuda-mujoco-stage-2026-09-12.md). MuJoCo does
+not remain in the browser/WASM path. Current bridge readback is not yet performance-
+optimized, so real-time closed-loop execution is not claimed. Later milestones cover a
 smaller indoor world
 with a coffee table, candy and flowering potted plants, improved fly appearance,
 wing-motion diagnosis, and neurally driven foreleg rubbing and head/eye grooming.
@@ -33,7 +36,7 @@ offline Parquet-to-CSR compiler.
 
 The neural engine remains a separate, testable component, but the repository now also contains a
 native Rust embodiment layer: MuJoCo runs an exported NeuroMechFly body, a fixed-rate bridge streams
-sensory events into Metal, and a native GLFW viewer displays the ongoing 3D world. The offscreen
+sensory events into Metal on macOS or CUDA on Linux, and a native viewer displays the ongoing 3D world. The offscreen
 renderer remains available for repeatable experiment recordings.
 
 The original foundation was [Shiu et al.'s FlyWire/Brian2 model](https://github.com/philshiu/Drosophila_brain_model),

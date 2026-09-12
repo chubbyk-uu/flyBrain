@@ -1,9 +1,16 @@
 [env]
 MUJOCO_DYNAMIC_LINK_DIR = { value = "work/mujoco/lib", relative = true }
 DYLD_FALLBACK_LIBRARY_PATH = { value = "work/mujoco/lib", relative = true }
+LD_LIBRARY_PATH = { value = "work/mujoco/lib", relative = true }
 
 [target.aarch64-apple-darwin]
 rustflags = [
   "-C", "link-arg=-Wl,-rpath,@loader_path/../../work/mujoco/lib",
   "-C", "link-arg=-Wl,-rpath,@loader_path/../../../work/mujoco/lib",
+]
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../../work/mujoco/lib",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../../../work/mujoco/lib",
 ]

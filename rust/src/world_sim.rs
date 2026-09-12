@@ -1204,7 +1204,7 @@ impl SimulationStepper {
             self.parameters.brain,
         )?;
         if let Some(bridge) = brain.as_mut() {
-            bridge.set_telemetry_enabled(self.brain_telemetry_enabled);
+            bridge.set_telemetry_enabled(self.brain_telemetry_enabled)?;
         }
         self.world.reset()?;
         self.brain = brain;
@@ -1322,11 +1322,12 @@ impl SimulationStepper {
         self.world.geom_name(geom_id)
     }
 
-    pub fn set_brain_telemetry_enabled(&mut self, enabled: bool) {
+    pub fn set_brain_telemetry_enabled(&mut self, enabled: bool) -> Result<()> {
         self.brain_telemetry_enabled = enabled;
         if let Some(brain) = self.brain.as_mut() {
-            brain.set_telemetry_enabled(enabled);
+            brain.set_telemetry_enabled(enabled)?;
         }
+        Ok(())
     }
 
     pub fn set_retina_summaries(&mut self, summaries: [RetinaSummary; 2]) -> Result<()> {

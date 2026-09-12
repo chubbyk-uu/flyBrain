@@ -15,7 +15,7 @@ fn v783_multisensory_world_advances_the_complete_model_pack() {
         SimulationStepper::new(DEFAULT_ASSETS_DIR, Some(V783_PACK), 500.0, 0.0).unwrap();
     simulation.place_food_ahead(2.5).unwrap();
     simulation.toggle_flight();
-    simulation.set_brain_telemetry_enabled(true);
+    simulation.set_brain_telemetry_enabled(true).unwrap();
     simulation
         .set_retina_summaries([
             RetinaSummary {

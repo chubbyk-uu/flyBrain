@@ -59,7 +59,7 @@ pub extern "C" fn fb_init(brain: i32) -> i32 {
             0.5,
             parameters,
         )?;
-        simulation.set_brain_telemetry_enabled(brain != 0);
+        simulation.set_brain_telemetry_enabled(brain != 0)?;
         simulation.place_food_ahead(40.0)?;
         Ok(BrowserState {
             simulation,

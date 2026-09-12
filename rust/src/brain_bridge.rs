@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use crate::brain_signal::{BrainSignalProcessor, BrainSignalSample, SAMPLE_PERIOD_SECONDS};
 #[cfg(target_os = "emscripten")]
 use crate::browser_engine::BrowserEngine;
+#[cfg(all(target_os = "linux", feature = "cuda"))]
+use crate::cuda_engine::CudaEngine;
 use crate::embodiment::{
     SensoryBridgeConfig, SensoryFeature, SensoryRateChannel, SensoryRateEncoder, SensorySample,
 };
@@ -23,6 +25,8 @@ use crate::protocol::{MN9_LEFT_ID, RIGHT_SUGAR_GRN_IDS};
 type NeuralEngine = BrowserEngine;
 #[cfg(target_os = "macos")]
 type NeuralEngine = MetalEngine;
+#[cfg(all(target_os = "linux", feature = "cuda"))]
+type NeuralEngine = CudaEngine;
 
 pub const SUGAR_BRIDGE_MODEL: &str = "flybrain-published-sugar-mn9-v2";
 pub const V783_PARTIAL_EMBODIMENT_MODEL: &str =
@@ -705,9 +709,8 @@ impl BrainBodyBridge {
         if self.telemetry_enabled
             && self.brain_signal_elapsed_ms + f64::EPSILON >= SAMPLE_PERIOD_SECONDS * 1000.0
         {
-            let mean_voltage_deviation_mv = self
-                .engine
-                .mean_voltage_deviation_mv(self.parameters.neural.resting_mv);
+            let mean_voltage_deviation_mv =
+                engine_mean_voltage_deviation_mv(&self.engine, self.parameters.neural.resting_mv)?;
             self.latest_brain_signal = self.brain_signal.update(mean_voltage_deviation_mv);
             self.brain_signal_sequence = self.brain_signal_sequence.wrapping_add(1);
             self.brain_signal_elapsed_ms %= SAMPLE_PERIOD_SECONDS * 1000.0;
@@ -715,12 +718,12 @@ impl BrainBodyBridge {
         let (population_spike_delta, filtered_population_rate_hz) = if self.telemetry_enabled
             && self.population_telemetry_elapsed_ms >= POPULATION_TELEMETRY_PERIOD_MS
         {
-            let total_spikes = self.engine.total_spike_count();
+            let total_spikes = engine_total_spike_count(&self.engine)?;
             let delta = total_spikes
                 .checked_sub(self.previous_total_spikes)
                 .context("whole-brain spike count moved backwards")?;
             self.previous_total_spikes = total_spikes;
-            self.spiking_neuron_count = self.engine.spiking_neuron_count();
+            self.spiking_neuron_count = engine_spiking_neuron_count(&self.engine)?;
             let rate_hz = delta as f64 * 1000.0 / self.population_telemetry_elapsed_ms;
             let population_alpha = 1.0
                 - (-self.population_telemetry_elapsed_ms
@@ -893,10 +896,10 @@ impl BrainBodyBridge {
         self.parameters
     }
 
-    pub fn set_telemetry_enabled(&mut self, enabled: bool) {
+    pub fn set_telemetry_enabled(&mut self, enabled: bool) -> Result<()> {
         if enabled && !self.telemetry_enabled {
-            self.previous_total_spikes = self.engine.total_spike_count();
-            self.spiking_neuron_count = self.engine.spiking_neuron_count();
+            self.previous_total_spikes = engine_total_spike_count(&self.engine)?;
+            self.spiking_neuron_count = engine_spiking_neuron_count(&self.engine)?;
             self.population_telemetry_elapsed_ms = 0.0;
             self.filtered_population_rate_hz = 0.0;
             self.brain_signal.reset();
@@ -905,7 +908,38 @@ impl BrainBodyBridge {
             self.latest_brain_signal = BrainSignalSample::default();
         }
         self.telemetry_enabled = enabled;
+        Ok(())
     }
+}
+
+#[cfg(all(target_os = "linux", feature = "cuda"))]
+fn engine_total_spike_count(engine: &NeuralEngine) -> Result<u64> {
+    engine.total_spike_count()
+}
+
+#[cfg(not(all(target_os = "linux", feature = "cuda")))]
+fn engine_total_spike_count(engine: &NeuralEngine) -> Result<u64> {
+    Ok(engine.total_spike_count())
+}
+
+#[cfg(all(target_os = "linux", feature = "cuda"))]
+fn engine_spiking_neuron_count(engine: &NeuralEngine) -> Result<usize> {
+    engine.spiking_neuron_count()
+}
+
+#[cfg(not(all(target_os = "linux", feature = "cuda")))]
+fn engine_spiking_neuron_count(engine: &NeuralEngine) -> Result<usize> {
+    Ok(engine.spiking_neuron_count())
+}
+
+#[cfg(all(target_os = "linux", feature = "cuda"))]
+fn engine_mean_voltage_deviation_mv(engine: &NeuralEngine, resting_mv: f64) -> Result<f64> {
+    engine.mean_voltage_deviation_mv(resting_mv)
+}
+
+#[cfg(not(all(target_os = "linux", feature = "cuda")))]
+fn engine_mean_voltage_deviation_mv(engine: &NeuralEngine, resting_mv: f64) -> Result<f64> {
+    Ok(engine.mean_voltage_deviation_mv(resting_mv))
 }
 
 fn resolution_stats(resolution: &NeuralIoResolution) -> NeuralIoStats {
