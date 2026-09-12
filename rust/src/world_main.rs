@@ -317,6 +317,9 @@ struct CnsCheckOptions {
     duration_seconds: f64,
     #[arg(long, default_value_t = 500.0)]
     control_hz: f64,
+    /// Override only MuJoCo's timestep; the MaleCNS neural timestep remains unchanged.
+    #[arg(long)]
+    physics_dt_ms: Option<f64>,
     #[arg(long, default_value_t = 0.5)]
     settle_seconds: f64,
     #[arg(long, default_value_t = 40.0)]
@@ -370,12 +373,14 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         parameters.brain.visual_input_rate_hz = 0.0;
         parameters.brain.flight_state_input_rate_hz = 0.0;
     }
-    let mut simulation = SimulationStepper::new_with_parameters(
+    let physics_timestep_seconds = options.physics_dt_ms.map(|value| value / 1000.0);
+    let mut simulation = SimulationStepper::new_with_parameters_and_physics_timestep(
         &options.assets,
         Some(&options.pack),
         options.control_hz,
         options.settle_seconds,
         parameters,
+        physics_timestep_seconds,
     )?;
     if simulation.brain_materialization()
         != Some(flybrain_engine::neural_io::MALE_CNS_MATERIALIZATION)
@@ -428,6 +433,7 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         "pack_arrays": pack_manifest["array_sha256"], "io_sha256": io_sha256,
         "assets": asset_hashes, "parameters": paired_parameters,
         "control_hz": options.control_hz, "settle_seconds": options.settle_seconds,
+        "timebase": simulation.timebase(),
         "start_food_distance": options.start_food_distance,
         "sensory_encoder": "deterministic fractional-rate accumulator",
     });
@@ -617,6 +623,7 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
             "allocated_bytes": simulation.brain_allocated_bytes()},
         "pack": options.pack,
         "duration_seconds": options.duration_seconds, "control_hz": options.control_hz,
+        "timebase": simulation.timebase(),
         "initial_state": initial_state,
         "room_bounds_mm": room_bounds_mm,
         "parameters": parameters,

@@ -68,6 +68,50 @@ pub struct SimulationParameterArtifact {
     pub parameters: SimulationParameters,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+pub struct SimulationTimebase {
+    pub control_period_seconds: f64,
+    pub neural_timestep_seconds: f64,
+    pub physics_timestep_seconds: f64,
+    pub neural_steps_per_control: usize,
+    pub physics_steps_per_control: usize,
+    pub neural_steps_per_physics_step: usize,
+}
+
+impl SimulationTimebase {
+    fn new(
+        control_hz: f64,
+        neural_timestep_seconds: f64,
+        physics_timestep_seconds: f64,
+    ) -> Result<Self> {
+        if !control_hz.is_finite() || control_hz <= 0.0 {
+            bail!("control_hz must be finite and positive")
+        }
+        let control_period_seconds = 1.0 / control_hz;
+        let neural_steps_per_control =
+            rounded_positive_ratio(control_period_seconds, neural_timestep_seconds)?;
+        let physics_steps_per_control =
+            rounded_positive_ratio(control_period_seconds, physics_timestep_seconds)?;
+        let neural_steps_per_physics_step =
+            rounded_positive_ratio(physics_timestep_seconds, neural_timestep_seconds)
+                .context("physics timestep must be an integer multiple of the neural timestep")?;
+        Ok(Self {
+            control_period_seconds,
+            neural_timestep_seconds,
+            physics_timestep_seconds,
+            neural_steps_per_control,
+            physics_steps_per_control,
+            neural_steps_per_physics_step,
+        })
+    }
+
+    fn neural_steps_for_physics_steps(self, physics_steps: usize) -> Result<usize> {
+        physics_steps
+            .checked_mul(self.neural_steps_per_physics_step)
+            .context("simulation window step count overflow")
+    }
+}
+
 impl SimulationParameterArtifact {
     pub fn validate(&self) -> Result<()> {
         if self.schema != "flybrain.simulation-parameters" || self.schema_version != 1 {
@@ -348,7 +392,7 @@ pub struct SimulationStepper {
     pack_path: Option<PathBuf>,
     neural_io_path: PathBuf,
     brain_materialization: Option<String>,
-    control_steps: usize,
+    timebase: SimulationTimebase,
     settle_seconds: f64,
     phase_rad: f64,
     forward_gain: f64,
@@ -390,6 +434,24 @@ impl SimulationStepper {
         settle_seconds: f64,
         parameters: SimulationParameters,
     ) -> Result<Self> {
+        Self::new_with_parameters_and_physics_timestep(
+            assets,
+            pack_path,
+            control_hz,
+            settle_seconds,
+            parameters,
+            None,
+        )
+    }
+
+    pub fn new_with_parameters_and_physics_timestep(
+        assets: impl AsRef<Path>,
+        pack_path: Option<impl AsRef<Path>>,
+        control_hz: f64,
+        settle_seconds: f64,
+        parameters: SimulationParameters,
+        physics_timestep_seconds: Option<f64>,
+    ) -> Result<Self> {
         let parameters = parameters.validate()?;
         let physics_profile_enabled = match std::env::var("FLYBRAIN_PROFILE_PHYSICS") {
             Ok(value) if value == "1" => true,
@@ -398,14 +460,14 @@ impl SimulationStepper {
             Err(std::env::VarError::NotPresent) => false,
             Err(error) => return Err(error).context("reading FLYBRAIN_PROFILE_PHYSICS"),
         };
-        if !control_hz.is_finite() || control_hz <= 0.0 {
-            bail!("control_hz must be finite and positive")
-        }
         if !settle_seconds.is_finite() || settle_seconds < 0.0 {
             bail!("settle_seconds must be finite and non-negative")
         }
         let assets = assets.as_ref();
         let mut world = MuJoCoWorld::from_assets_dir(assets)?;
+        if let Some(timestep) = physics_timestep_seconds {
+            world.set_timestep_seconds(timestep)?;
+        }
         let gait = GaitLibrary::open(assets.join("tripod_gait.json"))?;
         let habitat = Habitat::load(assets)?;
         let flight =
@@ -424,12 +486,9 @@ impl SimulationStepper {
                 )
             }
         }
-        let timestep = world.timestep_seconds();
         let brain_timestep = parameters.brain.neural.dt_ms / 1000.0;
-        if (timestep - brain_timestep).abs() > 1e-12 {
-            bail!("MuJoCo and brain timesteps do not match")
-        }
-        let control_steps = rounded_positive_ratio(1.0 / control_hz, timestep)?;
+        let timebase =
+            SimulationTimebase::new(control_hz, brain_timestep, world.timestep_seconds())?;
         let pack_path = pack_path.map(|path| path.as_ref().to_path_buf());
         let neural_io_path = assets.join(NEURAL_IO_FILE);
         let (brain, brain_materialization) =
@@ -473,7 +532,7 @@ impl SimulationStepper {
             pack_path,
             neural_io_path,
             brain_materialization,
-            control_steps,
+            timebase,
             settle_seconds,
             phase_rad: 0.0,
             forward_gain: 1.0,
@@ -504,15 +563,33 @@ impl SimulationStepper {
     }
 
     pub fn step_window(&mut self) -> Result<SimulationSnapshot> {
-        self.step_window_steps(self.control_steps)
+        self.step_window_counts(
+            self.timebase.physics_steps_per_control,
+            self.timebase.neural_steps_per_control,
+        )
     }
 
-    pub fn step_window_steps(&mut self, window_steps: usize) -> Result<SimulationSnapshot> {
-        if window_steps == 0 {
+    pub fn step_window_steps(&mut self, physics_steps: usize) -> Result<SimulationSnapshot> {
+        let brain_steps = self
+            .timebase
+            .neural_steps_for_physics_steps(physics_steps)?;
+        self.step_window_counts(physics_steps, brain_steps)
+    }
+
+    fn step_window_counts(
+        &mut self,
+        physics_steps: usize,
+        brain_steps: usize,
+    ) -> Result<SimulationSnapshot> {
+        if physics_steps == 0 || brain_steps == 0 {
             bail!("simulation window must contain at least one physics step")
         }
         let window_started = Instant::now();
-        let window_seconds = window_steps as f64 * self.world.timestep_seconds();
+        let window_seconds = physics_steps as f64 * self.timebase.physics_timestep_seconds;
+        let brain_window_seconds = brain_steps as f64 * self.timebase.neural_timestep_seconds;
+        if (window_seconds - brain_window_seconds).abs() > 1e-12 {
+            bail!("neural and physics window durations do not match")
+        }
         let was_airborne = self.snapshot.flight_mode != FlightMode::Grounded;
         let mut sample = self.world.sensory_sample()?;
         if was_airborne || (!self.feeding_pose_held && self.touchdown_gait_ramp >= 1.0) {
@@ -734,7 +811,7 @@ impl SimulationStepper {
         let mut brain_encoding_seconds = 0.0;
         let mut brain_engine_seconds = 0.0;
         let mut next_motor = if let Some(bridge) = self.brain.as_mut() {
-            let result = bridge.run_window(&sample, window_steps)?;
+            let result = bridge.run_window(&sample, brain_steps)?;
             mn9_spike_delta = result.mn9_spike_delta;
             filtered_mn9_rate_hz = result.filtered_mn9_rate_hz;
             population_spike_delta = result.population_spike_delta;
@@ -839,12 +916,9 @@ impl SimulationStepper {
                 .map(|rate| rate * rate)
                 .sum::<f64>()
                 .sqrt(),
-            contact_count: if self
-                .wall_landing
-                .is_some_and(|target| {
-                    target.alignment(root_quaternion) < 0.9 || wall_support_leg_count < 3
-                })
-            {
+            contact_count: if self.wall_landing.is_some_and(|target| {
+                target.alignment(root_quaternion) < 0.9 || wall_support_leg_count < 3
+            }) {
                 0
             } else {
                 contact_count
@@ -1067,7 +1141,7 @@ impl SimulationStepper {
         let mut flight_post_step_wall_seconds = 0.0;
         let mut flight_telemetry_wall_seconds = 0.0;
         let physics_started = Instant::now();
-        for _ in 0..window_steps {
+        for _ in 0..physics_steps {
             let command_started = self.physics_profile_enabled.then(Instant::now);
             let mut command_base = base_flight_command;
             if wall_escape_active {
@@ -1116,7 +1190,7 @@ impl SimulationStepper {
             }
         }
         let physics_wall_seconds = physics_started.elapsed().as_secs_f64();
-        flight_vertical_force_to_weight /= window_steps as f64;
+        flight_vertical_force_to_weight /= physics_steps as f64;
         self.phase_rad = self.gait.advance_phase(
             self.phase_rad,
             window_seconds,
@@ -1412,7 +1486,11 @@ impl SimulationStepper {
     }
 
     pub fn control_period(&self) -> Duration {
-        Duration::from_secs_f64(self.control_steps as f64 * self.world.timestep_seconds())
+        Duration::from_secs_f64(self.timebase.control_period_seconds)
+    }
+
+    pub fn timebase(&self) -> SimulationTimebase {
+        self.timebase
     }
 
     pub fn physics_profile_enabled(&self) -> bool {
@@ -1838,6 +1916,87 @@ fn body_pitch_deg(world: &MuJoCoWorld) -> f64 {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn timebase_separates_neural_and_physics_ticks_without_drift() {
+        let reference = super::SimulationTimebase::new(500.0, 0.0001, 0.0001).unwrap();
+        assert_eq!(reference.neural_steps_per_control, 20);
+        assert_eq!(reference.physics_steps_per_control, 20);
+        assert_eq!(reference.neural_steps_per_physics_step, 1);
+
+        let candidate = super::SimulationTimebase::new(500.0, 0.0001, 0.0002).unwrap();
+        assert_eq!(candidate.neural_steps_per_control, 20);
+        assert_eq!(candidate.physics_steps_per_control, 10);
+        assert_eq!(candidate.neural_steps_for_physics_steps(4).unwrap(), 8);
+        assert_eq!(candidate.neural_steps_for_physics_steps(10).unwrap(), 20);
+
+        assert!(super::SimulationTimebase::new(500.0, 0.0001, 0.0003).is_err());
+        assert!(super::SimulationTimebase::new(500.0, 0.0001, 0.00005).is_err());
+    }
+
+    #[test]
+    fn explicit_reference_timestep_preserves_default_short_run() {
+        let mut default = super::SimulationStepper::new(
+            crate::world::DEFAULT_ASSETS_DIR,
+            None::<&str>,
+            500.0,
+            0.0,
+        )
+        .unwrap();
+        let mut explicit = super::SimulationStepper::new_with_parameters_and_physics_timestep(
+            crate::world::DEFAULT_ASSETS_DIR,
+            None::<&str>,
+            500.0,
+            0.0,
+            super::SimulationParameters::default(),
+            Some(0.0001),
+        )
+        .unwrap();
+        for _ in 0..5 {
+            default.step_window().unwrap();
+            explicit.step_window().unwrap();
+        }
+        assert_eq!(default.world().qpos(), explicit.world().qpos());
+        assert_eq!(default.world().qvel(), explicit.world().qvel());
+        assert_eq!(default.world().controls(), explicit.world().controls());
+        assert!((default.snapshot().time_seconds - 0.01).abs() < 1e-12);
+        assert!((explicit.snapshot().time_seconds - 0.01).abs() < 1e-12);
+    }
+
+    #[test]
+    fn coarser_physics_timestep_keeps_control_and_world_time_aligned() {
+        let mut simulation = super::SimulationStepper::new_with_parameters_and_physics_timestep(
+            crate::world::DEFAULT_ASSETS_DIR,
+            None::<&str>,
+            500.0,
+            0.0,
+            super::SimulationParameters::default(),
+            Some(0.0002),
+        )
+        .unwrap();
+        assert_eq!(simulation.timebase().neural_steps_per_control, 20);
+        assert_eq!(simulation.timebase().physics_steps_per_control, 10);
+        for expected_window in 1..=100 {
+            let snapshot = simulation.step_window().unwrap();
+            let expected_seconds = expected_window as f64 * 0.002;
+            assert!((snapshot.time_seconds - expected_seconds).abs() < 1e-12);
+            assert!(snapshot.root_position.iter().all(|value| value.is_finite()));
+            assert!(
+                simulation
+                    .world()
+                    .qpos()
+                    .iter()
+                    .all(|value| value.is_finite())
+            );
+            assert!(
+                simulation
+                    .world()
+                    .qvel()
+                    .iter()
+                    .all(|value| value.is_finite())
+            );
+        }
+    }
+
     #[test]
     fn cns_activation_controls_cadence_without_shrinking_stride_geometry() {
         assert_eq!(super::gait_excursion_gain(0.5, 0.0, true), 1.0);
@@ -2438,7 +2597,7 @@ mod tests {
             )
         });
         assert!(saw_turn_hold);
-        let control_period = simulation.control_steps as f64 * simulation.world.timestep_seconds();
+        let control_period = simulation.timebase.control_period_seconds;
         let half_turn_seconds =
             std::f64::consts::PI / parameters.flight_dynamics.maximum_yaw_rate_rad_s;
         let release_dwell_seconds = WALL_ESCAPE_RELEASE_DWELL_WINDOWS as f64 * control_period;

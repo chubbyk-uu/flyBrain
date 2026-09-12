@@ -486,6 +486,18 @@ impl MuJoCoWorld {
         self.metadata.timestep_seconds
     }
 
+    pub fn set_timestep_seconds(&mut self, timestep_seconds: f64) -> Result<()> {
+        if !timestep_seconds.is_finite() || timestep_seconds <= 0.0 {
+            bail!("MuJoCo timestep must be finite and positive")
+        }
+        if self.time() != 0.0 {
+            bail!("MuJoCo timestep can only be changed before simulation starts")
+        }
+        self.data.model_opt_mut().timestep = timestep_seconds;
+        self.metadata.timestep_seconds = timestep_seconds;
+        Ok(())
+    }
+
     pub fn timestep(&self) -> f64 {
         self.timestep_seconds()
     }

@@ -60,6 +60,11 @@ FLYBRAIN_CUDA_EXECUTION=graph target/release/flybrain-world cns-check \
   --output outputs/cuda/cns-graph-check.json
 ```
 
+The neural and MuJoCo clocks are independently scheduled. The default remains
+0.1 ms on both sides. For the measured Stage A MuJoCo-only 0.2 ms candidate, add
+`--physics-dt-ms 0.2` to `cns-check`; the MaleCNS timestep remains 0.1 ms and the
+report records both tick counts under `timebase`.
+
 Accepted values are `direct` and `graph`. Graph currently improves only the neural
 portion slightly and is not the default; see the
 [experiment report](cuda-graph-experiment-2026-09-12.md).
