@@ -431,6 +431,41 @@ mod tests {
     }
 
     #[test]
+    fn small_room_keeps_sugar_and_nectar_taste_channels_distinct() {
+        let habitat =
+            Habitat::load_path("assets/neuromechfly/scenes/small-room-v1-habitat.json").unwrap();
+        assert_eq!(habitat.resources.len(), 2);
+        assert_eq!(habitat.resources[0].id, "sugar_drop");
+        assert_eq!(habitat.resources[1].id, "flower_nectar");
+        assert_ne!(habitat.resources[0].geom, habitat.resources[1].geom);
+
+        let sugar = habitat.sample(
+            [0.0; 3],
+            [0.0; 3],
+            [45.0, 15.0, 32.5],
+            [45.0, 15.0, 32.5],
+            true,
+        );
+        assert_eq!(sugar.tasted_resource, Some(0));
+        let nectar = habitat.sample(
+            [0.0; 3],
+            [0.0; 3],
+            [-65.0, 42.0, 46.2],
+            [45.0, 15.0, 32.5],
+            true,
+        );
+        assert_eq!(nectar.tasted_resource, Some(1));
+        let outside = habitat.sample(
+            [0.0; 3],
+            [0.0; 3],
+            [-65.0, 42.0, 50.0],
+            [45.0, 15.0, 32.5],
+            true,
+        );
+        assert_eq!(outside.tasted_resource, None);
+    }
+
+    #[test]
     #[cfg(any(target_os = "macos", target_os = "emscripten"))]
     fn pinned_room_is_closed() {
         let habitat = Habitat::load(crate::world::DEFAULT_ASSETS_DIR).unwrap();

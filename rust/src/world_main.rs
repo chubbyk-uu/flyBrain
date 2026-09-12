@@ -958,8 +958,10 @@ fn web_view_world(options: ViewOptions, bind: std::net::SocketAddr) -> Result<()
     let assets = options.assets.clone();
     let publish_hz = options.fps;
     let with_brain = options.with_brain;
-    let shadow_map_size = options.shadow_map_size;
-    let msaa_samples = options.msaa_samples;
+    // The visible browser owns display quality. Native hidden rendering is only
+    // a binocular sensor, so keep shadows but avoid display-grade 4K/4x costs.
+    let shadow_map_size = 1024;
+    let msaa_samples = 0;
     eprintln!("Loading native CUDA MaleCNS and MuJoCo simulation worker...");
     let mut worker = view_worker::Worker::start(options)?;
     let mut publisher = native_stream::Server::start(bind, publish_hz, worker.frame.clone())?;
@@ -998,24 +1000,18 @@ fn web_view_world(options: ViewOptions, bind: std::net::SocketAddr) -> Result<()
             }
         }
         if let Some(retina) = retina.as_mut() {
-            retina.render(
-                &mut data,
-                LiveRenderOptions {
-                    food_center: snapshot.food_center,
-                    food_enabled: snapshot.food_enabled,
-                    status: "",
-                    show_eye_view: false,
-                    show_brain_graph: false,
-                    capture_vision: !paused,
-                    flight_allowed: snapshot.flight_allowed,
-                },
-            )?;
+            let captured = !paused
+                && retina.capture_retina_sensor(
+                    &mut data,
+                    snapshot.food_center,
+                    snapshot.food_enabled,
+                )?;
             let capture_sequence = retina.retina_capture_sequence();
             if capture_sequence != retina_capture_sequence {
                 retina_capture_sequence = capture_sequence;
                 publisher.update_retina(capture_sequence, retina.retina_preview_gray_half());
             }
-            if !paused {
+            if captured {
                 *worker.vision.lock().unwrap() = Some((epoch, retina.retina_summaries()));
                 retina_updates += 1;
             }

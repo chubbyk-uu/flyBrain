@@ -1691,6 +1691,40 @@ mod tests {
     }
 
     #[test]
+    fn small_room_support_surfaces_settle_without_vertical_drift() {
+        for (surface, position) in [
+            ("ground", [0.0, 0.0, 2.1]),
+            ("table", [45.0, 0.0, 34.1]),
+            ("flower", [-65.0, 42.0, 47.1]),
+        ] {
+            let mut world =
+                MuJoCoWorld::from_assets_dir_and_scene(DEFAULT_ASSETS_DIR, "small-room-v1")
+                    .unwrap();
+            world.set_timestep_seconds(0.0002).unwrap();
+            world.data.qpos_mut()[0..3].copy_from_slice(&position);
+            world.data.forward();
+            let mut tail_vertical_speeds = Vec::new();
+            let mut previous_sample = position[2];
+            for step in 0..25_000 {
+                world.step().unwrap();
+                if step % 100 == 99 {
+                    let current = world.root_position()[2];
+                    if step >= 15_000 {
+                        tail_vertical_speeds.push(((current - previous_sample) / 0.02).abs());
+                    }
+                    previous_sample = current;
+                }
+            }
+            tail_vertical_speeds.sort_by(f64::total_cmp);
+            let median = tail_vertical_speeds[tail_vertical_speeds.len() / 2];
+            assert!(
+                median <= 2.0,
+                "{surface} median vertical speed is {median} mm/s"
+            );
+        }
+    }
+
+    #[test]
     fn reset_and_neutral_step_remain_finite() {
         let mut world = world();
         assert_eq!(world.time(), 0.0);

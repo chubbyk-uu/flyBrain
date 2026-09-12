@@ -1,5 +1,5 @@
 use std::collections::{BTreeSet, VecDeque};
-use std::ffi::{CString, c_char, c_int, c_void};
+use std::ffi::{CStr, CString, c_char, c_int, c_void};
 use std::path::Path;
 use std::ptr::NonNull;
 use std::time::{Duration, Instant};
@@ -16,6 +16,11 @@ const GLFW_TRUE: c_int = 1;
 const GLFW_PRESS: c_int = 1;
 const GLFW_VISIBLE: c_int = 0x0002_0004;
 const GLFW_SAMPLES: c_int = 0x0002_100D;
+const GL_PIXEL_PACK_BUFFER: u32 = 0x88EB;
+const GL_STREAM_READ: u32 = 0x88E1;
+const GL_READ_ONLY: u32 = 0x88B8;
+const GL_RGB: u32 = 0x1907;
+const GL_UNSIGNED_BYTE: u32 = 0x1401;
 
 const KEY_SPACE: c_int = 32;
 const KEY_1: c_int = 49;
@@ -53,6 +58,7 @@ const TRACKING_CAMERA_RESTORE_DISTANCE: f64 = 20.0;
 const TRACKING_CAMERA_WALL_BOUNDS: [[f64; 2]; 3] =
     [[-297.0, 297.0], [-217.0, 217.0], [f64::NEG_INFINITY, 216.0]];
 const TRACKING_CAMERA_AZIMUTH_OFFSETS: [f64; 4] = [0.0, 90.0, -90.0, 180.0];
+const HIDDEN_RETINA_SUBMISSION_HZ: f64 = 20.0;
 
 #[link(name = "glfw.3")]
 unsafe extern "C" {
@@ -80,6 +86,54 @@ unsafe extern "C" {
     fn glfwGetCursorPos(window: *mut c_void, x: *mut f64, y: *mut f64);
     fn glfwSetWindowTitle(window: *mut c_void, title: *const c_char);
     fn glfwGetProcAddress(name: *const c_char) -> Option<unsafe extern "C" fn()>;
+}
+
+#[derive(Clone, Copy)]
+struct GlPboApi {
+    gen_buffers: unsafe extern "C" fn(c_int, *mut u32),
+    delete_buffers: unsafe extern "C" fn(c_int, *const u32),
+    bind_buffer: unsafe extern "C" fn(u32, u32),
+    buffer_data: unsafe extern "C" fn(u32, isize, *const c_void, u32),
+    read_pixels: unsafe extern "C" fn(c_int, c_int, c_int, c_int, u32, u32, *mut c_void),
+    map_buffer: unsafe extern "C" fn(u32, u32) -> *mut c_void,
+    unmap_buffer: unsafe extern "C" fn(u32) -> u8,
+}
+
+impl GlPboApi {
+    unsafe fn load() -> Result<Self> {
+        unsafe fn address(name: &CStr) -> Result<unsafe extern "C" fn()> {
+            unsafe { glfwGetProcAddress(name.as_ptr()) }.with_context(|| {
+                format!("OpenGL function {} is unavailable", name.to_string_lossy())
+            })
+        }
+        macro_rules! load {
+            ($name:literal, $kind:ty) => {{
+                let function = unsafe { address(CStr::from_bytes_with_nul_unchecked($name))? };
+                unsafe { std::mem::transmute::<unsafe extern "C" fn(), $kind>(function) }
+            }};
+        }
+        Ok(Self {
+            gen_buffers: load!(b"glGenBuffers\0", unsafe extern "C" fn(c_int, *mut u32)),
+            delete_buffers: load!(
+                b"glDeleteBuffers\0",
+                unsafe extern "C" fn(c_int, *const u32)
+            ),
+            bind_buffer: load!(b"glBindBuffer\0", unsafe extern "C" fn(u32, u32)),
+            buffer_data: load!(
+                b"glBufferData\0",
+                unsafe extern "C" fn(u32, isize, *const c_void, u32)
+            ),
+            read_pixels: load!(
+                b"glReadPixels\0",
+                unsafe extern "C" fn(c_int, c_int, c_int, c_int, u32, u32, *mut c_void)
+            ),
+            map_buffer: load!(
+                b"glMapBuffer\0",
+                unsafe extern "C" fn(u32, u32) -> *mut c_void
+            ),
+            unmap_buffer: load!(b"glUnmapBuffer\0", unsafe extern "C" fn(u32) -> u8),
+        })
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -143,6 +197,12 @@ pub struct LiveViewer {
     retina_capture_sequence: u64,
     last_retina_capture: Option<Instant>,
     eye_raw_bottom_up: Box<[u8]>,
+    retina_pbos: [u32; 3],
+    retina_pbo_eyes: [usize; 3],
+    retina_pbo_api: Option<GlPboApi>,
+    retina_pbo_index: usize,
+    retina_pbo_primed: usize,
+    retina_next_eye: usize,
     eye_raw_top_down: Box<[u8]>,
     eye_display_bottom_up: [Box<[u8]>; 2],
     brain_figure: Box<MjvFigure>,
@@ -280,7 +340,14 @@ impl LiveViewer {
         context.window();
         let mut scene = MjvScene::new(model, model.ngeom() as usize + 64);
         let mut eye_scene = MjvScene::new(model, model.ngeom() as usize + 64);
-        if std::env::var("FLYBRAIN_VIEWER_SHADOWS").as_deref() == Ok("0") {
+        if !visible {
+            // The Windows Three.js display retains its shadows. WSLg's D3D12
+            // shadow pass serializes sensor readback, so the hidden retina uses
+            // direct illumination only; camera geometry and ommatidia stay exact.
+            unsafe {
+                eye_scene.ffi_mut().flags[MjtRndFlag::mjRND_SHADOW as usize] = 0;
+            }
+        } else if std::env::var("FLYBRAIN_VIEWER_SHADOWS").as_deref() == Ok("0") {
             // Display/sensory rendering only; neither scene belongs to the physics worker.
             unsafe {
                 scene.ffi_mut().flags[MjtRndFlag::mjRND_SHADOW as usize] = 0;
@@ -290,11 +357,36 @@ impl LiveViewer {
         let mut eye_option = MjvOption::default();
         eye_option.geomgroup[1] = 0;
         eye_option.geomgroup[2] = 0;
+        // Group 3 contains invisible fluid/inertial proxies and scene-disabled
+        // legacy decoration; none is part of the photoreceptor stimulus.
+        eye_option.geomgroup[3] = 0;
         let mut option = MjvOption::default();
         if std::env::var_os("FLYBRAIN_BENCH_NO_MAIN_DETAILS").is_some() {
             option.geomgroup[2] = 0;
         }
         let eye_rgb_bytes = RETINA_WIDTH * RETINA_HEIGHT * 3;
+        let mut retina_pbos = [0_u32; 3];
+        let retina_pbo_api = if visible {
+            None
+        } else {
+            Some(unsafe { GlPboApi::load()? })
+        };
+        if !visible {
+            let gl = retina_pbo_api.unwrap();
+            unsafe {
+                (gl.gen_buffers)(retina_pbos.len() as c_int, retina_pbos.as_mut_ptr());
+                for pbo in retina_pbos {
+                    (gl.bind_buffer)(GL_PIXEL_PACK_BUFFER, pbo);
+                    (gl.buffer_data)(
+                        GL_PIXEL_PACK_BUFFER,
+                        eye_rgb_bytes as isize,
+                        std::ptr::null(),
+                        GL_STREAM_READ,
+                    );
+                }
+                (gl.bind_buffer)(GL_PIXEL_PACK_BUFFER, 0);
+            }
+        }
         let mut brain_figure = MjvFigure::new_boxed();
         brain_figure.set_title("EEG-like field potential | NETWORK PROXY");
         brain_figure.set_xlabel("simulation time (s)");
@@ -327,6 +419,12 @@ impl LiveViewer {
             retina_capture_sequence: 0,
             last_retina_capture: None,
             eye_raw_bottom_up: vec![0; eye_rgb_bytes].into_boxed_slice(),
+            retina_pbos,
+            retina_pbo_eyes: [0; 3],
+            retina_pbo_api,
+            retina_pbo_index: 0,
+            retina_pbo_primed: 0,
+            retina_next_eye: 0,
             eye_raw_top_down: vec![0; eye_rgb_bytes].into_boxed_slice(),
             eye_display_bottom_up: std::array::from_fn(|_| {
                 vec![0; eye_rgb_bytes].into_boxed_slice()
@@ -666,6 +764,98 @@ impl LiveViewer {
         Ok(())
     }
 
+    /// Capture the native retina cameras in an interleaved full-resolution stream.
+    /// Each eye retains its latest reading; hidden sensing never renders a main view.
+    pub fn capture_retina_sensor<M>(
+        &mut self,
+        data: &mut MjData<M>,
+        food_center: [f64; 3],
+        food_enabled: bool,
+    ) -> Result<bool>
+    where
+        M: std::ops::Deref<Target = MjModel>,
+    {
+        if self.last_retina_capture.is_some_and(|last| {
+            last.elapsed() < Duration::from_secs_f64(1.0 / HIDDEN_RETINA_SUBMISSION_HZ)
+        }) {
+            return Ok(false);
+        }
+        unsafe { glfwMakeContextCurrent(self.window.as_ptr()) };
+        let context = self
+            .context
+            .as_mut()
+            .context("viewer render context is unavailable")?;
+        let eye_scene = self
+            .eye_scene
+            .as_mut()
+            .context("fly-eye scene is unavailable")?;
+        context.offscreen();
+        let submitted_eye = self.retina_next_eye;
+        self.retina_next_eye = 1 - submitted_eye;
+        let mut eye_camera = MjvCamera::new_fixed(self.eye_camera_ids[submitted_eye]);
+        eye_scene.update(data, &self.eye_option, &self.perturb, &mut eye_camera);
+        hide_fly_visuals(eye_scene, data.model());
+        move_food_geom(eye_scene, self.food_geom_id, food_center, food_enabled);
+        eye_scene.render(
+            &MjrRectangle::new(0, 0, RETINA_WIDTH as c_int, RETINA_HEIGHT as c_int),
+            context,
+        );
+        let current = self.retina_pbo_index;
+        let gl = self
+            .retina_pbo_api
+            .context("asynchronous retina readback is unavailable")?;
+        unsafe {
+            (gl.bind_buffer)(GL_PIXEL_PACK_BUFFER, self.retina_pbos[current]);
+            (gl.read_pixels)(
+                0,
+                0,
+                RETINA_WIDTH as c_int,
+                RETINA_HEIGHT as c_int,
+                GL_RGB,
+                GL_UNSIGNED_BYTE,
+                std::ptr::null_mut(),
+            );
+        }
+        self.retina_pbo_eyes[current] = submitted_eye;
+        self.retina_pbo_index = (current + 1) % self.retina_pbos.len();
+        self.last_retina_capture = Some(Instant::now());
+        if self.retina_pbo_primed + 1 < self.retina_pbos.len() {
+            self.retina_pbo_primed += 1;
+            unsafe { (gl.bind_buffer)(GL_PIXEL_PACK_BUFFER, 0) };
+            return Ok(false);
+        }
+        let previous = self.retina_pbo_index;
+        unsafe {
+            (gl.bind_buffer)(GL_PIXEL_PACK_BUFFER, self.retina_pbos[previous]);
+            let mapped = (gl.map_buffer)(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY).cast::<u8>();
+            if mapped.is_null() {
+                (gl.bind_buffer)(GL_PIXEL_PACK_BUFFER, 0);
+                bail!("mapping asynchronous retina readback failed")
+            }
+            std::ptr::copy_nonoverlapping(
+                mapped,
+                self.eye_raw_bottom_up.as_mut_ptr(),
+                self.eye_raw_bottom_up.len(),
+            );
+            if (gl.unmap_buffer)(GL_PIXEL_PACK_BUFFER) == 0 {
+                (gl.bind_buffer)(GL_PIXEL_PACK_BUFFER, 0);
+                bail!("asynchronous retina readback became corrupt")
+            }
+            (gl.bind_buffer)(GL_PIXEL_PACK_BUFFER, 0);
+        }
+        let completed_eye = self.retina_pbo_eyes[previous];
+        flip_rgb_rows(
+            &self.eye_raw_bottom_up,
+            &mut self.eye_raw_top_down,
+            RETINA_WIDTH,
+            RETINA_HEIGHT,
+        );
+        self.retinas[completed_eye].sample_top_down(&self.eye_raw_top_down)?;
+        self.retina_summaries[completed_eye] = self.retinas[completed_eye].summary();
+        self.retina_capture_sequence += 1;
+        Ok(true)
+    }
+
     pub fn set_title(&self, title: &str) -> Result<()> {
         let title = CString::new(title)?;
         unsafe { glfwSetWindowTitle(self.window.as_ptr(), title.as_ptr()) };
@@ -937,6 +1127,13 @@ impl LiveViewer {
 impl Drop for LiveViewer {
     fn drop(&mut self) {
         unsafe { glfwMakeContextCurrent(self.window.as_ptr()) };
+        if let Some(gl) = self.retina_pbo_api
+            && self.retina_pbos != [0; 3]
+        {
+            unsafe {
+                (gl.delete_buffers)(self.retina_pbos.len() as c_int, self.retina_pbos.as_ptr())
+            };
+        }
         self.scene.take();
         self.eye_scene.take();
         self.context.take();
