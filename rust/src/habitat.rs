@@ -426,6 +426,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(target_os = "macos", target_os = "emscripten"))]
     fn pinned_room_is_closed() {
         let habitat = Habitat::load(crate::world::DEFAULT_ASSETS_DIR).unwrap();
         assert!(!habitat.room().open_ceiling);
@@ -500,6 +501,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(target_os = "macos", target_os = "emscripten"))]
     fn banana_taste_follows_all_capsule_segments() {
         let habitat = Habitat::load(crate::world::DEFAULT_ASSETS_DIR).unwrap();
         let banana_index = habitat

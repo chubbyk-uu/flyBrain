@@ -5,6 +5,11 @@ edition = "2024"
 rust-version = "1.85"
 description = "Native Rust and Metal runtime for the FlyWire Drosophila connectome model"
 license = "MIT"
+build = "build.rs"
+
+[features]
+default = []
+cuda = []
 
 [lib]
 path = "rust/src/lib.rs"

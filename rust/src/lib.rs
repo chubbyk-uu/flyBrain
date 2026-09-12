@@ -5,6 +5,7 @@ pub mod cns_olfaction;
 pub mod cns_pathway;
 pub mod embodiment;
 pub mod fixture;
+#[cfg(any(target_os = "macos", target_os = "emscripten"))]
 pub mod flight;
 pub mod flight_behavior;
 pub mod flight_targets;
@@ -33,6 +34,9 @@ pub mod brain_bridge;
 
 #[cfg(target_os = "macos")]
 pub mod metal_engine;
+
+#[cfg(all(feature = "cuda", target_os = "linux"))]
+pub mod cuda_engine;
 
 #[cfg(target_os = "emscripten")]
 pub mod browser_engine;
