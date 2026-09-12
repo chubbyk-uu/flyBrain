@@ -3,7 +3,7 @@ use std::path::Path;
 use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
-use mujoco_rs::prelude::{MjData, MjModel, MjtObj};
+use mujoco_rs::prelude::{MjData, MjModel, MjtEnableBit, MjtObj};
 use serde::Deserialize;
 
 use crate::embodiment::{JOINTS_PER_LEG, LEG_COUNT, SensorySample, SixLegVncCommand};
@@ -416,7 +416,18 @@ impl MuJoCoWorld {
         let wing_actuator_indices = std::array::from_fn(|offset| WING_ACTUATOR_START + offset);
         let contact_sensor_addresses = std::array::from_fn(|leg| sensors[leg].address);
 
-        let data = MjData::try_new(Box::new(model)).context("allocating MuJoCo simulation data")?;
+        let mujoco_energy_enabled = match std::env::var("FLYBRAIN_MUJOCO_ENERGY") {
+            Ok(value) if value == "1" => true,
+            Ok(value) if value == "0" => false,
+            Ok(value) => bail!("unsupported FLYBRAIN_MUJOCO_ENERGY={value:?}; expected 0 or 1"),
+            Err(std::env::VarError::NotPresent) => false,
+            Err(error) => return Err(error).context("reading FLYBRAIN_MUJOCO_ENERGY"),
+        };
+        let mut data =
+            MjData::try_new(Box::new(model)).context("allocating MuJoCo simulation data")?;
+        if !mujoco_energy_enabled {
+            data.model_opt_mut().enableflags &= !(MjtEnableBit::mjENBL_ENERGY as i32);
+        }
         let mut world = Self {
             data,
             metadata,
@@ -458,6 +469,10 @@ impl MuJoCoWorld {
 
     pub fn model(&self) -> &MjModel {
         self.data.model()
+    }
+
+    pub fn energy_enabled(&self) -> bool {
+        self.data.model_opt().enableflags & MjtEnableBit::mjENBL_ENERGY as i32 != 0
     }
 
     pub fn data(&self) -> &MjData<Box<MjModel>> {

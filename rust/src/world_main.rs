@@ -579,6 +579,7 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     }
     let physics_profile = json!({
         "enabled": simulation.physics_profile_enabled(),
+        "mujoco_energy_enabled": simulation.mujoco_energy_enabled(),
         "flight_command_wall_seconds": flight_command_wall_seconds,
         "flight_apply_wall_seconds": flight_apply_wall_seconds,
         "mujoco_step_wall_seconds": mujoco_step_wall_seconds,

@@ -1419,6 +1419,10 @@ impl SimulationStepper {
         self.physics_profile_enabled
     }
 
+    pub fn mujoco_energy_enabled(&self) -> bool {
+        self.world.energy_enabled()
+    }
+
     pub fn food_center(&self) -> [f64; 3] {
         self.food_center
     }

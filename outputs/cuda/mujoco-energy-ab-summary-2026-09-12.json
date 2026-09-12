@@ -1,0 +1,24 @@
+{
+  "schema": "flybrain.mujoco-energy-ab-summary",
+  "schema_version": 1,
+  "environment": "WSL2, MuJoCo 3.9.0, RTX 5080, headless release CUDA",
+  "simulated_seconds_per_trial": 3.0,
+  "trial_order": [
+    "on-off",
+    "on-off",
+    "on-off",
+    "off-on",
+    "off-on",
+    "off-on"
+  ],
+  "mujoco_step_wall_seconds": {
+    "energy_on": [1.975440343, 2.121836697, 1.928273733, 1.907029939, 1.921802572, 1.902322108],
+    "energy_off": [1.934216851, 1.901111350, 1.860688750, 1.859479767, 1.873690807, 1.867535745],
+    "median_energy_on": 1.925038153,
+    "median_energy_off": 1.870613276,
+    "median_reduction_percent": 2.827210278
+  },
+  "non_timing_output": "exact match in the paired 1-second reports",
+  "adopted_default": "energy_off",
+  "override": "FLYBRAIN_MUJOCO_ENERGY=1"
+}
