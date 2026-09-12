@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::Path;
+use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
 use mujoco_rs::prelude::{MjData, MjModel, MjtObj};
@@ -18,6 +19,12 @@ pub const WING_ACTUATOR_COUNT: usize = 6;
 pub const WING_ACTUATOR_START: usize = FEEDING_ACTUATOR_START + FEEDING_ACTUATOR_COUNT;
 pub const ACTUATOR_COUNT: usize = WING_ACTUATOR_START + WING_ACTUATOR_COUNT;
 pub const GROUND_CONTACT_SENSOR_COUNT: usize = LEG_COUNT;
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct WorldStepTiming {
+    pub mujoco_wall_seconds: f64,
+    pub validation_wall_seconds: f64,
+}
 
 const ROOT_BODY_NAME: &str = "fly/c_thorax";
 const FEEDING_ACTUATOR_NAME: &str = "fly/c_head-c_rostrum-pitch-feeding-position";
@@ -840,6 +847,18 @@ impl MuJoCoWorld {
     pub fn step(&mut self) -> Result<()> {
         self.data.step();
         self.validate_state()
+    }
+
+    pub fn step_profiled(&mut self) -> Result<WorldStepTiming> {
+        let mujoco_started = Instant::now();
+        self.data.step();
+        let mujoco_wall_seconds = mujoco_started.elapsed().as_secs_f64();
+        let validation_started = Instant::now();
+        self.validate_state()?;
+        Ok(WorldStepTiming {
+            mujoco_wall_seconds,
+            validation_wall_seconds: validation_started.elapsed().as_secs_f64(),
+        })
     }
 
     pub fn ground_contact_sensor_readings(&self) -> Result<[f64; GROUND_CONTACT_SENSOR_COUNT]> {

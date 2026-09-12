@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
 use mujoco_rs::prelude::MjtObj;
@@ -232,6 +233,14 @@ pub struct FlightTelemetry {
     pub engineered_body_target_pitch_rad: f64,
     pub weight_g_mm_s2: f64,
     pub vertical_force_to_weight: f64,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct FlightAdvanceTiming {
+    pub apply_wall_seconds: f64,
+    pub mujoco_wall_seconds: f64,
+    pub validation_wall_seconds: f64,
+    pub post_step_wall_seconds: f64,
 }
 
 impl FlightTelemetry {
@@ -584,6 +593,31 @@ impl FlightRuntime {
             telemetry.set_fluid_force(root_qfrc_fluid(world)?);
         }
         Ok(telemetry)
+    }
+
+    pub fn advance_profiled(
+        &mut self,
+        world: &mut MuJoCoWorld,
+        command: FlightCommand,
+        air_velocity_mm_s: [f64; 3],
+    ) -> Result<(FlightTelemetry, FlightAdvanceTiming)> {
+        let apply_started = Instant::now();
+        let mut telemetry = self.apply_internal(world, command, air_velocity_mm_s, false)?;
+        let apply_wall_seconds = apply_started.elapsed().as_secs_f64();
+        let step_timing = world.step_profiled()?;
+        let post_step_started = Instant::now();
+        if self.config.uses_mujoco_ellipsoid() {
+            telemetry.set_fluid_force(root_qfrc_fluid(world)?);
+        }
+        Ok((
+            telemetry,
+            FlightAdvanceTiming {
+                apply_wall_seconds,
+                mujoco_wall_seconds: step_timing.mujoco_wall_seconds,
+                validation_wall_seconds: step_timing.validation_wall_seconds,
+                post_step_wall_seconds: post_step_started.elapsed().as_secs_f64(),
+            },
+        ))
     }
 
     fn apply_internal(

@@ -233,6 +233,12 @@ pub struct SimulationSnapshot {
     pub brain_encoding_seconds: f64,
     pub brain_engine_seconds: f64,
     pub physics_wall_seconds: f64,
+    pub flight_command_wall_seconds: f64,
+    pub flight_apply_wall_seconds: f64,
+    pub mujoco_step_wall_seconds: f64,
+    pub physics_validation_wall_seconds: f64,
+    pub flight_post_step_wall_seconds: f64,
+    pub flight_telemetry_wall_seconds: f64,
     pub window_wall_seconds: f64,
 }
 
@@ -338,6 +344,7 @@ pub struct SimulationStepper {
     grooming: GroomingController,
     brain: Option<BrainBodyBridge>,
     brain_telemetry_enabled: bool,
+    physics_profile_enabled: bool,
     pack_path: Option<PathBuf>,
     neural_io_path: PathBuf,
     brain_materialization: Option<String>,
@@ -384,6 +391,13 @@ impl SimulationStepper {
         parameters: SimulationParameters,
     ) -> Result<Self> {
         let parameters = parameters.validate()?;
+        let physics_profile_enabled = match std::env::var("FLYBRAIN_PROFILE_PHYSICS") {
+            Ok(value) if value == "1" => true,
+            Ok(value) if value == "0" => false,
+            Ok(value) => bail!("unsupported FLYBRAIN_PROFILE_PHYSICS={value:?}; expected 0 or 1"),
+            Err(std::env::VarError::NotPresent) => false,
+            Err(error) => return Err(error).context("reading FLYBRAIN_PROFILE_PHYSICS"),
+        };
         if !control_hz.is_finite() || control_hz <= 0.0 {
             bail!("control_hz must be finite and positive")
         }
@@ -455,6 +469,7 @@ impl SimulationStepper {
             grooming: GroomingController::new(),
             brain,
             brain_telemetry_enabled: false,
+            physics_profile_enabled,
             pack_path,
             neural_io_path,
             brain_materialization,
@@ -1045,8 +1060,15 @@ impl SimulationStepper {
         };
         let mut flight_vertical_force_to_weight = 0.0;
         let mut flight_peak_strip_speed_mm_s = 0.0_f64;
+        let mut flight_command_wall_seconds = 0.0;
+        let mut flight_apply_wall_seconds = 0.0;
+        let mut mujoco_step_wall_seconds = 0.0;
+        let mut physics_validation_wall_seconds = 0.0;
+        let mut flight_post_step_wall_seconds = 0.0;
+        let mut flight_telemetry_wall_seconds = 0.0;
         let physics_started = Instant::now();
         for _ in 0..window_steps {
+            let command_started = self.physics_profile_enabled.then(Instant::now);
             let mut command_base = base_flight_command;
             if wall_escape_active {
                 let forward_xy = planar_forward(self.world.root_quaternion());
@@ -1062,9 +1084,25 @@ impl SimulationStepper {
                 flight_behavior.amplitude_scale,
                 self.flight.config(),
             )?;
-            let telemetry =
+            if let Some(started) = command_started {
+                flight_command_wall_seconds += started.elapsed().as_secs_f64();
+            }
+            let telemetry = if self.physics_profile_enabled {
+                let (telemetry, timing) = self.flight.advance_profiled(
+                    &mut self.world,
+                    command,
+                    self.habitat.airflow_mm_s(),
+                )?;
+                flight_apply_wall_seconds += timing.apply_wall_seconds;
+                mujoco_step_wall_seconds += timing.mujoco_wall_seconds;
+                physics_validation_wall_seconds += timing.validation_wall_seconds;
+                flight_post_step_wall_seconds += timing.post_step_wall_seconds;
+                telemetry
+            } else {
                 self.flight
-                    .advance(&mut self.world, command, self.habitat.airflow_mm_s())?;
+                    .advance(&mut self.world, command, self.habitat.airflow_mm_s())?
+            };
+            let telemetry_started = self.physics_profile_enabled.then(Instant::now);
             flight_vertical_force_to_weight += telemetry.vertical_force_to_weight;
             flight_peak_strip_speed_mm_s = flight_peak_strip_speed_mm_s.max(
                 telemetry
@@ -1073,6 +1111,9 @@ impl SimulationStepper {
                     .map(|wing| wing.peak_strip_speed_mm_s)
                     .fold(0.0_f64, f64::max),
             );
+            if let Some(started) = telemetry_started {
+                flight_telemetry_wall_seconds += started.elapsed().as_secs_f64();
+            }
         }
         let physics_wall_seconds = physics_started.elapsed().as_secs_f64();
         flight_vertical_force_to_weight /= window_steps as f64;
@@ -1199,6 +1240,12 @@ impl SimulationStepper {
             brain_encoding_seconds,
             brain_engine_seconds,
             physics_wall_seconds,
+            flight_command_wall_seconds,
+            flight_apply_wall_seconds,
+            mujoco_step_wall_seconds,
+            physics_validation_wall_seconds,
+            flight_post_step_wall_seconds,
+            flight_telemetry_wall_seconds,
             window_wall_seconds: window_started.elapsed().as_secs_f64(),
         };
         Ok(self.snapshot)
@@ -1366,6 +1413,10 @@ impl SimulationStepper {
 
     pub fn control_period(&self) -> Duration {
         Duration::from_secs_f64(self.control_steps as f64 * self.world.timestep_seconds())
+    }
+
+    pub fn physics_profile_enabled(&self) -> bool {
+        self.physics_profile_enabled
     }
 
     pub fn food_center(&self) -> [f64; 3] {

@@ -121,14 +121,18 @@ CSR 和神经状态常驻设备显存。使用有序 CUDA stream 批量提交窗
    bridge/控制约 `0.009 s`。保持 tick 顺序的 CUDA Graph 实验在 5 秒测试中仅令 neural
    engine 中位数快约 `4.2%`，完整闭环没有改善，因此保留为 opt-in、继续以 direct 为
    默认。20 秒 intact 及两个 12 秒断连对照已通过既有 21 项取食/嗅觉门控；重复 intact
-   的全部非计时输出一致。下一性能阶段剖析原生 physics/flight loop。见
+   的全部非计时输出一致。原生 physics/flight 分项也已完成：三次 5 秒 headless 运行的
+   `mj_step` 中位数为 `3.192 s`，占物理时间 `95.66%`；完整闭环约 `0.835×` 实时。
+   profile 开/关的一秒报告在剔除计时字段后全部输出一致。下一性能阶段只做 MuJoCo 内部
+   配置的单变量 A/B，并继续保持 timestep、世界、身体和控制语义。见
    [原生接入报告](native-cuda-mujoco-stage-2026-09-12.md)与
    [CUDA 闭环传输优化报告](cuda-native-transfer-optimization-stage-2026-09-12.md)、
    [probe 缓存与瓶颈复测报告](cuda-native-probe-cache-stage-2026-09-12.md)、
    [chunked CSR propagation 报告](cuda-chunked-propagation-stage-2026-09-12.md)、
    [原生闭环组件分项报告](native-closed-loop-component-profile-2026-09-12.md)、
    [CUDA Graph 实验报告](cuda-graph-experiment-2026-09-12.md)、
-   [原生长程行为门控报告](native-long-behavior-gates-2026-09-12.md)。
+   [原生长程行为门控报告](native-long-behavior-gates-2026-09-12.md)、
+   [原生 MuJoCo 物理分项报告](native-physics-profile-2026-09-12.md)。
 5. 新世界与果蝇呈现（后续）：更小的室内场景、外观改进、翼运动诊断与相应修正。
 6. 神经驱动清洁行为（后续）：前足相互搓擦、头部和复眼清洁，验证通路与身体协调。
 

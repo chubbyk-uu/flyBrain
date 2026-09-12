@@ -445,6 +445,12 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     let mut brain_encoding_seconds = 0.0;
     let mut brain_engine_seconds = 0.0;
     let mut physics_wall_seconds = 0.0;
+    let mut flight_command_wall_seconds = 0.0;
+    let mut flight_apply_wall_seconds = 0.0;
+    let mut mujoco_step_wall_seconds = 0.0;
+    let mut physics_validation_wall_seconds = 0.0;
+    let mut flight_post_step_wall_seconds = 0.0;
+    let mut flight_telemetry_wall_seconds = 0.0;
     let mut window_wall_seconds = 0.0;
     let mut samples = Vec::new();
     let period = simulation.control_period().as_secs_f64();
@@ -472,6 +478,12 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         brain_encoding_seconds += snapshot.brain_encoding_seconds;
         brain_engine_seconds += snapshot.brain_engine_seconds;
         physics_wall_seconds += snapshot.physics_wall_seconds;
+        flight_command_wall_seconds += snapshot.flight_command_wall_seconds;
+        flight_apply_wall_seconds += snapshot.flight_apply_wall_seconds;
+        mujoco_step_wall_seconds += snapshot.mujoco_step_wall_seconds;
+        physics_validation_wall_seconds += snapshot.physics_validation_wall_seconds;
+        flight_post_step_wall_seconds += snapshot.flight_post_step_wall_seconds;
+        flight_telemetry_wall_seconds += snapshot.flight_telemetry_wall_seconds;
         window_wall_seconds += snapshot.window_wall_seconds;
         if snapshot.flight_mode != FlightMode::Grounded {
             flight_seconds += period;
@@ -565,6 +577,22 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
             next_progress_time += 1.0;
         }
     }
+    let physics_profile = json!({
+        "enabled": simulation.physics_profile_enabled(),
+        "flight_command_wall_seconds": flight_command_wall_seconds,
+        "flight_apply_wall_seconds": flight_apply_wall_seconds,
+        "mujoco_step_wall_seconds": mujoco_step_wall_seconds,
+        "validation_wall_seconds": physics_validation_wall_seconds,
+        "flight_post_step_wall_seconds": flight_post_step_wall_seconds,
+        "flight_telemetry_wall_seconds": flight_telemetry_wall_seconds,
+        "unclassified_wall_seconds": (physics_wall_seconds
+            - flight_command_wall_seconds
+            - flight_apply_wall_seconds
+            - mujoco_step_wall_seconds
+            - physics_validation_wall_seconds
+            - flight_post_step_wall_seconds
+            - flight_telemetry_wall_seconds).max(0.0),
+    });
     let report = json!({
         "schema": "flybrain.cns-world-check", "schema_version": 1,
         "runtime_sha256": runtime_sha256,
@@ -603,6 +631,7 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
             "brain_encoding_seconds": brain_encoding_seconds,
             "brain_engine_seconds": brain_engine_seconds,
             "physics_wall_seconds": physics_wall_seconds,
+            "physics_profile": physics_profile,
             "non_brain_non_physics_seconds":
                 (window_wall_seconds - brain_wall_seconds - physics_wall_seconds).max(0.0),
             "window_wall_seconds": window_wall_seconds,
