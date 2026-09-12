@@ -25,6 +25,8 @@ use flybrain_engine::world_sim::{
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
+mod view_worker;
+
 #[derive(Debug, Parser)]
 #[command(name = "flybrain-world", version, about)]
 struct Cli {
@@ -159,7 +161,7 @@ enum Command {
         width: u32,
         #[arg(long, default_value_t = 800)]
         height: u32,
-        #[arg(long, default_value_t = 30)]
+        #[arg(long, default_value_t = 60)]
         fps: u32,
         #[arg(long, default_value_t = 500.0)]
         control_hz: f64,
@@ -580,6 +582,10 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     let physics_profile = json!({
         "enabled": simulation.physics_profile_enabled(),
         "mujoco_energy_enabled": simulation.mujoco_energy_enabled(),
+        "mujoco_midphase_enabled": simulation.world().model().opt().disableflags
+            & (mujoco_rs::prelude::MjtDisableBit::mjDSBL_MIDPHASE as i32) == 0,
+        "mujoco_bvactive": simulation.world().model().vis().global.bvactive,
+        "mujoco_jacobian": simulation.world().model().opt().jacobian,
         "flight_command_wall_seconds": flight_command_wall_seconds,
         "flight_apply_wall_seconds": flight_apply_wall_seconds,
         "mujoco_step_wall_seconds": mujoco_step_wall_seconds,
@@ -670,232 +676,157 @@ struct ViewOptions {
 
 fn view_world(options: ViewOptions) -> Result<()> {
     validate_view_options(&options)?;
-    eprintln!("Loading the body and connectome for live simulation...");
-    let pack = options.with_brain.then_some(options.pack.as_path());
-    let parameters = options
-        .parameters
-        .as_deref()
-        .map(SimulationParameters::load)
-        .transpose()?
-        .unwrap_or_default();
-    let mut simulation = SimulationStepper::new_with_parameters(
-        &options.assets,
-        pack,
-        options.control_hz,
-        options.settle_seconds,
-        parameters,
-    )?;
-    simulation.set_brain_telemetry_enabled(options.with_brain)?;
-    simulation.place_food_ahead(options.start_food_distance)?;
-    let mut viewer = LiveViewer::new(
-        simulation.world().model(),
-        &options.assets,
+    let assets = options.assets.clone();
+    let camera = options.camera.clone();
+    let (width, height, fps, with_brain) = (
         options.width,
         options.height,
-        &options.camera,
-    )?;
-    let brain_device = simulation
-        .brain_device_name()
-        .unwrap_or("disabled")
-        .to_string();
-    let brain_model = simulation
-        .brain_model_name()
-        .unwrap_or("disabled")
-        .to_string();
-    let full_neural_io = simulation.full_neural_io_enabled();
-    let brain_neuron_count = simulation.brain_neuron_count();
-    let brain_sensory_neuron_count = simulation.brain_sensory_neuron_count();
-    let neural_io_stats = simulation.neural_io_stats();
-    eprintln!(
-        "Live window opened with {brain_neuron_count} simulated neurons ({brain_model} on {brain_device}); full neural I/O {full_neural_io}, {}/{}/{} selected/present/missing. V toggles both eye views, B toggles the EEG-like network field, G toggles autonomous flight, H requests front-leg grooming, and ESC quits.",
-        neural_io_stats.selected_root_ids,
-        neural_io_stats.present_root_ids,
-        neural_io_stats.missing_root_ids,
+        options.fps,
+        options.with_brain,
     );
-
-    let mut paused = false;
+    eprintln!("Loading body and connectome on simulation worker...");
+    let mut worker = view_worker::Worker::start(options)?;
+    let (mut data, neurons, sensory_neurons) = {
+        let frame = worker.frame.lock().unwrap();
+        (frame.data.clone(), frame.neurons, frame.sensory_neurons)
+    };
+    let mut viewer = LiveViewer::new(data.model(), &assets, width, height, &camera)?;
+    eprintln!(
+        "Native viewer opened; simulation and rendering run independently. SPACE pause, R reset, V retina, B field, ESC quit."
+    );
     let mut show_eye_view = true;
-    let mut show_brain_graph = simulation.brain_enabled();
-    simulation.set_brain_telemetry_enabled(show_brain_graph)?;
-    let mut anchor_wall = Instant::now();
-    let mut anchor_sim = simulation.world().time();
-    let mut stats_wall = Instant::now();
-    let mut stats_sim = simulation.world().time();
-    let mut realtime_factor = 0.0;
-    let mut snapshot = simulation.snapshot();
-    let mut last_brain_field_sample_sequence = snapshot.brain_field_sample_sequence;
-    let mut logged_flight_mode = snapshot.flight_mode;
-    let control_seconds = simulation.control_period().as_secs_f64();
-    let frame_period = Duration::from_secs_f64(1.0 / f64::from(options.fps));
-    let mut last_frame = Instant::now() - frame_period;
+    let mut show_brain_graph = with_brain;
+    let mut sequence = u64::MAX;
+    let mut epoch = 0;
     let mut last_title = Instant::now() - Duration::from_secs(1);
-
-    while viewer.is_open() {
-        let input = viewer.poll_input(simulation.world().model());
-        if input.quit {
+    let mut frames = 0;
+    let mut frame_stats = Instant::now();
+    let mut render_fps = 0.0;
+    let frame_period = Duration::from_secs_f64(1.0 / f64::from(fps));
+    loop {
+        let started = Instant::now();
+        let finished = worker.is_finished();
+        if !viewer.is_open() {
             break;
         }
-        if input.toggle_pause {
-            paused = !paused;
-            anchor_wall = Instant::now();
-            anchor_sim = simulation.world().time();
-        }
-        if input.reset {
-            simulation.reset()?;
-            viewer.clear_brain_history();
-            anchor_wall = Instant::now();
-            anchor_sim = simulation.world().time();
-            stats_wall = anchor_wall;
-            stats_sim = anchor_sim;
-            realtime_factor = 0.0;
-            snapshot = simulation.snapshot();
-            last_brain_field_sample_sequence = snapshot.brain_field_sample_sequence;
-            logged_flight_mode = snapshot.flight_mode;
-        }
-        if input.toggle_food {
-            simulation.toggle_food()?;
-            snapshot = simulation.snapshot();
-        }
-        if input.toggle_flight {
-            simulation.toggle_flight();
-            snapshot = simulation.snapshot();
-        }
-        if input.request_grooming {
-            simulation.request_grooming();
-        }
-        if input.place_food_at_mouth {
-            simulation.drop_food_below_fly()?;
-            snapshot = simulation.snapshot();
+        let input = viewer.poll_input(data.model());
+        if input.quit {
+            break;
         }
         if input.toggle_eye_view {
             show_eye_view = !show_eye_view;
         }
-        if input.toggle_brain_graph && simulation.brain_enabled() {
+        if input.toggle_brain_graph && with_brain {
             show_brain_graph = !show_brain_graph;
-            simulation.set_brain_telemetry_enabled(show_brain_graph)?;
-            if show_brain_graph {
+            viewer.clear_brain_history();
+            if !finished {
+                worker
+                    .commands
+                    .try_send(view_worker::Command::Telemetry(show_brain_graph))
+                    .context("sending telemetry command")?;
+            }
+        }
+        if !finished
+            && (input.toggle_pause
+                || input.reset
+                || input.toggle_food
+                || input.toggle_flight
+                || input.request_grooming
+                || input.place_food_at_mouth
+                || input.food_motion != [0.0; 2])
+        {
+            worker
+                .commands
+                .try_send(view_worker::Command::Input(input))
+                .context("sending viewer input")?;
+        }
+        let (
+            snapshot,
+            paused,
+            realtime_factor,
+            nearest_resource,
+            tasted_resource,
+            nearest_obstacle,
+            field_samples,
+        ) = {
+            let mut frame = worker.frame.lock().unwrap();
+            if sequence != frame.sequence {
+                frame.data.copy_to(&mut data)?;
+                sequence = frame.sequence;
+            }
+            if epoch != frame.epoch {
+                epoch = frame.epoch;
                 viewer.clear_brain_history();
-                last_brain_field_sample_sequence = 0;
+                viewer.clear_retina();
+            }
+            (
+                frame.snapshot,
+                frame.paused,
+                frame.realtime_factor,
+                frame.nearest_resource.clone(),
+                frame.tasted_resource.clone(),
+                frame.nearest_obstacle.clone(),
+                std::mem::take(&mut frame.field_samples),
+            )
+        };
+        if show_brain_graph {
+            for (time, potential, frequency) in field_samples {
+                viewer.record_brain_field_sample(time, potential, frequency);
             }
         }
-        if input.food_motion != [0.0; 2] {
-            simulation.move_food([input.food_motion[0], input.food_motion[1], 0.0])?;
-            snapshot = simulation.snapshot();
-        }
-
-        if !paused {
-            let target_sim = anchor_sim + anchor_wall.elapsed().as_secs_f64() * options.speed;
-            let mut windows = 0;
-            while simulation.world().time() + control_seconds * 0.5 < target_sim && windows < 25 {
-                snapshot = simulation.step_window()?;
-                if show_brain_graph
-                    && snapshot.brain_field_sample_sequence != last_brain_field_sample_sequence
-                {
-                    viewer.record_brain_field_sample(
-                        snapshot.time_seconds,
-                        snapshot.brain_field_potential_mv,
-                        snapshot.brain_field_dominant_frequency_hz,
-                    );
-                    last_brain_field_sample_sequence = snapshot.brain_field_sample_sequence;
-                }
-                if snapshot.flight_mode != logged_flight_mode {
-                    eprintln!(
-                        "Flight transition at {:.3}s: {} -> {}, z {:.2} mm, target {:.2} mm, altitude command {:+.3}, nose-up {:.1} deg, speed {:.1} mm/s (forward {:.1}), flight drive {:.3}, landing DN {:.1} Hz/{:.3}, odor ppm L/R {:.2}/{:.2}, perceived {:.3}/{:.3}.",
-                        snapshot.time_seconds,
-                        logged_flight_mode.label(),
-                        snapshot.flight_mode.label(),
-                        snapshot.root_position[2],
-                        snapshot.flight_target_height_mm,
-                        snapshot.brain_altitude_control,
-                        -snapshot.body_pitch_deg,
-                        snapshot.horizontal_speed_mm_s,
-                        snapshot.forward_speed_mm_s,
-                        snapshot.brain_flight_drive,
-                        snapshot.landing_dn_rate_hz,
-                        snapshot.brain_landing_drive,
-                        snapshot.odor_left_ppm,
-                        snapshot.odor_right_ppm,
-                        snapshot.odor_left,
-                        snapshot.odor_right,
-                    );
-                    logged_flight_mode = snapshot.flight_mode;
-                }
-                windows += 1;
-            }
-            if windows == 25 && simulation.world().time() + control_seconds < target_sim {
-                anchor_wall = Instant::now();
-                anchor_sim = simulation.world().time();
-            }
-        }
-
-        if stats_wall.elapsed() >= Duration::from_millis(500) {
-            realtime_factor =
-                (simulation.world().time() - stats_sim) / stats_wall.elapsed().as_secs_f64();
-            stats_wall = Instant::now();
-            stats_sim = simulation.world().time();
-        }
-        if last_frame.elapsed() < frame_period {
-            std::thread::sleep((frame_period - last_frame.elapsed()).min(Duration::from_millis(2)));
-            continue;
-        }
-        last_frame = Instant::now();
-        let nearest_resource = simulation.resource_label(snapshot.nearest_resource);
-        let tasted_resource = simulation.resource_label(snapshot.tasted_resource);
-        let nearest_obstacle = simulation.obstacle_label(snapshot.flight_nearest_obstacle_geom_id);
         let status = live_status(LiveStatusContext {
             snapshot,
             paused,
             realtime_factor,
-            brain_neuron_count,
-            brain_sensory_neuron_count,
-            nearest_resource,
-            tasted_resource,
-            nearest_obstacle,
+            brain_neuron_count: neurons,
+            brain_sensory_neuron_count: sensory_neurons,
+            nearest_resource: &nearest_resource,
+            tasted_resource: &tasted_resource,
+            nearest_obstacle: &nearest_obstacle,
         });
         if last_title.elapsed() >= Duration::from_millis(500) {
-            let title = format!(
-                "FlyBrain live — {:.1}s — {} — {:.2}x",
+            viewer.set_title(&format!(
+                "FlyBrain live — {:.1}s — {} — {:.2}x — {:.1} FPS",
                 snapshot.time_seconds,
                 if paused { "PAUSED" } else { "RUNNING" },
-                realtime_factor
-            );
-            viewer.set_title(&title)?;
+                realtime_factor,
+                render_fps
+            ))?;
             last_title = Instant::now();
         }
-        let capture_vision = simulation.brain_enabled();
         viewer.render(
-            simulation.world_mut().data_mut(),
+            &mut data,
             LiveRenderOptions {
                 food_center: snapshot.food_center,
                 food_enabled: snapshot.food_enabled,
                 status: &status,
                 show_eye_view,
                 show_brain_graph,
-                capture_vision,
+                capture_vision: with_brain && !paused,
                 flight_allowed: snapshot.flight_allowed,
             },
         )?;
-        simulation.set_retina_summaries(viewer.retina_summaries())?;
-        if options
-            .max_seconds
-            .is_some_and(|limit| simulation.world().time() >= limit)
-        {
+        if with_brain && !paused {
+            *worker.vision.lock().unwrap() = Some((epoch, viewer.retina_summaries()));
+        }
+        frames += 1;
+        if frame_stats.elapsed() >= Duration::from_secs(1) {
+            render_fps = f64::from(frames) / frame_stats.elapsed().as_secs_f64();
+            frames = 0;
+            frame_stats = Instant::now();
+        }
+        if finished {
+            eprintln!(
+                "Viewer finished at {:.3}s; {:.2}x simulation, {:.1} FPS display",
+                snapshot.time_seconds, realtime_factor, render_fps
+            );
             break;
         }
+        if let Some(wait) = frame_period.checked_sub(started.elapsed()) {
+            std::thread::sleep(wait);
+        }
     }
-    eprintln!(
-        "Live simulation stopped at {:.3}s: position [{:.3}, {:.3}, {:.3}], nose-up {:.1} deg, horizontal speed {:.1} mm/s (forward {:.1}), flight {}, ever-spiking neurons {}.",
-        snapshot.time_seconds,
-        snapshot.root_position[0],
-        snapshot.root_position[1],
-        snapshot.root_position[2],
-        -snapshot.body_pitch_deg,
-        snapshot.horizontal_speed_mm_s,
-        snapshot.forward_speed_mm_s,
-        snapshot.flight_mode.label(),
-        snapshot.cumulative_spiking_neuron_count,
-    );
-    Ok(())
+    worker.finish()
 }
 
 struct LiveStatusContext<'a> {

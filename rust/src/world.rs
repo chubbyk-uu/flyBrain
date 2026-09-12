@@ -3,7 +3,7 @@ use std::path::Path;
 use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
-use mujoco_rs::prelude::{MjData, MjModel, MjtEnableBit, MjtObj};
+use mujoco_rs::prelude::{MjData, MjModel, MjtDisableBit, MjtEnableBit, MjtObj};
 use serde::Deserialize;
 
 use crate::embodiment::{JOINTS_PER_LEG, LEG_COUNT, SensorySample, SixLegVncCommand};
@@ -427,6 +427,33 @@ impl MuJoCoWorld {
             MjData::try_new(Box::new(model)).context("allocating MuJoCo simulation data")?;
         if !mujoco_energy_enabled {
             data.model_opt_mut().enableflags &= !(MjtEnableBit::mjENBL_ENERGY as i32);
+        }
+        // Opt-in algorithm/diagnostic A/B switches. No geometry, integration,
+        // constraint parameters or collision masks are changed.
+        if let Some(enabled) = optional_env_bool("FLYBRAIN_MUJOCO_MIDPHASE")? {
+            let flag = MjtDisableBit::mjDSBL_MIDPHASE as i32;
+            if enabled {
+                data.model_opt_mut().disableflags &= !flag;
+            } else {
+                data.model_opt_mut().disableflags |= flag;
+            }
+        }
+        if let Some(enabled) = optional_env_bool("FLYBRAIN_MUJOCO_BVACTIVE")? {
+            data.model_vis_mut().global.bvactive = i32::from(enabled);
+        }
+        match std::env::var("FLYBRAIN_MUJOCO_JACOBIAN") {
+            Ok(value) => {
+                data.model_opt_mut().jacobian = match value.as_str() {
+                    "dense" => 0,
+                    "sparse" => 1,
+                    "auto" => 2,
+                    _ => bail!(
+                        "unsupported FLYBRAIN_MUJOCO_JACOBIAN={value:?}; expected dense, sparse or auto"
+                    ),
+                };
+            }
+            Err(std::env::VarError::NotPresent) => {}
+            Err(error) => return Err(error).context("reading FLYBRAIN_MUJOCO_JACOBIAN"),
         }
         let mut world = Self {
             data,
@@ -1321,6 +1348,23 @@ fn validate_control_values(controls: &[f64], actuators: &[ActuatorMetadata]) -> 
     Ok(())
 }
 
+fn optional_env_bool(name: &str) -> Result<Option<bool>> {
+    match std::env::var(name) {
+        Ok(value) => parse_optional_bool(name, Some(&value)),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(error) => Err(error).with_context(|| format!("reading {name}")),
+    }
+}
+
+fn parse_optional_bool(name: &str, value: Option<&str>) -> Result<Option<bool>> {
+    match value {
+        None => Ok(None),
+        Some("0") => Ok(Some(false)),
+        Some("1") => Ok(Some(true)),
+        Some(value) => bail!("unsupported {name}={value:?}; expected 0 or 1"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1328,6 +1372,16 @@ mod tests {
 
     fn world() -> MuJoCoWorld {
         MuJoCoWorld::new().expect("actual NeuroMechFly model should load")
+    }
+
+    #[test]
+    fn optional_runtime_switch_is_strict() {
+        assert_eq!(parse_optional_bool("test", None).unwrap(), None);
+        assert_eq!(parse_optional_bool("test", Some("0")).unwrap(), Some(false));
+        assert_eq!(parse_optional_bool("test", Some("1")).unwrap(), Some(true));
+        for invalid in ["", "false", "2"] {
+            assert!(parse_optional_bool("test", Some(invalid)).is_err());
+        }
     }
 
     #[derive(Debug, PartialEq)]
@@ -1379,6 +1433,57 @@ mod tests {
                 includemargin: contact.includemargin,
             })
         })
+    }
+
+    #[test]
+    fn collision_runtime_switches_preserve_contacts_and_short_dynamics() {
+        for position in [
+            [0.0, 0.0, 2.1],
+            [0.0, 0.0, 100.0],
+            [32.0, 18.0, 2.9],
+            [298.0, 0.0, 100.0],
+            [-298.0, 0.0, 100.0],
+            [0.0, 218.0, 100.0],
+            [0.0, 0.0, 218.0],
+        ] {
+            let mut reference = world();
+            reference.data.model_opt_mut().disableflags &= !(MjtDisableBit::mjDSBL_MIDPHASE as i32);
+            reference.data.model_vis_mut().global.bvactive = 1;
+            place_geom_center(&mut reference, "fly/c_thorax", position);
+            let mut candidate = world();
+            candidate.data.model_opt_mut().disableflags |= MjtDisableBit::mjDSBL_MIDPHASE as i32;
+            candidate.data.model_vis_mut().global.bvactive = 0;
+            place_geom_center(&mut candidate, "fly/c_thorax", position);
+            for step in 0..100 {
+                reference.step().unwrap();
+                candidate.step().unwrap();
+                assert_eq!(
+                    reference.data.qpos(),
+                    candidate.data.qpos(),
+                    "{position:?}, step {step}"
+                );
+                assert_eq!(reference.data.qvel(), candidate.data.qvel());
+                assert_eq!(reference.data.sensordata(), candidate.data.sensordata());
+                assert_eq!(
+                    reference.data.contact().len(),
+                    candidate.data.contact().len()
+                );
+                for (a, b) in reference
+                    .data
+                    .contact()
+                    .iter()
+                    .zip(candidate.data.contact())
+                {
+                    assert_eq!((a.geom1, a.geom2, a.dim), (b.geom1, b.geom2, b.dim));
+                    assert_eq!(a.dist, b.dist);
+                    assert_eq!(a.pos, b.pos);
+                    assert_eq!(a.frame, b.frame);
+                    assert_eq!(a.friction, b.friction);
+                    assert_eq!(a.solref, b.solref);
+                    assert_eq!(a.solimp, b.solimp);
+                }
+            }
+        }
     }
 
     #[test]
@@ -1508,14 +1613,38 @@ mod tests {
         ]);
         data.qvel_mut().fill(0.0);
         data.forward();
-        assert!(world.wall_foot_contacts().into_iter().filter(|&contact| contact).count() >= 4);
+        assert!(
+            world
+                .wall_foot_contacts()
+                .into_iter()
+                .filter(|&contact| contact)
+                .count()
+                >= 4
+        );
         world.set_adhesion_controls(&[1.0; LEG_COUNT]).unwrap();
         for _ in 0..10_000 {
             world.step().unwrap();
         }
-        assert!(world.root_position()[2] > 99.0, "{:?}", world.root_position());
-        assert!(world.wall_foot_contacts().into_iter().filter(|&contact| contact).count() >= 4);
-        assert!(world.data().contact().iter().all(|contact| contact.dist >= -0.01));
+        assert!(
+            world.root_position()[2] > 99.0,
+            "{:?}",
+            world.root_position()
+        );
+        assert!(
+            world
+                .wall_foot_contacts()
+                .into_iter()
+                .filter(|&contact| contact)
+                .count()
+                >= 4
+        );
+        assert!(
+            world
+                .data()
+                .contact()
+                .iter()
+                .all(|contact| contact.dist >= -0.01)
+        );
     }
 
     #[test]

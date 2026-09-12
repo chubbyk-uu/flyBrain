@@ -2,6 +2,7 @@ use std::collections::{BTreeSet, VecDeque};
 use std::ffi::{CString, c_char, c_int, c_void};
 use std::path::Path;
 use std::ptr::NonNull;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 use mujoco_rs::mujoco_c::{mjr_blitBuffer, mjr_drawPixels, mjr_label};
@@ -78,6 +79,7 @@ unsafe extern "C" {
     fn glfwGetMouseButton(window: *mut c_void, button: c_int) -> c_int;
     fn glfwGetCursorPos(window: *mut c_void, x: *mut f64, y: *mut f64);
     fn glfwSetWindowTitle(window: *mut c_void, title: *const c_char);
+    fn glfwGetProcAddress(name: *const c_char) -> Option<unsafe extern "C" fn()>;
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -138,6 +140,7 @@ pub struct LiveViewer {
     perturb: MjvPerturb,
     retinas: [FlyGymRetina; 2],
     retina_summaries: [RetinaSummary; 2],
+    last_retina_capture: Option<Instant>,
     eye_raw_bottom_up: Box<[u8]>,
     eye_raw_top_down: Box<[u8]>,
     eye_display_bottom_up: [Box<[u8]>; 2],
@@ -219,13 +222,31 @@ impl LiveViewer {
             };
             glfwMakeContextCurrent(window.as_ptr());
             glfwSwapInterval(0);
+            if let Some(proc) = glfwGetProcAddress(c"glGetString".as_ptr()) {
+                let get_string: unsafe extern "C" fn(u32) -> *const c_char =
+                    std::mem::transmute(proc);
+                let renderer = get_string(0x1F01);
+                if !renderer.is_null() {
+                    eprintln!(
+                        "Viewer OpenGL renderer: {}",
+                        std::ffi::CStr::from_ptr(renderer).to_string_lossy()
+                    );
+                }
+            }
             window
         };
         let mut context = unsafe { MjrContext::new(model) };
         context.resize_offscreen(RETINA_WIDTH as u32, RETINA_HEIGHT as u32);
         context.window();
-        let scene = MjvScene::new(model, model.ngeom() as usize + 64);
-        let eye_scene = MjvScene::new(model, model.ngeom() as usize + 64);
+        let mut scene = MjvScene::new(model, model.ngeom() as usize + 64);
+        let mut eye_scene = MjvScene::new(model, model.ngeom() as usize + 64);
+        if std::env::var("FLYBRAIN_VIEWER_SHADOWS").as_deref() == Ok("0") {
+            // Display/sensory rendering only; neither scene belongs to the physics worker.
+            unsafe {
+                scene.ffi_mut().flags[MjtRndFlag::mjRND_SHADOW as usize] = 0;
+                eye_scene.ffi_mut().flags[MjtRndFlag::mjRND_SHADOW as usize] = 0;
+            }
+        }
         let mut eye_option = MjvOption::default();
         eye_option.geomgroup[1] = 0;
         eye_option.geomgroup[2] = 0;
@@ -259,6 +280,7 @@ impl LiveViewer {
             perturb: MjvPerturb::default(),
             retinas,
             retina_summaries: [RetinaSummary::default(); 2],
+            last_retina_capture: None,
             eye_raw_bottom_up: vec![0; eye_rgb_bytes].into_boxed_slice(),
             eye_raw_top_down: vec![0; eye_rgb_bytes].into_boxed_slice(),
             eye_display_bottom_up: std::array::from_fn(|_| {
@@ -341,6 +363,8 @@ impl LiveViewer {
     where
         M: std::ops::Deref<Target = MjModel>,
     {
+        let profile = std::env::var_os("FLYBRAIN_PROFILE_VIEWER").is_some();
+        let started = Instant::now();
         unsafe { glfwMakeContextCurrent(self.window.as_ptr()) };
         if options.show_brain_graph {
             self.refresh_brain_figure();
@@ -418,6 +442,7 @@ impl LiveViewer {
                 &format!("G  AUTO FLIGHT: {}", on_off(options.flight_allowed)),
                 options.flight_allowed,
             );
+            let main_elapsed = started.elapsed();
             if options.show_eye_view || options.capture_vision {
                 let eye_scene = self
                     .eye_scene
@@ -425,42 +450,48 @@ impl LiveViewer {
                     .context("fly-eye scene is unavailable")?;
                 let retina_viewport =
                     MjrRectangle::new(0, 0, RETINA_WIDTH as c_int, RETINA_HEIGHT as c_int);
-                for eye_index in 0..2 {
-                    let mut eye_camera = MjvCamera::new_fixed(self.eye_camera_ids[eye_index]);
-                    eye_scene.update(data, &self.eye_option, &self.perturb, &mut eye_camera);
-                    hide_fly_visuals(eye_scene, data.model());
-                    move_food_geom(
-                        eye_scene,
-                        self.food_geom_id,
-                        options.food_center,
-                        options.food_enabled,
-                    );
-                    context.offscreen();
-                    eye_scene.render(&retina_viewport, context);
-                    context.read_pixels(
-                        Some(&mut self.eye_raw_bottom_up),
-                        None,
-                        &retina_viewport,
-                    )?;
-                    flip_rgb_rows(
-                        &self.eye_raw_bottom_up,
-                        &mut self.eye_raw_top_down,
-                        RETINA_WIDTH,
-                        RETINA_HEIGHT,
-                    );
-                    if options.show_eye_view {
-                        let retina_top_down =
-                            self.retinas[eye_index].process_top_down(&self.eye_raw_top_down)?;
+                if self
+                    .last_retina_capture
+                    .is_none_or(|last| last.elapsed() >= Duration::from_secs_f64(1.0 / 15.0))
+                {
+                    for eye_index in 0..2 {
+                        let mut eye_camera = MjvCamera::new_fixed(self.eye_camera_ids[eye_index]);
+                        eye_scene.update(data, &self.eye_option, &self.perturb, &mut eye_camera);
+                        hide_fly_visuals(eye_scene, data.model());
+                        move_food_geom(
+                            eye_scene,
+                            self.food_geom_id,
+                            options.food_center,
+                            options.food_enabled,
+                        );
+                        context.offscreen();
+                        eye_scene.render(&retina_viewport, context);
+                        context.read_pixels(
+                            Some(&mut self.eye_raw_bottom_up),
+                            None,
+                            &retina_viewport,
+                        )?;
                         flip_rgb_rows(
-                            retina_top_down,
-                            &mut self.eye_display_bottom_up[eye_index],
+                            &self.eye_raw_bottom_up,
+                            &mut self.eye_raw_top_down,
                             RETINA_WIDTH,
                             RETINA_HEIGHT,
                         );
-                    } else {
-                        self.retinas[eye_index].sample_top_down(&self.eye_raw_top_down)?;
+                        if options.show_eye_view {
+                            let retina_top_down =
+                                self.retinas[eye_index].process_top_down(&self.eye_raw_top_down)?;
+                            flip_rgb_rows(
+                                retina_top_down,
+                                &mut self.eye_display_bottom_up[eye_index],
+                                RETINA_WIDTH,
+                                RETINA_HEIGHT,
+                            );
+                        } else {
+                            self.retinas[eye_index].sample_top_down(&self.eye_raw_top_down)?;
+                        }
+                        self.retina_summaries[eye_index] = self.retinas[eye_index].summary();
                     }
-                    self.retina_summaries[eye_index] = self.retinas[eye_index].summary();
+                    self.last_retina_capture = Some(Instant::now());
                 }
                 if options.show_eye_view {
                     let eye_viewports = retina_inset_rects(width, height);
@@ -496,6 +527,7 @@ impl LiveViewer {
                     context.window();
                 }
             }
+            let eyes_elapsed = started.elapsed() - main_elapsed;
             if options.show_brain_graph {
                 let graph_width = (width as f64 * 0.38).round() as c_int;
                 let graph_height = (height as f64 * 0.28).round() as c_int;
@@ -504,6 +536,15 @@ impl LiveViewer {
                 self.brain_figure.draw(graph_viewport, context);
             }
             unsafe { glfwSwapBuffers(self.window.as_ptr()) };
+            if profile {
+                eprintln!(
+                    "Viewer CPU wall ms: main {:.2}, eyes {:.2}, graph/swap {:.2}, total {:.2}",
+                    main_elapsed.as_secs_f64() * 1000.0,
+                    eyes_elapsed.as_secs_f64() * 1000.0,
+                    (started.elapsed() - main_elapsed - eyes_elapsed).as_secs_f64() * 1000.0,
+                    started.elapsed().as_secs_f64() * 1000.0
+                );
+            }
         }
         Ok(())
     }
@@ -582,6 +623,11 @@ impl LiveViewer {
 
     pub fn retina_summaries(&self) -> [RetinaSummary; 2] {
         self.retina_summaries
+    }
+
+    pub fn clear_retina(&mut self) {
+        self.last_retina_capture = None;
+        self.retina_summaries = [RetinaSummary::default(); 2];
     }
 
     fn new_chase_camera(model: &MjModel) -> Result<MjvCamera> {

@@ -2,9 +2,12 @@
 
 ## Fork development scope
 
-This fork targets Windows/RTX 5080 browser execution and a minimal Linux/WSL2
-CUDA neural backend. The [project goals and constraints](docs/project-spec.md)
-define the scope and acceptance criteria.
+This fork retains its Windows/RTX 5080 browser baseline and now prioritizes a
+real-time Linux/WSL2 simulation with full MaleCNS, CUDA and native MuJoCo.
+The [project goals and constraints](docs/project-spec.md) define the scope and acceptance criteria.
+The [2026-09-13 simplification plan](docs/realtime-simplification-plan-2026-09-13.md)
+allows lighter joints, collision geometry and averaged flight forces, while preserving
+a meaningful sensory–neural–body feedback loop. These changes are planned, not implemented.
 The Windows Chrome/RTX 5080 full-CNS [baseline is recorded](docs/baseline-rtx5080-windows.md).
 Performance diagnosis is now recorded in the baseline report. The isolated
 [CUDA neural core](docs/cuda-engine-stage-2026-09-12.md) builds for the RTX 5080
@@ -16,12 +19,17 @@ while the known failed pathway hypothesis remains failed. Native world integrati
 is now functional: the existing paired CNS/world gate passes with native Rust + CUDA +
 native MuJoCo, and the WSLg viewer opens successfully. See the
 [native integration report](docs/native-cuda-mujoco-stage-2026-09-12.md). MuJoCo does
-not remain in the browser/WASM path. Current bridge readback is not yet performance-
-optimized, so real-time closed-loop execution is not claimed. Later milestones cover a
-smaller indoor world
-with a coffee table, candy and flowering potted plants, improved fly appearance,
-wing-motion diagnosis, and neurally driven foreleg rubbing and head/eye grooming.
-These later features are not implemented; the original baseline remains preserved.
+not remain in the browser/WASM path. Bridge readback and CUDA propagation have since
+been optimized, but long-run native closed-loop throughput is still approximately
+0.63–0.67x in the recorded reference tests; real-time execution is not yet achieved.
+The new target permits engineered satiety, flight fatigue, persistent random exploration,
+and one dust level triggering one combined foreleg-rubbing/head-and-eye-cleaning routine.
+Neural outputs must still have a demonstrable causal role in active movement and feeding.
+Later milestones include a smaller indoor world with a coffee table, candy and flowering
+potted plants. Visual food recognition, the new internal-state rules, and the unified cleaning
+routine are not yet implemented. The reference assets and historical tests remain preserved.
+Neural dt remains 0.1 ms; a separate 0.2 ms experiment is planned after body optimization,
+not a default change. Headless realtime and 30 FPS GUI playback are separate targets, not guarantees.
 Use the dedicated `flybrain` Conda environment described in
 [local setup](docs/local-setup.md). Do not install project dependencies into shared environments.
 
@@ -524,6 +532,20 @@ ongoing session. Full-brain live playback is not guaranteed to reach 1.0x realti
 control the graph and eye inset. `B` disables whole-population graph readback; `V` only hides the
 inset while retinal capture continues to drive the brain. `--speed` is a requested playback rate and
 cannot exceed the measured compute rate shown in the title and HUD.
+
+The native viewer now runs simulation on a dedicated worker and renders an independent
+MuJoCo data copy on the window thread. `--fps` defaults to a requested 60 FPS; the title
+reports actual display FPS separately from simulation speed. Binocular capture is capped
+at 15 Hz wall time and its latest summaries enter the next available control window.
+This changes the live visual sampling schedule; fixed-input headless experiments are unaffected.
+
+For an optional lower-cost preview, run
+`FLYBRAIN_VIEWER_SHADOWS=0 target/release/flybrain-world view`. This removes shadows from
+both the observer and sensory eye images, so it is a different visual-input condition.
+Shadows remain enabled by default. `FLYBRAIN_PROFILE_VIEWER=1` logs per-frame CPU wall
+times for the main view, eyes, and graph/swap. See the
+[native viewer decoupling report](docs/native-viewer-decoupling-2026-09-12.md) for measured
+WSLg rendering limits; decoupling alone does not guarantee smooth rendering.
 
 ## Record the embodied world
 
