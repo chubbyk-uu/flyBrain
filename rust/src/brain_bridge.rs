@@ -868,6 +868,28 @@ impl BrainBodyBridge {
         self.engine.allocated_bytes()
     }
 
+    pub fn propagation_mode(&self) -> &str {
+        #[cfg(all(target_os = "linux", feature = "cuda"))]
+        {
+            self.engine.propagation_mode()
+        }
+        #[cfg(target_os = "macos")]
+        {
+            "source-serial"
+        }
+    }
+
+    pub fn sparse_execution_mode(&self) -> &str {
+        #[cfg(all(target_os = "linux", feature = "cuda"))]
+        {
+            self.engine.sparse_execution_mode()
+        }
+        #[cfg(target_os = "macos")]
+        {
+            "direct"
+        }
+    }
+
     pub fn sensory_neuron_ids(&self) -> &[u64] {
         &self.sensory_ids
     }

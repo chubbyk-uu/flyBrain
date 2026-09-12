@@ -18,6 +18,13 @@ struct MetricResults {
     double voltage_sum = 0.0;
 };
 
+struct SparseGraphCache {
+    cudaGraph_t graph = nullptr;
+    cudaGraphExec_t executable = nullptr;
+    uint32_t steps = 0;
+    uint32_t event_capacity = 0;
+};
+
 struct Engine {
     uint32_t neuron_count = 0;
     uint32_t delay_steps = 0;
@@ -53,14 +60,33 @@ struct Engine {
     uint32_t* sparse_lanes = nullptr;
     uint8_t* sparse_counts = nullptr;
     uint32_t sparse_event_capacity = 0;
+    uint32_t* sparse_offsets = nullptr;
+    uint32_t sparse_step_capacity = 0;
     uint32_t* probe_indices = nullptr;
     uint32_t* probe_before = nullptr;
     uint32_t* probe_after = nullptr;
     uint32_t probe_capacity = 0;
     MetricResults* metrics = nullptr;
+    bool graph_execution = false;
+    cudaStream_t graph_stream = nullptr;
+    std::vector<SparseGraphCache> sparse_graphs;
     std::string device_name;
 
     ~Engine() {
+        if (graph_stream != nullptr) {
+            cudaStreamSynchronize(graph_stream);
+        }
+        for (auto& cache : sparse_graphs) {
+            if (cache.executable != nullptr) {
+                cudaGraphExecDestroy(cache.executable);
+            }
+            if (cache.graph != nullptr) {
+                cudaGraphDestroy(cache.graph);
+            }
+        }
+        if (graph_stream != nullptr) {
+            cudaStreamDestroy(graph_stream);
+        }
         cudaFree(row_ptr);
         cudaFree(destinations);
         cudaFree(signed_counts);
@@ -79,6 +105,7 @@ struct Engine {
         cudaFree(external_targets);
         cudaFree(sparse_lanes);
         cudaFree(sparse_counts);
+        cudaFree(sparse_offsets);
         cudaFree(probe_indices);
         cudaFree(probe_before);
         cudaFree(probe_after);
@@ -96,6 +123,22 @@ int check(cudaError_t status, const char* operation) {
         return 0;
     }
     return fail(std::string(operation) + ": " + cudaGetErrorString(status));
+}
+
+void destroy_sparse_graph(SparseGraphCache& cache) {
+    if (cache.executable != nullptr) {
+        cudaGraphExecDestroy(cache.executable);
+    }
+    if (cache.graph != nullptr) {
+        cudaGraphDestroy(cache.graph);
+    }
+    cache = SparseGraphCache{};
+}
+
+void destroy_sparse_graphs(Engine* engine) {
+    for (auto& cache : engine->sparse_graphs) {
+        destroy_sparse_graph(cache);
+    }
 }
 
 template <typename T>
@@ -335,6 +378,25 @@ __global__ void apply_external_sparse(
     voltage[target] = __fmaf_rn(static_cast<float>(counts[packed]), external_weight_mv, voltage[target]);
 }
 
+__global__ void apply_external_sparse_step(
+    float* voltage,
+    const uint32_t* targets_by_lane,
+    const uint32_t* lanes,
+    const uint8_t* counts,
+    const uint32_t* step_offsets,
+    uint32_t step,
+    float external_weight_mv) {
+    const uint32_t event = blockIdx.x * blockDim.x + threadIdx.x;
+    const uint32_t offset = step_offsets[step];
+    const uint32_t event_count = step_offsets[step + 1] - offset;
+    if (event >= event_count) {
+        return;
+    }
+    const uint32_t packed = offset + event;
+    const uint32_t target = targets_by_lane[lanes[packed]];
+    voltage[target] = __fmaf_rn(static_cast<float>(counts[packed]), external_weight_mv, voltage[target]);
+}
+
 __global__ void reset_store(
     float* voltage,
     float* conductance,
@@ -455,6 +517,7 @@ int reserve_sparse_events(Engine* engine, uint32_t event_count) {
               "allocate sparse counts")) goto failure;
     cudaFree(engine->sparse_lanes);
     cudaFree(engine->sparse_counts);
+    destroy_sparse_graphs(engine);
     engine->sparse_lanes = lanes;
     engine->sparse_counts = counts;
     engine->sparse_event_capacity = event_count;
@@ -466,12 +529,42 @@ failure:
     return 1;
 }
 
+int reserve_sparse_offsets(Engine* engine, uint32_t steps) {
+    if (steps <= engine->sparse_step_capacity) {
+        return 0;
+    }
+    uint32_t* offsets = nullptr;
+    if (check(cudaMalloc(reinterpret_cast<void**>(&offsets),
+                         (static_cast<size_t>(steps) + 1) * sizeof(uint32_t)),
+              "allocate sparse step offsets")) return 1;
+    cudaFree(engine->sparse_offsets);
+    destroy_sparse_graphs(engine);
+    engine->sparse_offsets = offsets;
+    engine->sparse_step_capacity = steps;
+    return 0;
+}
+
 int gather_probes(Engine* engine, uint32_t* output, uint32_t probe_count, const char* operation) {
     if (probe_count == 0) {
         return 0;
     }
     const unsigned int blocks = (probe_count + THREADS - 1) / THREADS;
     gather_spike_counts<<<blocks, THREADS>>>(
+        engine->spike_counts, engine->probe_indices, output, probe_count);
+    return check_launch(operation);
+}
+
+int gather_probes_on_stream(
+    Engine* engine,
+    uint32_t* output,
+    uint32_t probe_count,
+    cudaStream_t stream,
+    const char* operation) {
+    if (probe_count == 0) {
+        return 0;
+    }
+    const unsigned int blocks = (probe_count + THREADS - 1) / THREADS;
+    gather_spike_counts<<<blocks, THREADS, 0, stream>>>(
         engine->spike_counts, engine->probe_indices, output, probe_count);
     return check_launch(operation);
 }
@@ -625,6 +718,109 @@ int launch_tick_sparse(
     return 0;
 }
 
+void launch_tick_sparse_graph(
+    Engine* engine,
+    uint32_t event_step,
+    uint32_t event_capacity,
+    uint64_t absolute_step,
+    cudaStream_t stream) {
+    const unsigned int blocks = (engine->neuron_count + THREADS - 1) / THREADS;
+    const uint32_t ring_slot = absolute_step % engine->ring_size;
+    if (engine->delay_steps == 0) {
+        decay_threshold<<<blocks, THREADS, 0, stream>>>(
+            engine->voltage, engine->conductance, engine->refractory_remaining,
+            engine->spikes, engine->spike_counts, engine->neuron_count,
+            engine->resting_mv, engine->threshold_mv, engine->membrane_decay,
+            engine->synapse_decay, engine->coupling);
+        if (engine->chunked_propagation && engine->task_count != 0) {
+            const unsigned int task_blocks = (engine->task_count + THREADS - 1) / THREADS;
+            propagate_csr_chunked<<<task_blocks, THREADS, 0, stream>>>(
+                engine->task_sources, engine->task_starts, engine->task_ends,
+                engine->destinations, engine->signed_counts, engine->spikes,
+                engine->silenced_sources, engine->arrivals, engine->task_count);
+        } else {
+            propagate_csr<<<blocks, THREADS, 0, stream>>>(
+                engine->row_ptr, engine->destinations, engine->signed_counts,
+                engine->spikes, engine->silenced_sources, engine->arrivals,
+                engine->neuron_count);
+        }
+    } else {
+        const uint8_t* delayed = engine->spike_ring
+            + static_cast<size_t>(ring_slot) * engine->neuron_count;
+        if (engine->chunked_propagation) {
+            const uint32_t work_count = engine->task_count > engine->neuron_count
+                ? engine->task_count
+                : engine->neuron_count;
+            const unsigned int work_blocks = (work_count + THREADS - 1) / THREADS;
+            decay_threshold_propagate_delayed_chunked<<<work_blocks, THREADS, 0, stream>>>(
+                engine->voltage, engine->conductance, engine->refractory_remaining,
+                engine->spikes, engine->spike_counts, engine->task_sources,
+                engine->task_starts, engine->task_ends, engine->destinations,
+                engine->signed_counts, delayed, engine->silenced_sources,
+                engine->arrivals, engine->neuron_count, engine->task_count,
+                engine->resting_mv, engine->threshold_mv, engine->membrane_decay,
+                engine->synapse_decay, engine->coupling);
+        } else {
+            decay_threshold_propagate_delayed<<<blocks, THREADS, 0, stream>>>(
+                engine->voltage, engine->conductance, engine->refractory_remaining,
+                engine->spikes, engine->spike_counts, engine->row_ptr,
+                engine->destinations, engine->signed_counts, delayed,
+                engine->silenced_sources, engine->arrivals, engine->neuron_count,
+                engine->resting_mv, engine->threshold_mv, engine->membrane_decay,
+                engine->synapse_decay, engine->coupling);
+        }
+    }
+    if (event_capacity != 0) {
+        const unsigned int event_blocks = static_cast<unsigned int>(
+            (static_cast<uint64_t>(event_capacity) + THREADS - 1) / THREADS);
+        apply_external_sparse_step<<<event_blocks, THREADS, 0, stream>>>(
+            engine->voltage, engine->external_targets, engine->sparse_lanes,
+            engine->sparse_counts, engine->sparse_offsets, event_step,
+            engine->external_weight_mv);
+    }
+    reset_store<<<blocks, THREADS, 0, stream>>>(
+        engine->voltage, engine->conductance, engine->refractory_remaining,
+        engine->refractory_lengths, engine->spikes, engine->spike_ring,
+        engine->arrivals, engine->neuron_count, ring_slot, engine->reset_mv,
+        engine->synapse_weight_mv);
+}
+
+int ensure_sparse_graph(Engine* engine, uint32_t steps, uint32_t event_capacity) {
+    const uint32_t ring_slot = engine->step_index % engine->ring_size;
+    SparseGraphCache& cache = engine->sparse_graphs[ring_slot];
+    if (cache.executable != nullptr
+        && cache.steps == steps
+        && cache.event_capacity >= event_capacity) {
+        return 0;
+    }
+    destroy_sparse_graph(cache);
+    if (check(cudaStreamBeginCapture(engine->graph_stream, cudaStreamCaptureModeThreadLocal),
+              "begin sparse CUDA Graph capture")) return 1;
+    for (uint32_t step = 0; step < steps; ++step) {
+        launch_tick_sparse_graph(
+            engine, step, event_capacity, engine->step_index + step, engine->graph_stream);
+    }
+    if (check(cudaPeekAtLastError(), "capture sparse CUDA Graph kernels")) {
+        cudaStreamEndCapture(engine->graph_stream, &cache.graph);
+        destroy_sparse_graph(cache);
+        return 1;
+    }
+    if (check(cudaStreamEndCapture(engine->graph_stream, &cache.graph),
+              "end sparse CUDA Graph capture")) {
+        destroy_sparse_graph(cache);
+        return 1;
+    }
+    if (check(cudaGraphInstantiate(
+                  &cache.executable, cache.graph, nullptr, nullptr, 0),
+              "instantiate sparse CUDA Graph")) {
+        destroy_sparse_graph(cache);
+        return 1;
+    }
+    cache.steps = steps;
+    cache.event_capacity = event_capacity;
+    return 0;
+}
+
 }  // namespace
 
 extern "C" const char* flybrain_cuda_last_error() {
@@ -645,6 +841,7 @@ extern "C" int flybrain_cuda_create(
     const uint32_t* external_targets,
     uint32_t external_target_count,
     uint8_t chunked_propagation,
+    uint8_t graph_execution,
     uint32_t neuron_count,
     uint32_t delay_steps,
     float resting_mv,
@@ -666,6 +863,7 @@ extern "C" int flybrain_cuda_create(
     engine->neuron_count = neuron_count;
     engine->delay_steps = delay_steps;
     engine->ring_size = delay_steps == 0 ? 1 : delay_steps;
+    engine->sparse_graphs.resize(engine->ring_size);
     engine->resting_mv = resting_mv;
     engine->reset_mv = reset_mv;
     engine->threshold_mv = threshold_mv;
@@ -676,6 +874,7 @@ extern "C" int flybrain_cuda_create(
     engine->external_weight_mv = external_weight_mv;
     engine->external_target_count = external_target_count;
     engine->chunked_propagation = chunked_propagation != 0;
+    engine->graph_execution = graph_execution != 0;
 
     std::vector<uint32_t> task_sources;
     std::vector<uint32_t> task_starts;
@@ -699,6 +898,9 @@ extern "C" int flybrain_cuda_create(
     cudaDeviceProp properties{};
     if (check(cudaSetDevice(0), "select CUDA device")) goto failure;
     if (check(cudaGetDeviceProperties(&properties, 0), "query CUDA device")) goto failure;
+    if (engine->graph_execution
+        && check(cudaStreamCreateWithFlags(&engine->graph_stream, cudaStreamNonBlocking),
+                 "create CUDA Graph stream")) goto failure;
     engine->device_name = properties.name;
     if (allocate_copy(&engine->row_ptr, row_ptr, row_ptr_count, "upload row_ptr")) goto failure;
     if (allocate_copy(&engine->destinations, destinations, edge_count, "upload destinations")) goto failure;
@@ -821,12 +1023,17 @@ extern "C" int flybrain_cuda_run_sparse_probed(
     Engine* engine = static_cast<Engine*>(raw_engine);
     if (refresh_probes && reserve_probes(engine, probe_count)) goto failure;
     if (reserve_sparse_events(engine, event_count)) goto failure;
+    if (engine->graph_execution && steps != 0 && reserve_sparse_offsets(engine, steps)) goto failure;
     if (refresh_probes && probe_count != 0) {
         if (check(cudaMemcpy(engine->probe_indices, host_probes,
                              probe_count * sizeof(uint32_t), cudaMemcpyHostToDevice),
                   "upload probe indices")) goto failure;
-        if (gather_probes(engine, engine->probe_before, probe_count,
-                          "launch gather probe counts before window")) goto failure;
+        if (engine->graph_execution) {
+            if (gather_probes_on_stream(engine, engine->probe_before, probe_count,
+                                        engine->graph_stream,
+                                        "launch gather probe counts before window")) goto failure;
+        } else if (gather_probes(engine, engine->probe_before, probe_count,
+                                 "launch gather probe counts before window")) goto failure;
     }
     if (event_count != 0) {
         if (check(cudaMemcpy(engine->sparse_lanes, host_lanes,
@@ -836,14 +1043,39 @@ extern "C" int flybrain_cuda_run_sparse_probed(
                              event_count * sizeof(uint8_t), cudaMemcpyHostToDevice),
                   "upload sparse counts")) goto failure;
     }
-    for (uint32_t step = 0; step < steps; ++step) {
-        const uint32_t offset = host_offsets[step];
-        const uint32_t step_event_count = host_offsets[step + 1] - offset;
-        if (launch_tick_sparse(engine, engine->external_targets, engine->sparse_lanes,
-                               engine->sparse_counts, offset, step_event_count)) goto failure;
+    if (engine->graph_execution) {
+        if (steps != 0) {
+            uint32_t max_step_events = 0;
+            for (uint32_t step = 0; step < steps; ++step) {
+                const uint32_t step_events = host_offsets[step + 1] - host_offsets[step];
+                max_step_events = step_events > max_step_events ? step_events : max_step_events;
+            }
+            if (check(cudaMemcpy(engine->sparse_offsets, host_offsets,
+                                 (static_cast<size_t>(steps) + 1) * sizeof(uint32_t),
+                                 cudaMemcpyHostToDevice),
+                      "upload sparse step offsets")) goto failure;
+            if (ensure_sparse_graph(engine, steps, max_step_events)) goto failure;
+            const uint32_t ring_slot = engine->step_index % engine->ring_size;
+            if (check(cudaGraphLaunch(
+                          engine->sparse_graphs[ring_slot].executable, engine->graph_stream),
+                      "launch sparse CUDA Graph")) goto failure;
+            engine->step_index += steps;
+        }
+        if (gather_probes_on_stream(engine, engine->probe_after, probe_count,
+                                    engine->graph_stream,
+                                    "launch gather probe counts after window")) goto failure;
+        if (check(cudaStreamSynchronize(engine->graph_stream),
+                  "synchronize sparse CUDA Graph window")) goto failure;
+    } else {
+        for (uint32_t step = 0; step < steps; ++step) {
+            const uint32_t offset = host_offsets[step];
+            const uint32_t step_event_count = host_offsets[step + 1] - offset;
+            if (launch_tick_sparse(engine, engine->external_targets, engine->sparse_lanes,
+                                   engine->sparse_counts, offset, step_event_count)) goto failure;
+        }
+        if (gather_probes(engine, engine->probe_after, probe_count,
+                          "launch gather probe counts after window")) goto failure;
     }
-    if (gather_probes(engine, engine->probe_after, probe_count,
-                      "launch gather probe counts after window")) goto failure;
     if (refresh_probes && probe_count != 0) {
         if (check(cudaMemcpy(host_before, engine->probe_before,
                              probe_count * sizeof(uint32_t), cudaMemcpyDeviceToHost),

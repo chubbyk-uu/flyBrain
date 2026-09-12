@@ -1275,6 +1275,16 @@ impl SimulationStepper {
         self.brain.as_ref().map(BrainBodyBridge::allocated_bytes)
     }
 
+    pub fn brain_propagation_mode(&self) -> Option<&str> {
+        self.brain.as_ref().map(BrainBodyBridge::propagation_mode)
+    }
+
+    pub fn brain_sparse_execution_mode(&self) -> Option<&str> {
+        self.brain
+            .as_ref()
+            .map(BrainBodyBridge::sparse_execution_mode)
+    }
+
     pub fn brain_model_name(&self) -> Option<&'static str> {
         self.brain.as_ref().map(BrainBodyBridge::model_name)
     }

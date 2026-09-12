@@ -1,6 +1,7 @@
 use std::ffi::{CStr, c_char};
 use std::mem::{size_of, size_of_val};
 use std::ptr::NonNull;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
@@ -32,6 +33,7 @@ pub struct CudaWindow {
 
 pub type CudaWindowResult = CudaWindow;
 type StateCopy = (Vec<u8>, Vec<u32>, Vec<f32>, Vec<f32>);
+static CUDA_CALL_LOCK: Mutex<()> = Mutex::new(());
 
 #[repr(C)]
 struct RawCudaEngine {
@@ -61,6 +63,7 @@ unsafe extern "C" {
         external_targets: *const u32,
         external_target_count: u32,
         chunked_propagation: u8,
+        graph_execution: u8,
         neuron_count: u32,
         delay_steps: u32,
         resting_mv: f32,
@@ -114,11 +117,13 @@ pub struct CudaEngine {
     raw: NonNull<RawCudaEngine>,
     device_name: String,
     propagation_mode: &'static str,
+    execution_mode: &'static str,
     neuron_count: usize,
     external_targets: Vec<u32>,
     allocated_bytes: usize,
     probe_capacity: usize,
     sparse_event_capacity: usize,
+    sparse_step_capacity: usize,
     cached_probe_indices: Vec<u32>,
     cached_probe_counts: Vec<u32>,
 }
@@ -179,7 +184,18 @@ impl CudaEngine {
         } else {
             0
         };
-        let status = unsafe {
+        let graph_execution = match std::env::var("FLYBRAIN_CUDA_EXECUTION") {
+            Ok(value) if value == "graph" => true,
+            Ok(value) if value == "direct" => false,
+            Ok(value) => {
+                bail!("unsupported FLYBRAIN_CUDA_EXECUTION={value:?}; expected direct or graph")
+            }
+            Err(std::env::VarError::NotPresent) => false,
+            Err(error) => return Err(error).context("reading FLYBRAIN_CUDA_EXECUTION"),
+        };
+        let external_target_count =
+            u32::try_from(zero_refractory.len()).context("external target count overflow")?;
+        let status = with_cuda_lock(|| unsafe {
             flybrain_cuda_create(
                 &mut raw,
                 connectome.row_ptr.as_ptr(),
@@ -192,8 +208,9 @@ impl CudaEngine {
                 initial_conductance.as_ptr(),
                 refractory_lengths.as_ptr(),
                 zero_refractory.as_ptr(),
-                u32::try_from(zero_refractory.len()).context("external target count overflow")?,
+                external_target_count,
                 u8::from(chunked_propagation),
+                u8::from(graph_execution),
                 neuron_count_u32,
                 delay_steps,
                 parameters.resting_mv as f32,
@@ -205,7 +222,7 @@ impl CudaEngine {
                 parameters.synapse_weight_mv as f32,
                 parameters.external_weight_mv as f32,
             )
-        };
+        });
         check_cuda(status)?;
         let raw = NonNull::new(raw).context("CUDA constructor returned a null engine")?;
         let device_name = unsafe {
@@ -235,6 +252,7 @@ impl CudaEngine {
             } else {
                 "source-serial"
             },
+            execution_mode: if graph_execution { "graph" } else { "direct" },
             neuron_count,
             external_targets: zero_refractory.to_vec(),
             allocated_bytes: allocated_bytes
@@ -243,6 +261,7 @@ impl CudaEngine {
                 + propagation_task_count * 3 * size_of::<u32>(),
             probe_capacity: 0,
             sparse_event_capacity: 0,
+            sparse_step_capacity: 0,
             cached_probe_indices: Vec::new(),
             cached_probe_counts: Vec::new(),
         })
@@ -260,7 +279,7 @@ impl CudaEngine {
             u32::try_from(schedule.targets().len()).context("target count overflow")?;
         let chunk_steps = u32::try_from(chunk_steps.max(1)).context("chunk size overflow")?;
         let started = Instant::now();
-        check_cuda(unsafe {
+        check_cuda(with_cuda_lock(|| unsafe {
             flybrain_cuda_run_dense(
                 self.raw.as_ptr(),
                 schedule.targets().as_ptr(),
@@ -269,7 +288,7 @@ impl CudaEngine {
                 steps,
                 chunk_steps,
             )
-        })?;
+        }))?;
         let elapsed = started.elapsed();
         let (_, spike_counts, voltage_mv, conductance_mv) = self.copy_state()?;
         Ok(CudaRun {
@@ -289,7 +308,7 @@ impl CudaEngine {
         for step in 0..schedule.steps() {
             let start = step * schedule.targets().len();
             let end = start + schedule.targets().len();
-            check_cuda(unsafe {
+            check_cuda(with_cuda_lock(|| unsafe {
                 flybrain_cuda_run_dense(
                     self.raw.as_ptr(),
                     schedule.targets().as_ptr(),
@@ -298,7 +317,7 @@ impl CudaEngine {
                     1,
                     1,
                 )
-            })?;
+            }))?;
             let (spikes, _, voltage_mv, conductance_mv) = self.copy_state()?;
             trace.push(CudaStep {
                 spikes,
@@ -323,7 +342,7 @@ impl CudaEngine {
         let target_count =
             u32::try_from(schedule.targets().len()).context("target count overflow")?;
         let started = Instant::now();
-        check_cuda(unsafe {
+        check_cuda(with_cuda_lock(|| unsafe {
             flybrain_cuda_run_dense(
                 self.raw.as_ptr(),
                 schedule.targets().as_ptr(),
@@ -332,7 +351,7 @@ impl CudaEngine {
                 steps,
                 steps.max(1),
             )
-        })?;
+        }))?;
         let elapsed = started.elapsed();
         let after_counts = self.spike_counts()?;
         window_result(before, probe_counts(&after_counts, probe_neurons), elapsed)
@@ -359,7 +378,7 @@ impl CudaEngine {
         };
         let mut after = vec![0; probe_neurons.len()];
         let started = Instant::now();
-        check_cuda(unsafe {
+        check_cuda(with_cuda_lock(|| unsafe {
             flybrain_cuda_run_sparse_probed(
                 self.raw.as_ptr(),
                 step_offsets.as_ptr(),
@@ -377,7 +396,7 @@ impl CudaEngine {
                 },
                 after.as_mut_ptr(),
             )
-        })?;
+        }))?;
         let elapsed = started.elapsed();
         if probe_neurons.len() > self.probe_capacity {
             self.allocated_bytes +=
@@ -388,6 +407,13 @@ impl CudaEngine {
             self.allocated_bytes +=
                 (lanes.len() - self.sparse_event_capacity) * (size_of::<u32>() + size_of::<u8>());
             self.sparse_event_capacity = lanes.len();
+        }
+        if self.execution_mode == "graph" && steps > self.sparse_step_capacity {
+            self.allocated_bytes += (steps - self.sparse_step_capacity) * size_of::<u32>();
+            if self.sparse_step_capacity == 0 {
+                self.allocated_bytes += size_of::<u32>();
+            }
+            self.sparse_step_capacity = steps;
         }
         if refresh_probes {
             self.cached_probe_indices = probe_neurons.to_vec();
@@ -402,6 +428,10 @@ impl CudaEngine {
 
     pub fn propagation_mode(&self) -> &str {
         self.propagation_mode
+    }
+
+    pub fn sparse_execution_mode(&self) -> &str {
+        self.execution_mode
     }
 
     pub fn allocated_bytes(&self) -> usize {
@@ -478,7 +508,7 @@ impl CudaEngine {
         let mut spike_counts = vec![0; self.neuron_count];
         let mut voltage = vec![0.0; self.neuron_count];
         let mut conductance = vec![0.0; self.neuron_count];
-        check_cuda(unsafe {
+        check_cuda(with_cuda_lock(|| unsafe {
             flybrain_cuda_copy_state(
                 self.raw.as_ptr(),
                 spikes.as_mut_ptr(),
@@ -486,7 +516,7 @@ impl CudaEngine {
                 voltage.as_mut_ptr(),
                 conductance.as_mut_ptr(),
             )
-        })?;
+        }))?;
         Ok((spikes, spike_counts, voltage, conductance))
     }
 
@@ -494,14 +524,14 @@ impl CudaEngine {
         let mut total_spikes = 0;
         let mut active_neurons = 0;
         let mut voltage_sum = 0.0;
-        check_cuda(unsafe {
+        check_cuda(with_cuda_lock(|| unsafe {
             flybrain_cuda_read_metrics(
                 self.raw.as_ptr(),
                 &mut total_spikes,
                 &mut active_neurons,
                 &mut voltage_sum,
             )
-        })?;
+        }))?;
         Ok((total_spikes, active_neurons as usize, voltage_sum))
     }
 
@@ -533,8 +563,15 @@ fn probe_counts(counts: &[u32], probes: &[u32]) -> Vec<u32> {
 
 impl Drop for CudaEngine {
     fn drop(&mut self) {
-        unsafe { flybrain_cuda_destroy(self.raw.as_ptr()) };
+        with_cuda_lock(|| unsafe { flybrain_cuda_destroy(self.raw.as_ptr()) });
     }
+}
+
+fn with_cuda_lock<T>(call: impl FnOnce() -> T) -> T {
+    let _guard = CUDA_CALL_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    call()
 }
 
 fn check_cuda(status: i32) -> Result<()> {

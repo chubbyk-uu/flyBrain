@@ -197,6 +197,10 @@ fn cuda_sparse_dense_and_split_windows_are_exactly_equal() {
     let sparse_state = sparse_engine
         .run_schedule(&EventSchedule::empty(0, 2), 1)
         .unwrap();
+    let empty_window = sparse_engine
+        .run_window_sparse(0, &[0], &[], &[], &[0, 1])
+        .unwrap();
+    assert_eq!(empty_window.spike_count_deltas, [0, 0]);
 
     let mut split_engine =
         CudaEngine::new(&connectome, parameters, None, None, &[0, 1], &[]).unwrap();

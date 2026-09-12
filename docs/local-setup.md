@@ -50,6 +50,20 @@ cargo build --lib --features cuda
 cargo test --lib --features cuda cuda_engine::tests -- --nocapture
 ```
 
+The native sparse closed-loop path uses the stable direct CUDA submission mode by
+default. The measured CUDA Graph experiment is opt-in and keeps direct mode as a
+fallback:
+
+```bash
+FLYBRAIN_CUDA_EXECUTION=graph target/release/flybrain-world cns-check \
+  --duration-seconds 1 --control-hz 500 --settle-seconds 0 \
+  --output outputs/cuda/cns-graph-check.json
+```
+
+Accepted values are `direct` and `graph`. Graph currently improves only the neural
+portion slightly and is not the default; see the
+[experiment report](cuda-graph-experiment-2026-09-12.md).
+
 For a short native WSLg viewer run:
 
 ```bash

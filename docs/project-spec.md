@@ -62,7 +62,7 @@ CUDA 验证之后，用户要求重绘更小的室内世界、改善果蝇外观
 |---|---|---|
 | Windows 浏览器 | Rust/MuJoCo WASM + WebGPU 神经计算 + 浏览器显示 | Windows Chrome/RTX 5080 完整 CNS 基线已通过，Edge 未单独测量 |
 | macOS 原生 | Rust + Metal + MuJoCo/GLFW | 保留上游路径 |
-| Linux/WSL2 原生 | 原生 Rust + CUDA + 原生 MuJoCo + 同一世界/身体资产 | 待实现及验收 |
+| Linux/WSL2 原生 | 原生 Rust + CUDA + 原生 MuJoCo + 同一世界/身体资产 | 已接入并通过基础门控；长程行为门控待完成 |
 
 浏览器优先使用 Windows 侧 Chrome/Edge；WSL 可只运行本地静态服务器。
 浏览器版不需要 CUDA Toolkit。源码重建才需要上游固定的 Emscripten 4.0.10 和
@@ -109,7 +109,7 @@ CSR 和神经状态常驻设备显存。使用有序 CUDA stream 批量提交窗
    chunk/sparse/split-window parity 已通过；完整 MaleCNS 的 15 个固定输入 case、关键群体
    和既有实验门控也已通过预注册验收。见 [CUDA 核心阶段报告](cuda-engine-stage-2026-09-12.md)
    与 [完整 CNS CUDA 报告](cuda-full-cns-stage-2026-09-12.md)。
-4. 原生世界接入与实验回归（进行中）：保持原世界/映射，CUDA 已接入原生 MuJoCo，
+4. 原生世界接入与实验回归（基础接入及性能阶段已完成，长程门控待完成）：保持原世界/映射，CUDA 已接入原生 MuJoCo，
    不经过浏览器/WASM；2 秒 `cns-check` 成对门控、无感官输入、运动/嗅觉断连和
    WSLg viewer 已通过。bridge 已改为设备端 probe/telemetry 小读回并复用 CUDA 临时
    缓冲区；固定 probe 也已跨窗口缓存，50 ms profile 的 CUDA copy 调用从 154 次降至
@@ -118,13 +118,15 @@ CSR 和神经状态常驻设备显存。使用有序 CUDA stream 批量提交窗
    256-edge chunked CSR propagation；1 秒复测的 neural engine 达到约 `2.40×` 实时，
    完整闭环达到约 `0.800×`，且完整 CNS 与 world gate 均保持一致。重新 profile 后，
    1 秒窗口中 physics/flight loop 中位数约 `0.754 s`、brain wall 约 `0.513 s`，其余
-   bridge/控制约 `0.009 s`；下一步只实验保持 tick 顺序的 CUDA Graph，再运行较长
-   取食/嗅觉门控。见
+   bridge/控制约 `0.009 s`。保持 tick 顺序的 CUDA Graph 实验在 5 秒测试中仅令 neural
+   engine 中位数快约 `4.2%`，完整闭环没有改善，因此保留为 opt-in、继续以 direct 为
+   默认；下一步运行较长取食/嗅觉门控并剖析原生 physics/flight loop。见
    [原生接入报告](native-cuda-mujoco-stage-2026-09-12.md)与
    [CUDA 闭环传输优化报告](cuda-native-transfer-optimization-stage-2026-09-12.md)、
    [probe 缓存与瓶颈复测报告](cuda-native-probe-cache-stage-2026-09-12.md)、
    [chunked CSR propagation 报告](cuda-chunked-propagation-stage-2026-09-12.md)、
-   [原生闭环组件分项报告](native-closed-loop-component-profile-2026-09-12.md)。
+   [原生闭环组件分项报告](native-closed-loop-component-profile-2026-09-12.md)、
+   [CUDA Graph 实验报告](cuda-graph-experiment-2026-09-12.md)。
 5. 新世界与果蝇呈现（后续）：更小的室内场景、外观改进、翼运动诊断与相应修正。
 6. 神经驱动清洁行为（后续）：前足相互搓擦、头部和复眼清洁，验证通路与身体协调。
 
@@ -218,9 +220,9 @@ MaleCNS 已具备相应花香识别，也不让控制器直接读取食物坐标
 2026-09-12 的后续顺序为：CUDA bridge 读回优化及长程原生世界回归 →
 新室内世界/果蝇外观/翼运动 → 神经驱动搓脚与头眼清洁。
 当前 CUDA 已接 `BrainBodyBridge` 和原生 MuJoCo/world；2 秒成对门控通过，且没有修改
-数据、映射、行为或模型参数。隔离 intact 神经回放初测平均约 `1.23×` 实时，但首版
-兼容 bridge 闭环只有约 `0.271×`，全状态读回优化尚未完成。后续仍只使用原生 MuJoCo，
-不使用浏览器/WASM 物理。
+数据、映射、行为或模型参数。设备端 probe、缓冲复用、probe 缓存和 chunked propagation
+已经完成；5 秒 direct 闭环中位数约 `0.828×` 实时。CUDA Graph 仅小幅改善神经侧，
+不设为默认。后续仍只使用原生 MuJoCo，不使用浏览器/WASM 物理。
 本机检查与环境恢复记录见 [环境检查记录](environment-check-2026-09-12.md)。
 历史上游测试结果以原文档为准，不标为本机通过。后续阶段结果单独记录日期、版本、
 输入哈希、命令及通过/失败/未执行状态，再更新本规范的进度描述。

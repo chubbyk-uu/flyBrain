@@ -577,6 +577,8 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
             "sensory_inputs_connected": !options.disconnect_sensory_inputs,
             "olfactory_evoked_inputs_connected": !options.disconnect_sensory_inputs && !options.disconnect_olfactory_evoked_inputs,
             "odor_guidance_enabled": parameters.odor_guidance.enabled,
+            "propagation_mode": simulation.brain_propagation_mode(),
+            "sparse_execution_mode": simulation.brain_sparse_execution_mode(),
             "allocated_bytes": simulation.brain_allocated_bytes()},
         "pack": options.pack,
         "duration_seconds": options.duration_seconds, "control_hz": options.control_hz,
