@@ -452,6 +452,26 @@ impl SimulationStepper {
         parameters: SimulationParameters,
         physics_timestep_seconds: Option<f64>,
     ) -> Result<Self> {
+        Self::new_with_parameters_physics_and_scene(
+            assets,
+            pack_path,
+            control_hz,
+            settle_seconds,
+            parameters,
+            physics_timestep_seconds,
+            crate::scene_layout::LEGACY_SCENE_ID,
+        )
+    }
+
+    pub fn new_with_parameters_physics_and_scene(
+        assets: impl AsRef<Path>,
+        pack_path: Option<impl AsRef<Path>>,
+        control_hz: f64,
+        settle_seconds: f64,
+        parameters: SimulationParameters,
+        physics_timestep_seconds: Option<f64>,
+        scene_selection: &str,
+    ) -> Result<Self> {
         let parameters = parameters.validate()?;
         let physics_profile_enabled = match std::env::var("FLYBRAIN_PROFILE_PHYSICS") {
             Ok(value) if value == "1" => true,
@@ -464,12 +484,21 @@ impl SimulationStepper {
             bail!("settle_seconds must be finite and non-negative")
         }
         let assets = assets.as_ref();
-        let mut world = MuJoCoWorld::from_assets_dir(assets)?;
+        let mut world = MuJoCoWorld::from_assets_dir_and_scene(assets, scene_selection)?;
         if let Some(timestep) = physics_timestep_seconds {
             world.set_timestep_seconds(timestep)?;
         }
         let gait = GaitLibrary::open(assets.join("tripod_gait.json"))?;
-        let habitat = Habitat::load(assets)?;
+        let habitat = match world.metadata().scene.as_ref() {
+            Some(scene) => Habitat::load_path(
+                scene
+                    .source
+                    .parent()
+                    .unwrap_or(assets)
+                    .join(&scene.habitat_file),
+            )?,
+            None => Habitat::load(assets)?,
+        };
         let flight =
             FlightRuntime::new_with_parameters(assets, &world, parameters.flight_dynamics)?;
         let obstacle_sample = world.obstacle_sample(180.0)?;

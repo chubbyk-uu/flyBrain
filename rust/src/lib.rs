@@ -83,6 +83,13 @@ pub mod retina;
     target_os = "emscripten",
     all(target_os = "linux", feature = "cuda")
 ))]
+pub mod scene_layout;
+
+#[cfg(any(
+    target_os = "macos",
+    target_os = "emscripten",
+    all(target_os = "linux", feature = "cuda")
+))]
 pub mod world_sim;
 
 #[cfg(any(target_os = "macos", all(target_os = "linux", feature = "cuda")))]

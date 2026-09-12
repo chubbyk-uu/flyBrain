@@ -57,13 +57,14 @@ impl Worker {
                     .map(SimulationParameters::load)
                     .transpose()?
                     .unwrap_or_default();
-                let mut simulation = SimulationStepper::new_with_parameters_and_physics_timestep(
+                let mut simulation = SimulationStepper::new_with_parameters_physics_and_scene(
                     &options.assets,
                     options.with_brain.then_some(options.pack.as_path()),
                     options.control_hz,
                     options.settle_seconds,
                     parameters,
                     options.physics_dt_ms.map(|value| value / 1000.0),
+                    &options.scene,
                 )?;
                 simulation.place_food_ahead(options.start_food_distance)?;
                 simulation.set_brain_telemetry_enabled(
@@ -286,6 +287,7 @@ mod tests {
     fn options() -> ViewOptions {
         ViewOptions {
             assets: DEFAULT_ASSETS_DIR.into(),
+            scene: "legacy".into(),
             pack: "outputs/packs/male_cns_v1".into(),
             width: 640,
             height: 480,

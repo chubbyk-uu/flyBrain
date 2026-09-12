@@ -3,10 +3,11 @@ use std::path::Path;
 use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
-use mujoco_rs::prelude::{MjData, MjModel, MjtDisableBit, MjtEnableBit, MjtObj};
+use mujoco_rs::prelude::{MjData, MjModel, MjSpec, MjtDisableBit, MjtEnableBit, MjtObj};
 use serde::Deserialize;
 
 use crate::embodiment::{JOINTS_PER_LEG, LEG_COUNT, SensorySample, SixLegVncCommand};
+use crate::scene_layout::{SceneLayout, SceneMetadata};
 
 pub const DEFAULT_ASSETS_DIR: &str = "assets/neuromechfly";
 pub const DEFAULT_MODEL_PATH: &str = "assets/neuromechfly/fly.xml";
@@ -168,6 +169,7 @@ pub struct WorldMetadata {
     pub counts: WorldCounts,
     pub environment: WorldEnvironment,
     pub brain_body_interface: BrainBodyInterface,
+    pub scene: Option<SceneMetadata>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -331,15 +333,51 @@ impl MuJoCoWorld {
         Self::load(dir.join("fly.xml"), dir.join("manifest.json"))
     }
 
+    pub fn from_assets_dir_and_scene(
+        path: impl AsRef<Path>,
+        scene_selection: &str,
+    ) -> Result<Self> {
+        let dir = path.as_ref();
+        let scene_path = SceneLayout::resolve(dir, scene_selection)?;
+        match scene_path {
+            None => Self::from_assets_dir(dir),
+            Some(scene_path) => {
+                let (layout, metadata) = SceneLayout::load(&scene_path)?;
+                let model_path = dir.join("fly.xml");
+                let mut spec = MjSpec::from_xml(&model_path)
+                    .with_context(|| format!("loading MuJoCo spec {}", model_path.display()))?;
+                layout.apply(&mut spec)?;
+                let model = spec
+                    .compile()
+                    .with_context(|| format!("compiling scene layout {}", scene_path.display()))?;
+                Self::load_model(model, dir.join("manifest.json"), Some(metadata))
+            }
+        }
+    }
+
     pub fn load(model_path: impl AsRef<Path>, manifest_path: impl AsRef<Path>) -> Result<Self> {
         let model_path = model_path.as_ref();
         let manifest_path = manifest_path.as_ref();
-        let manifest = load_manifest(manifest_path)?;
         let model = MjModel::from_xml(model_path)
             .with_context(|| format!("loading MuJoCo model {}", model_path.display()))?;
+        Self::load_model(model, manifest_path, None)
+    }
+
+    fn load_model(
+        model: MjModel,
+        manifest_path: impl AsRef<Path>,
+        scene: Option<SceneMetadata>,
+    ) -> Result<Self> {
+        let manifest_path = manifest_path.as_ref();
+        let manifest = load_manifest(manifest_path)?;
         let counts = model_counts(&model);
         validate_manifest(&manifest, &model, counts)?;
 
+        let environment_food_center = scene
+            .as_ref()
+            .map_or(manifest.environment.food_center, |scene| {
+                scene.food_center_mm
+            });
         let metadata = WorldMetadata {
             schema: manifest.schema,
             model: manifest.model,
@@ -347,7 +385,7 @@ impl MuJoCoWorld {
             timestep_seconds: manifest.timestep_seconds,
             counts,
             environment: WorldEnvironment {
-                food_center: manifest.environment.food_center,
+                food_center: environment_food_center,
                 taste_radius: manifest.environment.taste_radius,
                 taste_source_body: manifest.environment.taste_source_body,
             },
@@ -360,6 +398,7 @@ impl MuJoCoWorld {
                 full_extension_control: manifest.brain_body_interface.full_extension_control,
                 neural_readout: manifest.brain_body_interface.neural_readout,
             },
+            scene,
         };
         let neutral_qpos = manifest.neutral_qpos.into_boxed_slice();
         let neutral_control: [f64; ACTUATOR_COUNT] = manifest
@@ -1608,6 +1647,46 @@ mod tests {
                 .name_to_id(MjtObj::mjOBJ_GEOM, name)
                 .expect("closed room surface is present");
             assert_eq!(world.model().geom_conaffinity()[geom_id], 1);
+        }
+    }
+
+    #[test]
+    fn small_room_scene_preserves_body_contract_and_resource_alignment() {
+        let world = MuJoCoWorld::from_assets_dir_and_scene(DEFAULT_ASSETS_DIR, "small-room-v1")
+            .expect("small room scene should compile");
+        let scene = world.metadata().scene.as_ref().unwrap();
+        assert_eq!(scene.id, "small-room-v1");
+        assert_eq!(scene.schema, "flybrain-scene-layout-v1");
+        assert_eq!(scene.sha256.len(), 64);
+        assert_eq!(world.counts().qpos, 133);
+        assert_eq!(world.counts().dofs, 132);
+        assert_eq!(world.counts().bodies, 71);
+        assert_eq!(world.counts().joints, 127);
+        assert_eq!(world.counts().actuators, 56);
+
+        for name in &scene.active_geoms {
+            let id = world
+                .model()
+                .name_to_id(MjtObj::mjOBJ_GEOM, name)
+                .unwrap_or_else(|| panic!("active scene geom {name} is missing"));
+            let center = world.data().geom_xpos()[id];
+            assert!(center[0].abs() <= 160.0);
+            assert!(center[1].abs() <= 120.0);
+            assert!((0.0..=150.0).contains(&center[2]));
+        }
+        for (name, expected) in [
+            ("food_patch", [45.0, 15.0, 32.5]),
+            ("resource_nectar", [-65.0, 42.0, 46.2]),
+        ] {
+            let id = world.model().name_to_id(MjtObj::mjOBJ_GEOM, name).unwrap();
+            let actual = world.data().geom_xpos()[id];
+            assert!(
+                actual
+                    .iter()
+                    .zip(expected)
+                    .all(|(actual, expected)| (actual - expected).abs() <= 1e-9),
+                "{name} center differs: {actual:?}"
+            );
         }
     }
 

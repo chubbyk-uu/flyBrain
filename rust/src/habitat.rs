@@ -88,7 +88,12 @@ pub struct HabitatSample {
 impl Habitat {
     pub fn load(assets_dir: impl AsRef<Path>) -> Result<Self> {
         let path = assets_dir.as_ref().join(HABITAT_FILE);
-        let bytes = fs::read(&path)
+        Self::load_path(path)
+    }
+
+    pub fn load_path(path: impl AsRef<Path>) -> Result<Self> {
+        let path = path.as_ref();
+        let bytes = fs::read(path)
             .with_context(|| format!("reading habitat specification {}", path.display()))?;
         let habitat: Self = serde_json::from_slice(&bytes)
             .with_context(|| format!("parsing habitat specification {}", path.display()))?;

@@ -41,10 +41,14 @@ enum Command {
     Inspect {
         #[arg(long, default_value = DEFAULT_ASSETS_DIR)]
         assets: PathBuf,
+        #[arg(long, default_value = "legacy")]
+        scene: String,
     },
     Verify {
         #[arg(long, default_value = DEFAULT_ASSETS_DIR)]
         assets: PathBuf,
+        #[arg(long, default_value = "legacy")]
+        scene: String,
         #[arg(long, default_value_t = 1000)]
         steps: usize,
     },
@@ -156,6 +160,8 @@ enum Command {
     View {
         #[arg(long, default_value = DEFAULT_ASSETS_DIR)]
         assets: PathBuf,
+        #[arg(long, default_value = "legacy")]
+        scene: String,
         #[arg(long, default_value = "outputs/packs/male_cns_v1")]
         pack: PathBuf,
         #[arg(long, default_value_t = 1280)]
@@ -192,6 +198,8 @@ enum Command {
     WebView {
         #[arg(long, default_value = DEFAULT_ASSETS_DIR)]
         assets: PathBuf,
+        #[arg(long, default_value = "legacy")]
+        scene: String,
         #[arg(long, default_value = "outputs/packs/male_cns_v1")]
         pack: PathBuf,
         #[arg(long, default_value_t = 30)]
@@ -221,8 +229,12 @@ enum Command {
 fn main() -> Result<()> {
     match Cli::parse().command {
         Command::CnsCheck(options) => cns_world_check(options),
-        Command::Inspect { assets } => inspect(assets),
-        Command::Verify { assets, steps } => verify(assets, steps),
+        Command::Inspect { assets, scene } => inspect(assets, &scene),
+        Command::Verify {
+            assets,
+            scene,
+            steps,
+        } => verify(assets, &scene, steps),
         Command::FlightCheck {
             assets,
             duration_seconds,
@@ -313,6 +325,7 @@ fn main() -> Result<()> {
         }),
         Command::View {
             assets,
+            scene,
             pack,
             width,
             height,
@@ -330,6 +343,7 @@ fn main() -> Result<()> {
             parameters,
         } => view_world(ViewOptions {
             assets,
+            scene,
             pack,
             width,
             height,
@@ -348,6 +362,7 @@ fn main() -> Result<()> {
         }),
         Command::WebView {
             assets,
+            scene,
             pack,
             publish_hz,
             bind,
@@ -362,6 +377,7 @@ fn main() -> Result<()> {
         } => web_view_world(
             ViewOptions {
                 assets,
+                scene,
                 pack,
                 width: 1,
                 height: 1,
@@ -387,6 +403,8 @@ fn main() -> Result<()> {
 struct CnsCheckOptions {
     #[arg(long, default_value = DEFAULT_ASSETS_DIR)]
     assets: PathBuf,
+    #[arg(long, default_value = "legacy")]
+    scene: String,
     #[arg(long, default_value = "outputs/packs/male_cns_v1")]
     pack: PathBuf,
     #[arg(long, default_value_t = 10.0)]
@@ -450,13 +468,14 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         parameters.brain.flight_state_input_rate_hz = 0.0;
     }
     let physics_timestep_seconds = options.physics_dt_ms.map(|value| value / 1000.0);
-    let mut simulation = SimulationStepper::new_with_parameters_and_physics_timestep(
+    let mut simulation = SimulationStepper::new_with_parameters_physics_and_scene(
         &options.assets,
         Some(&options.pack),
         options.control_hz,
         options.settle_seconds,
         parameters,
         physics_timestep_seconds,
+        &options.scene,
     )?;
     if simulation.brain_materialization()
         != Some(flybrain_engine::neural_io::MALE_CNS_MATERIALIZATION)
@@ -743,6 +762,7 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
 
 struct ViewOptions {
     assets: PathBuf,
+    scene: String,
     pack: PathBuf,
     width: u32,
     height: u32,
@@ -1183,8 +1203,8 @@ fn validate_view_options(options: &ViewOptions) -> Result<()> {
     Ok(())
 }
 
-fn inspect(assets: PathBuf) -> Result<()> {
-    let world = MuJoCoWorld::from_assets_dir(&assets)?;
+fn inspect(assets: PathBuf, scene: &str) -> Result<()> {
+    let world = MuJoCoWorld::from_assets_dir_and_scene(&assets, scene)?;
     let gait = GaitLibrary::open(assets.join("tripod_gait.json"))?;
     let metadata = world.metadata();
     println!(
@@ -1193,6 +1213,16 @@ fn inspect(assets: PathBuf) -> Result<()> {
             "schema": metadata.schema,
             "model": metadata.model,
             "physics": metadata.physics,
+            "scene": metadata.scene.as_ref().map(|scene| json!({
+                "id": scene.id,
+                "schema": scene.schema,
+                "sha256": scene.sha256,
+                "source": scene.source,
+                "habitat_file": scene.habitat_file,
+                "room_half_extents_mm": scene.room_half_extents_mm,
+                "food_center_mm": scene.food_center_mm,
+                "active_geoms": scene.active_geoms,
+            })),
             "timestep_seconds": metadata.timestep_seconds,
             "counts": {
                 "qpos": metadata.counts.qpos,
@@ -1228,11 +1258,11 @@ fn inspect(assets: PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn verify(assets: PathBuf, steps: usize) -> Result<()> {
+fn verify(assets: PathBuf, scene: &str, steps: usize) -> Result<()> {
     if steps == 0 {
         bail!("verification steps must be positive")
     }
-    let mut world = MuJoCoWorld::from_assets_dir(&assets)?;
+    let mut world = MuJoCoWorld::from_assets_dir_and_scene(&assets, scene)?;
     for _ in 0..steps {
         world.step()?;
     }
