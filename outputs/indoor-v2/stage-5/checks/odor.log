@@ -1,0 +1,16 @@
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running unittests rust/src/lib.rs (target/release/deps/flybrain_engine-5e565c1aea0f2528)
+
+running 10 tests
+test odor_guidance::tests::acquisition_height_is_held_despite_transient_odor_or_height_changes ... ok
+test odor_guidance::tests::acquisition_waits_for_the_neural_filter_before_steering_or_landing ... ok
+test odor_guidance::tests::active_accessor_tracks_acquisition_and_reset ... ok
+test odor_guidance::tests::baseline_and_disconnected_outputs_cannot_guide_motion ... ok
+test odor_guidance::tests::directional_evidence_is_averaged_before_motor_saturation ... ok
+test odor_guidance::tests::eligibility_and_disabled_state_reset_guidance ... ok
+test odor_guidance::tests::insufficient_observation_time_cannot_acquire_odor ... ok
+test odor_guidance::tests::enter_and_release_thresholds_have_hysteresis ... ok
+test odor_guidance::tests::landing_context_uses_concentration_not_nonmonotonic_total_rate ... ok
+test odor_guidance::tests::swapped_neural_rates_reverse_bounded_guidance ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 280 filtered out; finished in 0.00s

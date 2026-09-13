@@ -418,10 +418,13 @@ struct CnsCheckOptions {
     settle_seconds: f64,
     #[arg(long, default_value_t = 40.0)]
     start_food_distance: f64,
-    #[arg(long, num_args = 3)]
+    #[arg(long, num_args = 3, allow_negative_numbers = true)]
     initial_position_mm: Option<Vec<f64>>,
     #[arg(long)]
     keep_scene_food: bool,
+    /// Explicit source ablation for registered scene acceptance tasks.
+    #[arg(long)]
+    disable_resource: Vec<String>,
     #[arg(long)]
     disconnect_motor_outputs: bool,
     #[arg(long)]
@@ -506,6 +509,9 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         simulation.set_initial_hunger(hunger)?;
     }
     simulation.set_grooming_neural_gate_connected(!options.disconnect_grooming_probe)?;
+    for resource in &options.disable_resource {
+        simulation.set_resource_enabled(resource, false)?;
+    }
     if !options.keep_scene_food && simulation.world().metadata().scene.as_ref()
         .and_then(|scene| scene.spawn_position_mm).is_none() {
         simulation.place_food_ahead(options.start_food_distance)?;
@@ -513,7 +519,9 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     simulation.set_brain_telemetry_enabled(true)?;
     let started = Instant::now();
     let initial_position = simulation.snapshot().root_position;
-    let habitat = flybrain_engine::habitat::Habitat::load(&options.assets)?;
+    let habitat = if let Some(scene)=&simulation.world().metadata().scene {
+        flybrain_engine::habitat::Habitat::load_path(scene.source.parent().unwrap().join(&scene.habitat_file))?
+    }else{flybrain_engine::habitat::Habitat::load(&options.assets)?};
     let room = habitat.room().half_extents_mm;
     let room_bounds_mm = [[-room[0], -room[1], 0.0], [room[0], room[1], 2.0 * room[2]]];
     let pack_manifest: serde_json::Value =
@@ -535,9 +543,19 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         "tripod_gait.json",
     ] {
         asset_hashes.insert(
-            name,
+            name.to_owned(),
             format!("{:x}", Sha256::digest(fs::read(options.assets.join(name))?)),
         );
+    }
+    if let Some(scene) = &simulation.world().metadata().scene {
+        let layout_bytes = fs::read(&scene.source)?;
+        let layout: serde_json::Value = serde_json::from_slice(&layout_bytes)?;
+        asset_hashes.insert(format!("scene:{}", scene.id), format!("{:x}", Sha256::digest(&layout_bytes)));
+        let habitat_path = scene.source.parent().unwrap().join(&scene.habitat_file);
+        asset_hashes.insert(format!("scene-habitat:{}", scene.id), format!("{:x}", Sha256::digest(fs::read(habitat_path)?)));
+        if let Some(model_file) = layout["model_file"].as_str() {
+            asset_hashes.insert(model_file.to_owned(), format!("{:x}", Sha256::digest(fs::read(options.assets.join(model_file))?)));
+        }
     }
     let mut paired_parameters = parameters;
     paired_parameters.brain.cns_motor_outputs_enabled = true;
@@ -556,8 +574,9 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         "control_hz": options.control_hz, "settle_seconds": options.settle_seconds,
         "timebase": simulation.timebase(),
         "start_food_distance": options.start_food_distance,
-        "initial_position_mm": options.initial_position_mm,
+        "requested_initial_position_mm": options.initial_position_mm,
         "keep_scene_food": options.keep_scene_food,
+        "disabled_resources": options.disable_resource,
         "behavior_seed": options.behavior_seed,
         "initial_dirt": options.initial_dirt,
         "initial_hunger": options.initial_hunger,
@@ -571,6 +590,14 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     let mut path_length_mm = 0.0;
     let mut flight_seconds = 0.0;
     let mut feeding_seconds = 0.0;
+    let mut actual_feeding_events: Vec<serde_json::Value> = Vec::new();
+    let mut food_search_recovery_failure_windows=0_u64;
+    let mut olfactory_readout_spikes=0_u64;
+    let mut feeding_streak_seconds = 0.0_f64;
+    let mut feeding_streak_resource = None;
+    let mut feeding_streak_hunger = simulation.snapshot().hunger;
+    let mut previous_hunger = simulation.snapshot().hunger;
+    let mut active_feeding_event: Option<usize> = None;
     let mut maximum_speed_mm_s = 0.0_f64;
     let mut maximum_abs_pitch_deg = 0.0_f64;
     let mut maximum_command_speed_mm_s = 0.0_f64;
@@ -619,6 +646,8 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         previous_position = snapshot.root_position;
         population_spikes += snapshot.population_spike_delta;
         motor_output_spikes += snapshot.cns_motor.map_or(0, |motor| motor.spike_delta);
+        olfactory_readout_spikes += snapshot.cns_olfactory.map_or(0, |odor| odor.spike_delta);
+        food_search_recovery_failure_windows += u64::from(snapshot.food_search.recovery_failed);
         brain_wall_seconds += snapshot.brain_wall_seconds;
         brain_encoding_seconds += snapshot.brain_encoding_seconds;
         brain_engine_seconds += snapshot.brain_engine_seconds;
@@ -638,6 +667,41 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         }
         let [_, body_x, body_y, _] = simulation.world().root_quaternion();
         let body_up_z = 1.0 - 2.0 * (body_x * body_x + body_y * body_y);
+        let actual_feeding = snapshot.taste_active
+            && snapshot.flight_mode == FlightMode::Grounded
+            && snapshot.contact_count >= 2 && body_up_z > 0.8
+            && snapshot.filtered_mn9_rate_hz >= parameters.homeostasis.feeding_mn9_threshold_hz
+            && snapshot.feeding_extension >= parameters.homeostasis.feeding_extension_threshold
+            && snapshot.hunger < previous_hunger && snapshot.tasted_resource.is_some();
+        if actual_feeding {
+            if feeding_streak_resource != snapshot.tasted_resource {
+                feeding_streak_seconds = 0.0;
+                feeding_streak_hunger = previous_hunger;
+                active_feeding_event = None;
+            }
+            feeding_streak_resource = snapshot.tasted_resource;
+            feeding_streak_seconds += period;
+            if feeding_streak_seconds + 1e-9 >= 0.2 {
+                let event = *active_feeding_event.get_or_insert_with(|| {
+                    let index = actual_feeding_events.len();
+                    actual_feeding_events.push(json!({
+                        "resource": simulation.resource_label(snapshot.tasted_resource),
+                        "start_seconds": snapshot.time_seconds-feeding_streak_seconds,
+                        "validated_at_seconds": snapshot.time_seconds,
+                        "hunger_before": feeding_streak_hunger,
+                    }));
+                    index
+                });
+                actual_feeding_events[event]["end_seconds"] = json!(snapshot.time_seconds);
+                actual_feeding_events[event]["continuous_seconds"] = json!(feeding_streak_seconds);
+                actual_feeding_events[event]["hunger_after"] = json!(snapshot.hunger);
+            }
+        } else {
+            feeding_streak_seconds = 0.0;
+            feeding_streak_resource = None;
+            active_feeding_event = None;
+        }
+        previous_hunger = snapshot.hunger;
         if snapshot.taste_active
             && snapshot.behavior_mode == flybrain_engine::behavior::BehaviorMode::Feed
             && snapshot.foraging_mode == flybrain_engine::foraging::ForagingMode::Feed
@@ -706,6 +770,9 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
                 "collision_reflex_active": snapshot.flight_escape_active,
             });
             trace_sample["hunger"] = json!(snapshot.hunger);
+            trace_sample["food_search"] = json!(snapshot.food_search);
+            trace_sample["clearance_mm"] = json!({"up":snapshot.flight_up_clearance_mm,"down":snapshot.flight_down_clearance_mm,"forward":snapshot.flight_forward_clearance_mm});
+            trace_sample["takeoff_inhibited_reason"] = json!(snapshot.takeoff_inhibited_reason);
             trace_sample["flight_command_velocity_mm_s"] = json!(snapshot.flight_command_velocity_mm_s);
             trace_sample["fatigue"] = json!(snapshot.fatigue);
             trace_sample["hungry"] = json!(snapshot.hungry);
@@ -819,6 +886,9 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         "samples": samples,
     });
     report["summary"]["maximum_command_speed_mm_s"] = json!(maximum_command_speed_mm_s);
+    report["summary"]["actual_feeding_events"] = json!(actual_feeding_events);
+    report["summary"]["food_search_recovery_failure_windows"] = json!(food_search_recovery_failure_windows);
+    report["summary"]["olfactory_readout_spikes"] = json!(olfactory_readout_spikes);
     report["summary"]["maximum_command_acceleration_mm_s2"] = json!(maximum_command_acceleration_mm_s2);
     report["summary"]["cruise_speed_p95_mm_s"] = json!(cruise_speed_p95_mm_s);
     if let Some(parent) = options.output.parent() {

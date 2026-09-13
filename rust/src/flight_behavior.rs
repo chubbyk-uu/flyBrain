@@ -176,6 +176,7 @@ pub struct FlightBehaviorInput {
     pub root_height_mm: f64,
     pub vertical_velocity_mm_s: f64,
     pub angular_speed_rad_s: f64,
+    pub support_aligned: bool,
     pub contact_count: usize,
     pub odor_left: f64,
     pub odor_right: f64,
@@ -203,6 +204,7 @@ impl Default for FlightBehaviorInput {
             root_height_mm: 0.0,
             vertical_velocity_mm_s: 0.0,
             angular_speed_rad_s: 0.0,
+            support_aligned: true,
             contact_count: 0,
             odor_left: 0.0,
             odor_right: 0.0,
@@ -385,8 +387,9 @@ impl FlightBehaviorController {
             FlightMode::Landing
                 if input.contact_count >= 3
                     && self.landing_load_transfer >= 1.0
-                    && input.angular_speed_rad_s < 5.0
-                    && input.vertical_velocity_mm_s.abs() < 10.0 =>
+                    && input.support_aligned
+                    && input.angular_speed_rad_s < 2.0
+                    && input.vertical_velocity_mm_s.abs() < 3.0 =>
             {
                 self.enter(FlightMode::Grounded)
             }
@@ -530,9 +533,9 @@ impl FlightBehaviorController {
         let amplitude_scale = if self.mode == FlightMode::Grounded {
             0.0
         } else if self.mode == FlightMode::Landing {
-            (base_amplitude + self.parameters.brain_amplitude_gain * input.brain_flight_drive)
+            ((base_amplitude + self.parameters.brain_amplitude_gain * input.brain_flight_drive)
                 .clamp(0.35, 1.0)
-                * (1.0 - self.landing_load_transfer)
+                * (1.0 - self.landing_load_transfer)).max(0.08)
         } else {
             (base_amplitude
                 + self.parameters.brain_amplitude_gain * input.brain_flight_drive
@@ -811,7 +814,7 @@ mod tests {
     }
 
     #[test]
-    fn touchdown_contact_chatter_does_not_keep_wings_flapping() {
+    fn touchdown_contact_chatter_retains_minimal_support_until_stable() {
         let mut controller = FlightBehaviorController::new(1);
         controller.enter(FlightMode::Landing);
         let input = FlightBehaviorInput {
@@ -833,12 +836,28 @@ mod tests {
                 .unwrap();
         }
         assert_eq!(command.mode, FlightMode::Landing);
-        assert_eq!(command.amplitude_scale, 0.0);
+        assert_eq!(command.amplitude_scale, 0.08);
         for _ in 0..60 {
             command = controller.update(input).unwrap();
         }
         assert_eq!(command.mode, FlightMode::Landing);
         assert!(command.amplitude_scale > 0.9);
+    }
+
+    #[test]
+    fn contact_without_support_alignment_cannot_finish_landing() {
+        let mut controller=FlightBehaviorController::new(1);
+        controller.enter(FlightMode::Landing);
+        let input=FlightBehaviorInput {enabled:true,dt_seconds:0.002,contact_count:4,
+            support_aligned:false,..Default::default()};
+        for _ in 0..200 {
+            let command=controller.update(input).unwrap();
+            assert_eq!(command.mode,FlightMode::Landing);
+            assert!(command.amplitude_scale>=0.08);
+        }
+        let landed=controller.update(FlightBehaviorInput {support_aligned:true,..input}).unwrap();
+        assert_eq!(landed.mode,FlightMode::Grounded);
+        assert_eq!(landed.amplitude_scale,0.0);
     }
 
     #[test]

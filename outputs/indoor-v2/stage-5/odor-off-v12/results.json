@@ -1,0 +1,407 @@
+{
+  "protocol": {
+    "schema": "flybrain.indoor-foraging-acceptance",
+    "version": 1,
+    "seeds": [
+      11,
+      13,
+      17,
+      19,
+      23
+    ],
+    "duration_seconds": 20,
+    "initial_hunger": 0.72,
+    "initial_fatigue": 0.05,
+    "initial_grooming_urge": 0.1,
+    "continuous_feeding_seconds": 0.2,
+    "tasks": [
+      {
+        "id": "floor-to-sugar",
+        "position_mm": [
+          96,
+          -12,
+          2.1
+        ],
+        "yaw_deg": 180,
+        "disable_resource": "flower_nectar",
+        "required_resource": "sugar_drop"
+      },
+      {
+        "id": "table-to-nectar",
+        "position_mm": [
+          -70,
+          -4,
+          32.1
+        ],
+        "yaw_deg": 30,
+        "disable_resource": "sugar_drop",
+        "required_resource": "flower_nectar"
+      },
+      {
+        "id": "pot-base-to-nectar",
+        "position_mm": [
+          -61,
+          12,
+          32.1
+        ],
+        "yaw_deg": 0,
+        "disable_resource": "sugar_drop",
+        "required_resource": "flower_nectar"
+      },
+      {
+        "id": "dual-to-food",
+        "position_mm": [
+          26,
+          -12,
+          32.1
+        ],
+        "yaw_deg": 0,
+        "disable_resource": null,
+        "required_resource": null
+      }
+    ]
+  },
+  "ablation": "odor-off",
+  "results": [
+    {
+      "task": "floor-to-sugar",
+      "seed": 11,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        -84.10179415502888,
+        22.226817666821557,
+        80.60563758248311
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "e37be73052fe3f88c04a5c33bba6e3a82226ecffc061bf0b91dbc7fc40797ded",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "floor-to-sugar",
+      "seed": 13,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        94.01758165530615,
+        -32.43530626757933,
+        81.5659768940003
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "4c4c35ce1e194cf1fa9a72c0be742fcb8803ccb090c6bb93833b003496539ceb",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "floor-to-sugar",
+      "seed": 17,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        -120.20279784035964,
+        73.77502160129396,
+        82.38322251447424
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "28a394274bdf4103c80c3d633c5efbf48e595e89c315d8011ba7c7c1bdc998b6",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "floor-to-sugar",
+      "seed": 19,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        78.04447580016455,
+        -79.85201803342711,
+        80.52480889138334
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "eb8c44d5b942e3954a5921de3baf387aa8a6fcd609ee2ca75677d86fb8a296fe",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "floor-to-sugar",
+      "seed": 23,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        -88.29283987693061,
+        5.893292935832107,
+        82.17778586448969
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "a73aea337f452796d6fa46f56f3c74cb8c1608307856c62cad06a4796620d627",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "table-to-nectar",
+      "seed": 11,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        80.78451204639948,
+        95.5617720228702,
+        82.69645719144567
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "aa48b3f071eb2fb1d7d16620fff745b29b1fe6d6283c94c2a283ee91b229f68d",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "table-to-nectar",
+      "seed": 13,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        80.51754603759792,
+        -25.43561214609044,
+        82.27529584870749
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "6187a9b3be3a13ffcccd33ca26d6313241f85911582895edeadcc024c5d4d237",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "table-to-nectar",
+      "seed": 17,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        -71.60692614251636,
+        93.11013754425024,
+        79.83057951890163
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "f6e8dd085b8cf4955c4ed9dd9ec6544c70805c4aef5304332b053ccfbfbf463c",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "table-to-nectar",
+      "seed": 19,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        95.65403255445324,
+        -70.52140163392559,
+        81.97426047186192
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "c9b5a870b78759aaed2f5a4d4c5d7f9cb0f44f707a2bfce979a898e6aed00ae1",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "table-to-nectar",
+      "seed": 23,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        83.11720435521737,
+        -40.028349816600134,
+        80.6744387269891
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "5f073a35e3359743534c4355b63657967f2851f4ee05f0c9f021c46a7937289b",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "pot-base-to-nectar",
+      "seed": 11,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        37.195299243734496,
+        92.22854272872385,
+        81.38405650435942
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "95e3609fdadf3fc75923be10510c96f7674094196580215775ac2c83780c7bea",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "pot-base-to-nectar",
+      "seed": 13,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        55.299021906707914,
+        -66.22836218866794,
+        81.69503140568396
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "8cb4b59c10ab51ddf5032666b4fb00217efd6ee4a5f4d00048f6cc0ff8d37671",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "pot-base-to-nectar",
+      "seed": 17,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        60.68460392541669,
+        43.717009614383734,
+        83.03494189460797
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "37e3d883d26a3e7daf15c38ab3dfd5ce1e183678102e040c5321977fb5b3f96b",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "pot-base-to-nectar",
+      "seed": 19,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        17.71092521947076,
+        -73.72463468846152,
+        80.4788837857502
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "5bacddd5ebbbd3c921237894f87cdbdce6b8fa5d0700eb973d66e110dde3cc07",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "pot-base-to-nectar",
+      "seed": 23,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        102.01455577396554,
+        -33.62415805586328,
+        81.34492886284673
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "54ee2cd45150fb97387c085ecdd302f842a75d77147a081fb8900f04e844f694",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "dual-to-food",
+      "seed": 11,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        -7.117425681975035,
+        97.52836379547878,
+        80.92600356055956
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "7a6300c1e89633faa7a1162304ec85548b6586a261020ff39f9c87df66898ad0",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "dual-to-food",
+      "seed": 13,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        -50.26109552210816,
+        -23.726952806852317,
+        80.2514857457334
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "b77c16bf3709c1224f011664fe93c3c7b5fa2f00f8b7324ca5403afd548d8704",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "dual-to-food",
+      "seed": 17,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        108.27429780171941,
+        -32.279288109313924,
+        81.79832172441307
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "d7f49ebbfe432f0fe867ff36cdbf0f1ed626df5f59628b5378d0d80aff15e895",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "dual-to-food",
+      "seed": 19,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        12.59607859144677,
+        -19.791931260719203,
+        80.72001082965707
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "e3125c80b0d7a6952d9ed7dacee03b0c6de23f870d0781c954383b98aa8a26ea",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "dual-to-food",
+      "seed": 23,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        42.70844508425297,
+        -69.3273088177936,
+        80.44120792830823
+      ],
+      "flight_seconds": 19.350000000000154,
+      "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+      "initial_state_sha256": "47678eb51d019dc176d1f3028a5399306b9bcf9af080bd42ab3d6717231e964f",
+      "recovery_failure_windows": 0,
+      "recovery_failure_samples": 0
+    }
+  ]
+}

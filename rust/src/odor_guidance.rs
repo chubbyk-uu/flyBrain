@@ -24,9 +24,9 @@ impl Default for OdorGuidanceParameters {
             enter_rate_hz: 14.0,
             release_rate_hz: 11.0,
             steering_gain: 150.0,
-            close_concentration_ppm: 15.0,
-            close_dwell_seconds: 0.8,
-            minimum_acquisition_height_mm: 55.0,
+            close_concentration_ppm: 5.0,
+            close_dwell_seconds: 0.15,
+            minimum_acquisition_height_mm: 0.5,
         }
     }
 }

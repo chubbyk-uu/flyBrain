@@ -536,6 +536,11 @@ impl FlightRuntime {
         self.horizontal_command.velocity
     }
 
+    pub fn stabilize_landing_footprint(&mut self, position:[f64;3], correction:[f64;2], dt:f64) {
+        let anchor=self.horizontal_hold_anchor.get_or_insert([position[0],position[1]]);
+        for axis in 0..2 {anchor[axis]+=2.0*dt*correction[axis];}
+    }
+
     pub fn new(assets: impl AsRef<Path>, world: &MuJoCoWorld) -> Result<Self> {
         Self::new_with_parameters(assets, world, FlightDynamicsParameters::default())
     }

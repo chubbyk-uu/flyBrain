@@ -1,0 +1,147 @@
+{
+  "protocol": {
+    "schema": "flybrain.indoor-foraging-acceptance",
+    "version": 1,
+    "seeds": [
+      11,
+      13,
+      17,
+      19,
+      23
+    ],
+    "duration_seconds": 20,
+    "initial_hunger": 0.72,
+    "initial_fatigue": 0.05,
+    "initial_grooming_urge": 0.1,
+    "continuous_feeding_seconds": 0.2,
+    "tasks": [
+      {
+        "id": "floor-to-sugar",
+        "position_mm": [
+          96,
+          -12,
+          2.1
+        ],
+        "yaw_deg": 180,
+        "disable_resource": "flower_nectar",
+        "required_resource": "sugar_drop"
+      },
+      {
+        "id": "table-to-nectar",
+        "position_mm": [
+          -70,
+          -4,
+          32.1
+        ],
+        "yaw_deg": 30,
+        "disable_resource": "sugar_drop",
+        "required_resource": "flower_nectar"
+      },
+      {
+        "id": "pot-base-to-nectar",
+        "position_mm": [
+          -61,
+          12,
+          32.1
+        ],
+        "yaw_deg": 0,
+        "disable_resource": "sugar_drop",
+        "required_resource": "flower_nectar"
+      },
+      {
+        "id": "dual-to-food",
+        "position_mm": [
+          26,
+          -12,
+          32.1
+        ],
+        "yaw_deg": 0,
+        "disable_resource": null,
+        "required_resource": null
+      }
+    ]
+  },
+  "ablation": "connected",
+  "results": [
+    {
+      "task": "floor-to-sugar",
+      "seed": 11,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        54.05964684818262,
+        -11.452573861940786,
+        38.73919621949844
+      ],
+      "flight_seconds": 11.752000000000594,
+      "runtime_sha256": "83279452408456f962a70c8dfc001236285d8b06194711e72fdaf77db7fee653",
+      "initial_state_sha256": "3a07d266fe14a78cc49f04a98ffc24d83189a43f381bc15d7b013c72c100ebdb",
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "table-to-nectar",
+      "seed": 11,
+      "passed": true,
+      "first_validated": {
+        "continuous_seconds": 1.9440000000000015,
+        "end_seconds": 9.25400000000511,
+        "hunger_after": 0.2996299999998083,
+        "hunger_before": 0.7273099999998044,
+        "resource": "flower_nectar",
+        "start_seconds": 7.310000000006999,
+        "validated_at_seconds": 7.5100000000069995
+      },
+      "initial_taste": false,
+      "final_position": [
+        23.964632147142165,
+        -105.93984295718504,
+        77.53542124244638
+      ],
+      "flight_seconds": 15.982000000002007,
+      "runtime_sha256": "83279452408456f962a70c8dfc001236285d8b06194711e72fdaf77db7fee653",
+      "initial_state_sha256": "8af887b2fbb46a088ee7d3051f76872fa32e7f10a6698cc97090682d14cac307",
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "pot-base-to-nectar",
+      "seed": 11,
+      "passed": true,
+      "first_validated": {
+        "continuous_seconds": 1.9620000000000015,
+        "end_seconds": 13.333999999995601,
+        "hunger_after": 0.2997319999996997,
+        "hunger_before": 0.7313719999996957,
+        "resource": "flower_nectar",
+        "start_seconds": 11.371999999999709,
+        "validated_at_seconds": 11.571999999999708
+      },
+      "initial_taste": false,
+      "final_position": [
+        -7.596571857555937,
+        -15.51186837685611,
+        77.63615840351243
+      ],
+      "flight_seconds": 15.268000000001768,
+      "runtime_sha256": "83279452408456f962a70c8dfc001236285d8b06194711e72fdaf77db7fee653",
+      "initial_state_sha256": "cb46d607dab78e5011d79d0a151b6e91b0336b046cd22821c5b532dd58d9686e",
+      "recovery_failure_samples": 0
+    },
+    {
+      "task": "dual-to-food",
+      "seed": 11,
+      "passed": false,
+      "first_validated": null,
+      "initial_taste": false,
+      "final_position": [
+        42.015258715997525,
+        -11.647908418810424,
+        37.06651453232874
+      ],
+      "flight_seconds": 5.271999999999641,
+      "runtime_sha256": "83279452408456f962a70c8dfc001236285d8b06194711e72fdaf77db7fee653",
+      "initial_state_sha256": "42fd68cd5114a4aafb71ef6fb449d2b3530565e42a25e4569955910ead5499ee",
+      "recovery_failure_samples": 0
+    }
+  ]
+}

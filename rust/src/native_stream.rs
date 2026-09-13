@@ -263,10 +263,9 @@ fn snapshot_payload(frame: &view_worker::Frame) -> serde_json::Value {
         "hungry": snapshot.hungry,
         "flight_fatigue": snapshot.fatigue,
         "grooming_urge": snapshot.dirt,
-        "takeoff_inhibited": snapshot.homeostatic_takeoff_inhibited,
-        "takeoff_inhibited_reason": if snapshot.homeostatic_resting { "flight fatigue recovery" }
-            else if snapshot.homeostatic_takeoff_inhibited { "homeostatic / food approach gate" }
-            else { "none" },
+        "takeoff_inhibited": !matches!(snapshot.takeoff_inhibited_reason,""|"none"),
+        "takeoff_inhibited_reason": snapshot.takeoff_inhibited_reason,
+        "food_search": snapshot.food_search,
         "realtime_factor": frame.realtime_factor,
     })
 }

@@ -1,0 +1,32 @@
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running unittests rust/src/lib.rs (target/release/deps/flybrain_engine-5e565c1aea0f2528)
+
+running 26 tests
+test foraging::tests::airborne_taste_requests_a_controlled_descent ... ok
+test foraging::tests::brain_touchdown_without_odor_has_only_a_short_stabilization_dwell ... ok
+test foraging::tests::brief_taste_retains_close_odor_ground_search_without_takeoff ... ok
+test foraging::tests::brain_touchdown_has_only_a_short_stabilization_dwell ... ok
+test foraging::tests::centered_odor_does_not_request_landing_without_landing_dn_activity ... ok
+test foraging::tests::cleared_feed_enters_deterministic_ground_rest ... ok
+test foraging::tests::cns_balanced_odor_and_landing_drive_integrate_to_one_descent ... ok
+test foraging::tests::cns_brief_odor_and_landing_burst_does_not_request_descent ... ok
+test foraging::tests::cns_close_odor_brakes_approach_without_inventing_landing_activity ... ok
+test foraging::tests::cns_calibration_requires_valid_hysteresis ... ok
+test foraging::tests::cns_consumed_landing_does_not_repeat_until_odor_is_lost ... ok
+test foraging::tests::cns_diffuse_initial_odor_does_not_request_landing ... ok
+test foraging::tests::cns_disconnected_landing_drive_cannot_request_descent ... ok
+test foraging::tests::cns_landing_integrates_sparse_bursts_and_clears_on_context_loss ... ok
+test foraging::tests::cns_landing_rearms_in_diffuse_background_without_leaving_approach ... ok
+test foraging::tests::cns_postmeal_release_allows_airborne_search_without_relanding ... ok
+test foraging::tests::cns_wing_activation_does_not_veto_odor_approach ... ok
+test foraging::tests::completed_post_meal_departure_releases_neural_takeoff_despite_odor ... ok
+test foraging::tests::departing_food_takes_priority_over_stale_taste ... ok
+test foraging::tests::landing_dn_activity_can_request_a_contact_surface_landing_without_odor ... ok
+test foraging::tests::landing_dn_activity_needs_food_or_surface_context ... ok
+test foraging::tests::neural_odor_landing_needs_both_close_context_and_landing_output ... ok
+test foraging::tests::no_brain_centered_odor_still_requests_landing ... ok
+test foraging::tests::ordinary_ground_support_does_not_become_a_permanent_landing_command ... ok
+test foraging::tests::strong_flight_drive_vetoes_odor_landing ... ok
+test foraging::tests::weak_room_odor_does_not_turn_landing_activity_into_takeoff_inhibition ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 264 filtered out; finished in 0.00s

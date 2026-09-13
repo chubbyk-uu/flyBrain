@@ -1,0 +1,38 @@
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running unittests rust/src/lib.rs (target/release/deps/flybrain_engine-5e565c1aea0f2528)
+
+running 32 tests
+test flight_behavior::tests::balanced_strong_odor_triggers_landing_after_takeoff ... ok
+test flight_behavior::tests::brief_low_drive_surface_contact_does_not_count_as_a_landing ... ok
+test flight_behavior::tests::bilateral_odor_taxis_improves_airborne_target_approach ... ok
+test flight_behavior::tests::cns_food_approach_arbitrates_altitude_without_silencing_wings ... ok
+test flight_behavior::tests::contact_without_support_alignment_cannot_finish_landing ... ok
+test flight_behavior::tests::cns_altitude_tracks_current_motor_power_not_historical_peak ... ok
+test flight_behavior::tests::cns_output_disconnect_prevents_takeoff_despite_descending_drive ... ok
+test flight_behavior::tests::disabling_flight_stops_wing_amplitude_immediately ... ok
+test flight_behavior::tests::flight_resolves_a_small_antennal_plume_difference ... ok
+test flight_behavior::tests::full_brain_flight_drive_selects_a_higher_bounded_altitude ... ok
+test flight_behavior::tests::full_brain_incidental_surface_contact_does_not_ground_the_fly ... ok
+test flight_behavior::tests::full_brain_mode_does_not_bypass_the_connectome_for_odor_landing ... ok
+test flight_behavior::tests::full_brain_steering_uses_decoded_flight_dn_without_procedural_terms ... ok
+test flight_behavior::tests::grounded_fly_takes_off_only_after_sustained_brain_drive ... ok
+test flight_behavior::tests::interrupted_brain_drive_does_not_accumulate_toward_takeoff ... ok
+test flight_behavior::tests::isolated_neural_altitude_pulse_persists_and_stays_bounded ... ok
+test flight_behavior::tests::landing_contact_loss_restores_wing_support ... ok
+test flight_behavior::tests::landing_ignores_neural_altitude_control ... ok
+test flight_behavior::tests::landing_request_interrupts_cns_takeoff_and_requires_physical_touchdown ... ok
+test flight_behavior::tests::landing_request_transitions_full_brain_flight_to_landing ... ok
+test flight_behavior::tests::low_flight_drive_allows_touchdown_on_an_elevated_surface ... ok
+test flight_behavior::tests::neural_altitude_control_integrates_a_bounded_cruise_target ... ok
+test flight_behavior::tests::neural_altitude_intent_started_during_takeoff_reaches_cruise_target ... ok
+test flight_behavior::tests::neural_cruise_target_survives_landing_and_takeoff ... ok
+test flight_behavior::tests::optic_flow_and_neural_altitude_contributions_are_separate ... ok
+test flight_behavior::tests::overhead_hold_freezes_both_altitude_contributions ... ok
+test flight_behavior::tests::strong_flight_drive_rejects_an_incidental_surface_contact ... ok
+test flight_behavior::tests::sustained_neural_altitude_drive_renews_motor_intent_bouts ... ok
+test flight_behavior::tests::tabletop_takeoff_cannot_bypass_ramp_using_absolute_height ... ok
+test flight_behavior::tests::takeoff_inhibited_blocks_sustained_neural_drive ... ok
+test flight_behavior::tests::touchdown_contact_chatter_retains_minimal_support_until_stable ... ok
+test flight_behavior::tests::weak_neural_altitude_pulse_changes_the_bounded_cruise_target ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out; finished in 0.00s

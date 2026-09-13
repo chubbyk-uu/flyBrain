@@ -1,0 +1,776 @@
+{
+  "passed": true,
+  "runtime_sha256": "99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb",
+  "protocol": {
+    "schema": "flybrain.indoor-foraging-acceptance",
+    "version": 1,
+    "seeds": [
+      11,
+      13,
+      17,
+      19,
+      23
+    ],
+    "duration_seconds": 20,
+    "initial_hunger": 0.72,
+    "initial_fatigue": 0.05,
+    "initial_grooming_urge": 0.1,
+    "continuous_feeding_seconds": 0.2,
+    "tasks": [
+      {
+        "id": "floor-to-sugar",
+        "position_mm": [
+          96,
+          -12,
+          2.1
+        ],
+        "yaw_deg": 180,
+        "disable_resource": "flower_nectar",
+        "required_resource": "sugar_drop"
+      },
+      {
+        "id": "table-to-nectar",
+        "position_mm": [
+          -70,
+          -4,
+          32.1
+        ],
+        "yaw_deg": 30,
+        "disable_resource": "sugar_drop",
+        "required_resource": "flower_nectar"
+      },
+      {
+        "id": "pot-base-to-nectar",
+        "position_mm": [
+          -61,
+          12,
+          32.1
+        ],
+        "yaw_deg": 0,
+        "disable_resource": "sugar_drop",
+        "required_resource": "flower_nectar"
+      },
+      {
+        "id": "dual-to-food",
+        "position_mm": [
+          26,
+          -12,
+          32.1
+        ],
+        "yaw_deg": 0,
+        "disable_resource": null,
+        "required_resource": null
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "task": "floor-to-sugar",
+      "successes": 5,
+      "odor_off_successes": 0,
+      "runs": [
+        {
+          "seed": 11,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9560000000000015,
+            "end_seconds": 12.247999999998132,
+            "hunger_after": 0.29997199999972857,
+            "hunger_before": 0.7302919999997246,
+            "resource": "sugar_drop",
+            "start_seconds": 10.292000000002226,
+            "validated_at_seconds": 10.492000000002225
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 560.0984611350933,
+          "motor_off_path_mm": 8.810690914632842,
+          "odor_off_trajectory_rms_mm": 153.73195955867448,
+          "olfactory_readout_spikes": [
+            62822,
+            20320
+          ],
+          "motor_spikes": [
+            80594,
+            84284,
+            84556
+          ],
+          "cruise_p95_mm_s": 105.577736484785,
+          "peak_speed_mm_s": 116.73944463974232,
+          "initial_state_sha256": "e37be73052fe3f88c04a5c33bba6e3a82226ecffc061bf0b91dbc7fc40797ded",
+          "raw_sha256": [
+            "f7ae7b858d165cd6232c30aff1c132711b944e53df6ba4d160dfe163ffe9794c",
+            "47d4ad5d35fa4c2ec9ed210535177150662fc188b23d1d9d61c9f66a979ffc83",
+            "27fd6081eed732c4fd056a93a0fa5f1de073b27f4840cc3ae292fdbc79503617"
+          ]
+        },
+        {
+          "seed": 13,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9560000000000015,
+            "end_seconds": 12.247999999998132,
+            "hunger_after": 0.29997199999972857,
+            "hunger_before": 0.7302919999997246,
+            "resource": "sugar_drop",
+            "start_seconds": 10.292000000002226,
+            "validated_at_seconds": 10.492000000002225
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 549.2253535005184,
+          "motor_off_path_mm": 8.810690914632842,
+          "odor_off_trajectory_rms_mm": 129.1057884086324,
+          "olfactory_readout_spikes": [
+            62608,
+            20320
+          ],
+          "motor_spikes": [
+            80904,
+            84284,
+            85520
+          ],
+          "cruise_p95_mm_s": 106.44068472490827,
+          "peak_speed_mm_s": 116.77688199770135,
+          "initial_state_sha256": "4c4c35ce1e194cf1fa9a72c0be742fcb8803ccb090c6bb93833b003496539ceb",
+          "raw_sha256": [
+            "5c8dea12c2aa902381754db577757aa6885296107c20c7773399acf6745c2587",
+            "c2d2fe96331a29120f341eca88e3e9d228e576be7aafe2f74de7c164423479fb",
+            "263e76d63d49ffa13990f11d9e9233609c1cb77fb10654d7b14ab11e09ffd821"
+          ]
+        },
+        {
+          "seed": 17,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9560000000000015,
+            "end_seconds": 12.247999999998132,
+            "hunger_after": 0.29997199999972857,
+            "hunger_before": 0.7302919999997246,
+            "resource": "sugar_drop",
+            "start_seconds": 10.292000000002226,
+            "validated_at_seconds": 10.492000000002225
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 558.0239565547956,
+          "motor_off_path_mm": 8.810690914632842,
+          "odor_off_trajectory_rms_mm": 126.57096464306231,
+          "olfactory_readout_spikes": [
+            62598,
+            20320
+          ],
+          "motor_spikes": [
+            81003,
+            84284,
+            85118
+          ],
+          "cruise_p95_mm_s": 106.1240922927123,
+          "peak_speed_mm_s": 116.83967389694206,
+          "initial_state_sha256": "28a394274bdf4103c80c3d633c5efbf48e595e89c315d8011ba7c7c1bdc998b6",
+          "raw_sha256": [
+            "1636b1cf0780a92aaa5208ddd99fa4b51e94294626a6e2857c1b931ca2d0bdc3",
+            "ee024e5969a5d25f043554f20fe3651d674346900e875e51251173df85e298cc",
+            "4c6c04e80986977d9a79376669dff893289f20abc823502452ab65cad44e208e"
+          ]
+        },
+        {
+          "seed": 19,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9560000000000015,
+            "end_seconds": 12.247999999998132,
+            "hunger_after": 0.29997199999972857,
+            "hunger_before": 0.7302919999997246,
+            "resource": "sugar_drop",
+            "start_seconds": 10.292000000002226,
+            "validated_at_seconds": 10.492000000002225
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 596.2873819400374,
+          "motor_off_path_mm": 8.810690914632842,
+          "odor_off_trajectory_rms_mm": 136.5401489319992,
+          "olfactory_readout_spikes": [
+            62882,
+            20320
+          ],
+          "motor_spikes": [
+            80883,
+            84284,
+            84936
+          ],
+          "cruise_p95_mm_s": 107.26059847610685,
+          "peak_speed_mm_s": 116.85126391604882,
+          "initial_state_sha256": "eb8c44d5b942e3954a5921de3baf387aa8a6fcd609ee2ca75677d86fb8a296fe",
+          "raw_sha256": [
+            "86fed019dc8747042a116170f9c89a8b88485e7a01215e87b97f4ec19eb74517",
+            "d7e4bf07f483d9f5fc341c6e53cc9a4fc6ac2089196574bdfd65b5c11fd80eec",
+            "a2cdef0beb1a0bc9eeee9720fd832dca3e02db70766e6d49e0717e428732dd3d"
+          ]
+        },
+        {
+          "seed": 23,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9560000000000015,
+            "end_seconds": 12.247999999998132,
+            "hunger_after": 0.29997199999972857,
+            "hunger_before": 0.7302919999997246,
+            "resource": "sugar_drop",
+            "start_seconds": 10.292000000002226,
+            "validated_at_seconds": 10.492000000002225
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 546.0400986616047,
+          "motor_off_path_mm": 8.810690914632842,
+          "odor_off_trajectory_rms_mm": 138.7589262378014,
+          "olfactory_readout_spikes": [
+            62680,
+            20320
+          ],
+          "motor_spikes": [
+            80853,
+            84284,
+            85718
+          ],
+          "cruise_p95_mm_s": 106.1568588542366,
+          "peak_speed_mm_s": 116.79197067426306,
+          "initial_state_sha256": "a73aea337f452796d6fa46f56f3c74cb8c1608307856c62cad06a4796620d627",
+          "raw_sha256": [
+            "ae5cc623d3ee760a7a8b5e1086248e1e2df3a8e3528640c07d8caacb80882b63",
+            "d99fe8075b55e86045d2247f822ce18acaa053e4afde4b40faed0f1a37198c53",
+            "d5126c4538178301b89403395bdc0afa6cd8520de55b8ffb6cc29853694ad2ba"
+          ]
+        }
+      ]
+    },
+    {
+      "task": "table-to-nectar",
+      "successes": 5,
+      "odor_off_successes": 0,
+      "runs": [
+        {
+          "seed": 11,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9440000000000015,
+            "end_seconds": 9.240000000005143,
+            "hunger_after": 0.2996159999998087,
+            "hunger_before": 0.7272959999998048,
+            "resource": "flower_nectar",
+            "start_seconds": 7.29600000000697,
+            "validated_at_seconds": 7.49600000000697
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 697.0964942655502,
+          "motor_off_path_mm": 6.036095791243446,
+          "odor_off_trajectory_rms_mm": 116.21079150530093,
+          "olfactory_readout_spikes": [
+            82298,
+            20320
+          ],
+          "motor_spikes": [
+            79898,
+            85950,
+            86438
+          ],
+          "cruise_p95_mm_s": 111.48444879453797,
+          "peak_speed_mm_s": 116.76547957623406,
+          "initial_state_sha256": "aa48b3f071eb2fb1d7d16620fff745b29b1fe6d6283c94c2a283ee91b229f68d",
+          "raw_sha256": [
+            "f1f2f79e6dee6cdf885b426f026a1aa74e0eecb1bc87acbcebe70b6261d6d6f4",
+            "953caa1990f7b39d13226ce44825d91515bd058fd65d0477d36799e424bbe935",
+            "00ba3945528ab182351d0c45c3581f9ded12957a1b7f6063a8977a4d980df2c5"
+          ]
+        },
+        {
+          "seed": 13,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9440000000000015,
+            "end_seconds": 9.240000000005143,
+            "hunger_after": 0.2996159999998087,
+            "hunger_before": 0.7272959999998048,
+            "resource": "flower_nectar",
+            "start_seconds": 7.29600000000697,
+            "validated_at_seconds": 7.49600000000697
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 676.8075903067656,
+          "motor_off_path_mm": 6.036095791243446,
+          "odor_off_trajectory_rms_mm": 167.03727285403974,
+          "olfactory_readout_spikes": [
+            85258,
+            20320
+          ],
+          "motor_spikes": [
+            80223,
+            85950,
+            85361
+          ],
+          "cruise_p95_mm_s": 110.63211287189212,
+          "peak_speed_mm_s": 116.85670005172513,
+          "initial_state_sha256": "6187a9b3be3a13ffcccd33ca26d6313241f85911582895edeadcc024c5d4d237",
+          "raw_sha256": [
+            "e5eaba4411ef18cfe93398617ecc64bdebb7e2a71a63edeb449cc0c2875c0f88",
+            "5727048527f47ae4d8141f52b52e4770f0c1ef012e5f07b937fcda59d4d72e5a",
+            "010667a711aa76ba2547ee7073eca58fab85f4cfae94306b4099454d52e40e58"
+          ]
+        },
+        {
+          "seed": 17,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9440000000000015,
+            "end_seconds": 9.240000000005143,
+            "hunger_after": 0.2996159999998087,
+            "hunger_before": 0.7272959999998048,
+            "resource": "flower_nectar",
+            "start_seconds": 7.29600000000697,
+            "validated_at_seconds": 7.49600000000697
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 734.4370287790784,
+          "motor_off_path_mm": 6.036095791243446,
+          "odor_off_trajectory_rms_mm": 142.87425765023661,
+          "olfactory_readout_spikes": [
+            84983,
+            20320
+          ],
+          "motor_spikes": [
+            80724,
+            85950,
+            85619
+          ],
+          "cruise_p95_mm_s": 112.34748446663785,
+          "peak_speed_mm_s": 116.83580888638959,
+          "initial_state_sha256": "f6e8dd085b8cf4955c4ed9dd9ec6544c70805c4aef5304332b053ccfbfbf463c",
+          "raw_sha256": [
+            "f6aaa307e1fa87b08b361914d4d98ea5ca209fb2fc2f2d029ba263a0c4128ea9",
+            "8a0a5c01eba3f3279bff3cba499eda915e020b91ce49d1511293fdf7aba14f47",
+            "27c79a34cb3f78096780a9849c42560876b31ba33cae7f8ce726a5c20b41ee05"
+          ]
+        },
+        {
+          "seed": 19,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9440000000000015,
+            "end_seconds": 9.240000000005143,
+            "hunger_after": 0.2996159999998087,
+            "hunger_before": 0.7272959999998048,
+            "resource": "flower_nectar",
+            "start_seconds": 7.29600000000697,
+            "validated_at_seconds": 7.49600000000697
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 677.0584331407825,
+          "motor_off_path_mm": 6.036095791243446,
+          "odor_off_trajectory_rms_mm": 140.80627475316285,
+          "olfactory_readout_spikes": [
+            72260,
+            20320
+          ],
+          "motor_spikes": [
+            80397,
+            85950,
+            85373
+          ],
+          "cruise_p95_mm_s": 110.17765664326176,
+          "peak_speed_mm_s": 116.82131507564614,
+          "initial_state_sha256": "c9b5a870b78759aaed2f5a4d4c5d7f9cb0f44f707a2bfce979a898e6aed00ae1",
+          "raw_sha256": [
+            "82fa5f44830e3185cb4ba322a0c8502d67e60f4005bc149d192b2a04317064cf",
+            "b0e48fa61f1b429e740c4318ca358d4cd73466efe513ea15a90e4ff8b2f596ca",
+            "70fe8cca22244099904ac6465ec88308fa3f5493d6face79d0ba72a3ff3abc65"
+          ]
+        },
+        {
+          "seed": 23,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9440000000000015,
+            "end_seconds": 9.240000000005143,
+            "hunger_after": 0.2996159999998087,
+            "hunger_before": 0.7272959999998048,
+            "resource": "flower_nectar",
+            "start_seconds": 7.29600000000697,
+            "validated_at_seconds": 7.49600000000697
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 733.3393662005457,
+          "motor_off_path_mm": 6.036095791243446,
+          "odor_off_trajectory_rms_mm": 127.27671599737408,
+          "olfactory_readout_spikes": [
+            84433,
+            20320
+          ],
+          "motor_spikes": [
+            80467,
+            85950,
+            86018
+          ],
+          "cruise_p95_mm_s": 111.9340880226162,
+          "peak_speed_mm_s": 116.79458248531029,
+          "initial_state_sha256": "5f073a35e3359743534c4355b63657967f2851f4ee05f0c9f021c46a7937289b",
+          "raw_sha256": [
+            "cb5b39d9af573928f2e1fb7acb42a8f254be01cf583c435bf60d439e5655b6d2",
+            "ae2b48570b515af6acdab84dc24ee0544b48e93c2cacd4ecc4780d357d989229",
+            "205325a732dfa0972eb72f7e4865745f6f486243ff7a56ab6c380d71535ca0f3"
+          ]
+        }
+      ]
+    },
+    {
+      "task": "pot-base-to-nectar",
+      "successes": 5,
+      "odor_off_successes": 0,
+      "runs": [
+        {
+          "seed": 11,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9600000000000015,
+            "end_seconds": 13.019999999996333,
+            "hunger_after": 0.299859999999708,
+            "hunger_before": 0.7310599999997041,
+            "resource": "flower_nectar",
+            "start_seconds": 11.060000000000436,
+            "validated_at_seconds": 11.260000000000435
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 517.2807778230141,
+          "motor_off_path_mm": 6.680572391346976,
+          "odor_off_trajectory_rms_mm": 92.94967468208668,
+          "olfactory_readout_spikes": [
+            86207,
+            20320
+          ],
+          "motor_spikes": [
+            80691,
+            79958,
+            85137
+          ],
+          "cruise_p95_mm_s": 107.22328795087516,
+          "peak_speed_mm_s": 116.78527859826684,
+          "initial_state_sha256": "95e3609fdadf3fc75923be10510c96f7674094196580215775ac2c83780c7bea",
+          "raw_sha256": [
+            "c70d04306bbeb56024596444e0d1a78a55a0a79b45040a8847d39da8ef825474",
+            "58350fdf2a9892589a02d7a4fa80f35f13eebd1402f2889de7bfc3e04b1de51c",
+            "a2cbfc18e38f17f310284f094d8b35d2341692070b3da96b501495b617f91e7a"
+          ]
+        },
+        {
+          "seed": 13,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9600000000000015,
+            "end_seconds": 13.019999999996333,
+            "hunger_after": 0.299859999999708,
+            "hunger_before": 0.7310599999997041,
+            "resource": "flower_nectar",
+            "start_seconds": 11.060000000000436,
+            "validated_at_seconds": 11.260000000000435
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 506.7579797433461,
+          "motor_off_path_mm": 6.680572391346976,
+          "odor_off_trajectory_rms_mm": 126.25549901690917,
+          "olfactory_readout_spikes": [
+            86353,
+            20320
+          ],
+          "motor_spikes": [
+            80100,
+            79958,
+            86026
+          ],
+          "cruise_p95_mm_s": 105.59800614337047,
+          "peak_speed_mm_s": 116.7723113651685,
+          "initial_state_sha256": "8cb4b59c10ab51ddf5032666b4fb00217efd6ee4a5f4d00048f6cc0ff8d37671",
+          "raw_sha256": [
+            "10f4f007a1f99cbbef977558ec8004896a49c7bdd3570c07937b74e4a5be879f",
+            "76e839e8a1d2e973306c6f75fbf9f0c4a495755ba836750e2711c50360f04fd9",
+            "179eceef900a56998a944e2626044f5feadbc87453116ab7351e9ab8e85f06c1"
+          ]
+        },
+        {
+          "seed": 17,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9600000000000015,
+            "end_seconds": 13.019999999996333,
+            "hunger_after": 0.299859999999708,
+            "hunger_before": 0.7310599999997041,
+            "resource": "flower_nectar",
+            "start_seconds": 11.060000000000436,
+            "validated_at_seconds": 11.260000000000435
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 499.84770751441494,
+          "motor_off_path_mm": 6.680572391346976,
+          "odor_off_trajectory_rms_mm": 130.49849051685885,
+          "olfactory_readout_spikes": [
+            86236,
+            20320
+          ],
+          "motor_spikes": [
+            80237,
+            79958,
+            85430
+          ],
+          "cruise_p95_mm_s": 104.59716686368083,
+          "peak_speed_mm_s": 116.82574132435921,
+          "initial_state_sha256": "37e3d883d26a3e7daf15c38ab3dfd5ce1e183678102e040c5321977fb5b3f96b",
+          "raw_sha256": [
+            "f2404997c3fe445a3c37e4115f534ba808d9d59e23e7b80f5c3b0b6002468960",
+            "b9759cc099e5d7ad80bb889e23c9c64fbb1ffa6f8bd77193d1421cff8c156e18",
+            "2beaa6fc3cc9d9171c455d53064449702b53a7825568409803de693063336b44"
+          ]
+        },
+        {
+          "seed": 19,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9600000000000015,
+            "end_seconds": 13.019999999996333,
+            "hunger_after": 0.299859999999708,
+            "hunger_before": 0.7310599999997041,
+            "resource": "flower_nectar",
+            "start_seconds": 11.060000000000436,
+            "validated_at_seconds": 11.260000000000435
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 506.0726862663187,
+          "motor_off_path_mm": 6.680572391346976,
+          "odor_off_trajectory_rms_mm": 162.75493094787993,
+          "olfactory_readout_spikes": [
+            86336,
+            20320
+          ],
+          "motor_spikes": [
+            80030,
+            79958,
+            84705
+          ],
+          "cruise_p95_mm_s": 104.80168038782547,
+          "peak_speed_mm_s": 116.82246897338729,
+          "initial_state_sha256": "5bacddd5ebbbd3c921237894f87cdbdce6b8fa5d0700eb973d66e110dde3cc07",
+          "raw_sha256": [
+            "c6ec98ed4eeade3bc257688cda75847376a368afbb6675f8e1be38d0afb94d7a",
+            "cfa4d7608f545c981f036a4777c62ade9cd12e61dc47aa5cfbf5a86b29aeebb9",
+            "08ae524a174dd09d1148fe94e94991d2215c01a9358efebb39e0fa5d0d5ecfcf"
+          ]
+        },
+        {
+          "seed": 23,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9600000000000015,
+            "end_seconds": 13.019999999996333,
+            "hunger_after": 0.299859999999708,
+            "hunger_before": 0.7310599999997041,
+            "resource": "flower_nectar",
+            "start_seconds": 11.060000000000436,
+            "validated_at_seconds": 11.260000000000435
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 499.5452697596806,
+          "motor_off_path_mm": 6.680572391346976,
+          "odor_off_trajectory_rms_mm": 106.93301786669714,
+          "olfactory_readout_spikes": [
+            86317,
+            20320
+          ],
+          "motor_spikes": [
+            80072,
+            79958,
+            85045
+          ],
+          "cruise_p95_mm_s": 105.26198518794129,
+          "peak_speed_mm_s": 116.78653470340129,
+          "initial_state_sha256": "54ee2cd45150fb97387c085ecdd302f842a75d77147a081fb8900f04e844f694",
+          "raw_sha256": [
+            "ea7accd615f57affd1fe5ab17220246298b1ee7a4a7b8cc14c1b66387e61ed7d",
+            "d7ecba5346a86355df1755a4e8125e2f6a2947098bb9d4633ae95e668616e439",
+            "99e878a91480a87ba728ae563f335f8f13fbd452afe1bcf6f5aeb41cafec329e"
+          ]
+        }
+      ]
+    },
+    {
+      "task": "dual-to-food",
+      "successes": 5,
+      "odor_off_successes": 0,
+      "runs": [
+        {
+          "seed": 11,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9340000000000015,
+            "end_seconds": 7.016000000005957,
+            "hunger_after": 0.2996019999998679,
+            "hunger_before": 0.725081999999864,
+            "resource": "sugar_drop",
+            "start_seconds": 5.082000000002298,
+            "validated_at_seconds": 5.282000000002298
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 759.0174562116329,
+          "motor_off_path_mm": 6.337890064636696,
+          "odor_off_trajectory_rms_mm": 124.72266485353597,
+          "olfactory_readout_spikes": [
+            69581,
+            20320
+          ],
+          "motor_spikes": [
+            79550,
+            80237,
+            85524
+          ],
+          "cruise_p95_mm_s": 113.12798329039175,
+          "peak_speed_mm_s": 116.8011457253606,
+          "initial_state_sha256": "7a6300c1e89633faa7a1162304ec85548b6586a261020ff39f9c87df66898ad0",
+          "raw_sha256": [
+            "2dc38f13583ccb339f8c1638ccacd4c190bd772fe875532c78c9883f06399e71",
+            "988ee765b7654b140b5ec87e4e59e209bcf782ce7721bd5f3f933eb36158ffd5",
+            "c8f4fc93dcb5d59a02c70c94ecd74a638ccd15e0d38a02591ec76598cc71bf1f"
+          ]
+        },
+        {
+          "seed": 13,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9340000000000015,
+            "end_seconds": 7.016000000005957,
+            "hunger_after": 0.2996019999998679,
+            "hunger_before": 0.725081999999864,
+            "resource": "sugar_drop",
+            "start_seconds": 5.082000000002298,
+            "validated_at_seconds": 5.282000000002298
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 749.316063247014,
+          "motor_off_path_mm": 6.337890064636696,
+          "odor_off_trajectory_rms_mm": 100.9282892975787,
+          "olfactory_readout_spikes": [
+            58401,
+            20320
+          ],
+          "motor_spikes": [
+            80050,
+            80237,
+            85254
+          ],
+          "cruise_p95_mm_s": 113.39291605891478,
+          "peak_speed_mm_s": 116.78731424994051,
+          "initial_state_sha256": "b77c16bf3709c1224f011664fe93c3c7b5fa2f00f8b7324ca5403afd548d8704",
+          "raw_sha256": [
+            "f15681f4f60ba81526d6511070fa724723d2ecd7ea475cf8247e9a5be70794ec",
+            "66a53430b710dfa09876dff27a3234eccd2bfc5a6dbf6a870b79f50b3b95f365",
+            "66dabf57b9e7b3417e90ac8bd3239b3d81ed1e07de5574eecf74c2e9861d71d5"
+          ]
+        },
+        {
+          "seed": 17,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9340000000000015,
+            "end_seconds": 7.016000000005957,
+            "hunger_after": 0.2996019999998679,
+            "hunger_before": 0.725081999999864,
+            "resource": "sugar_drop",
+            "start_seconds": 5.082000000002298,
+            "validated_at_seconds": 5.282000000002298
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 725.2215020453763,
+          "motor_off_path_mm": 6.337890064636696,
+          "odor_off_trajectory_rms_mm": 145.87975942476498,
+          "olfactory_readout_spikes": [
+            66624,
+            20320
+          ],
+          "motor_spikes": [
+            79849,
+            80237,
+            84792
+          ],
+          "cruise_p95_mm_s": 112.8903075416961,
+          "peak_speed_mm_s": 116.78101018207848,
+          "initial_state_sha256": "d7f49ebbfe432f0fe867ff36cdbf0f1ed626df5f59628b5378d0d80aff15e895",
+          "raw_sha256": [
+            "8abb72a8158504fb6ae70f8a2c138aa117436fd7762fb6a3b636f709de161791",
+            "ce0d5cb55a86db07be4027894d1e424b37afb969e529cfc563e7e9337e25973c",
+            "8a9209a2a1f063aa88bd1a8beac8621f8235e70daf35cae4048bd4ec66f99ad2"
+          ]
+        },
+        {
+          "seed": 19,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9340000000000015,
+            "end_seconds": 7.016000000005957,
+            "hunger_after": 0.2996019999998679,
+            "hunger_before": 0.725081999999864,
+            "resource": "sugar_drop",
+            "start_seconds": 5.082000000002298,
+            "validated_at_seconds": 5.282000000002298
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 767.612164811344,
+          "motor_off_path_mm": 6.337890064636696,
+          "odor_off_trajectory_rms_mm": 83.73613850960443,
+          "olfactory_readout_spikes": [
+            64660,
+            20320
+          ],
+          "motor_spikes": [
+            80777,
+            80237,
+            85386
+          ],
+          "cruise_p95_mm_s": 113.13675454044929,
+          "peak_speed_mm_s": 116.82069209954308,
+          "initial_state_sha256": "e3125c80b0d7a6952d9ed7dacee03b0c6de23f870d0781c954383b98aa8a26ea",
+          "raw_sha256": [
+            "04da3d46e6de29a5dfdcc432ad2eb290b7b458ba4418c920fb0578516c658992",
+            "d0a2b569e08cdfd54cf6e5832c63d503807bd3a31df1900121ce94b9afb27df2",
+            "5022dda10727592d769d55186ed0536845cd56d9250a6a6eaf5c99bf43b8c5fd"
+          ]
+        },
+        {
+          "seed": 23,
+          "passed": true,
+          "first_validated": {
+            "continuous_seconds": 1.9340000000000015,
+            "end_seconds": 7.016000000005957,
+            "hunger_after": 0.2996019999998679,
+            "hunger_before": 0.725081999999864,
+            "resource": "sugar_drop",
+            "start_seconds": 5.082000000002298,
+            "validated_at_seconds": 5.282000000002298
+          },
+          "odor_off_passed": false,
+          "connected_path_mm": 668.0246889628379,
+          "motor_off_path_mm": 6.337890064636696,
+          "odor_off_trajectory_rms_mm": 105.9178777640834,
+          "olfactory_readout_spikes": [
+            63879,
+            20320
+          ],
+          "motor_spikes": [
+            80197,
+            80237,
+            85938
+          ],
+          "cruise_p95_mm_s": 111.84654825078397,
+          "peak_speed_mm_s": 116.80140289601484,
+          "initial_state_sha256": "47678eb51d019dc176d1f3028a5399306b9bcf9af080bd42ab3d6717231e964f",
+          "raw_sha256": [
+            "bfe9c41fbe31b86a6d5abb0ac5f0cbbef84f7021d70ecd32bbc44c58912ffb22",
+            "d2f6a9c3aa98f191ba66c72718c5e07661a9eb26402724f3dff8bc37995918bb",
+            "1fcde5a64a08ef29440bdbb9e19aee490405f67cc7a1a975c2d84510c732bd05"
+          ]
+        }
+      ]
+    }
+  ]
+}

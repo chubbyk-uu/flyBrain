@@ -29,6 +29,8 @@ pub mod neural_io;
 pub mod npy;
 pub mod obstacle_avoidance;
 pub mod odor_guidance;
+pub mod search_progress;
+pub mod food_search;
 pub mod olfaction;
 pub mod pack;
 pub mod parameters;

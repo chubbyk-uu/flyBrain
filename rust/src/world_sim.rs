@@ -21,6 +21,7 @@ use crate::foraging::{
     CnsForagingParameters, ForagingCommand, ForagingController, ForagingInput, ForagingMode,
 };
 use crate::gait::GaitLibrary;
+use crate::food_search::{LocalFoodSearch, FoodSearchInput, FoodSearchCommand};
 use crate::grooming::{
     GroomingController, GroomingInput, GroomingMode, GroomingParameters, GroomingTrigger,
 };
@@ -268,6 +269,8 @@ pub struct SimulationSnapshot {
     pub cns_motor: Option<CnsMotorReadout>,
     pub cns_olfactory: Option<crate::cns_olfaction::CnsOlfactoryReadout>,
     pub odor_guidance: crate::odor_guidance::OdorGuidanceCommand,
+    pub food_search: FoodSearchCommand,
+    pub takeoff_inhibited_reason: &'static str,
     pub foraging_mode: ForagingMode,
     pub flight_allowed: bool,
     pub flight_mode: FlightMode,
@@ -412,6 +415,7 @@ pub struct SimulationStepper {
     foraging: ForagingController,
     homeostasis: HomeostaticController,
     odor_guidance: crate::odor_guidance::OdorGuidance,
+    food_search: LocalFoodSearch,
     navigation: NavigationPolicy,
     ground_navigation: NavigationPolicy,
     obstacle_sample: ObstacleSample,
@@ -432,6 +436,8 @@ pub struct SimulationStepper {
     turn_gain: f64,
     walking_translation_scale: f64,
     landing_target_mm: Option<f64>,
+    landing_support_shift_xy: [f64;2],
+    walking_support_shift_xy: [f64;2],
     airborne_target_mm: Option<f64>,
     wall_landing: Option<WallLandingTarget>,
     touchdown_gait_ramp: f64,
@@ -582,6 +588,7 @@ impl SimulationStepper {
             foraging: ForagingController::default(),
             homeostasis: HomeostaticController::new(0xc011_ab1e_2026_0913, parameters.homeostasis)?,
             odor_guidance: crate::odor_guidance::OdorGuidance::default(),
+            food_search: LocalFoodSearch::default(),
             navigation: NavigationPolicy::default(),
             ground_navigation: NavigationPolicy::with_parameters(NavigationPolicyParameters {
                 obstacle_trigger_mm: 2.0,
@@ -607,6 +614,8 @@ impl SimulationStepper {
             turn_gain: 0.0,
             walking_translation_scale: 1.0,
             landing_target_mm: None,
+            landing_support_shift_xy: [0.0;2],
+            walking_support_shift_xy: [0.0;2],
             airborne_target_mm: None,
             wall_landing: None,
             touchdown_gait_ramp: 1.0,
@@ -752,6 +761,12 @@ impl SimulationStepper {
         self.obstacle_sample_elapsed_seconds += window_seconds;
         if self.obstacle_sample_elapsed_seconds + f64::EPSILON >= 0.01 {
             self.obstacle_sample = self.world.obstacle_sample(180.0)?;
+            self.landing_support_shift_xy = if self.snapshot.flight_mode==FlightMode::Landing && self.wall_landing.is_none() {
+                self.world.landing_support_correction()?
+            }else{[0.0;2]};
+            self.walking_support_shift_xy = if self.snapshot.flight_mode==FlightMode::Grounded && self.wall_landing.is_none() {
+                self.world.local_support_correction(5.0)?
+            }else{[0.0;2]};
             self.obstacle_sample_elapsed_seconds %= 0.01;
         }
         let obstacle_sample = self.obstacle_sample;
@@ -963,7 +978,7 @@ impl SimulationStepper {
         };
 
         let odor_guidance_was_active = self.odor_guidance.active();
-        let odor_guidance = self.odor_guidance.update(
+        let mut odor_guidance = self.odor_guidance.update(
             cns_olfactory.unwrap_or_default(),
             root_position[2],
             window_seconds,
@@ -975,6 +990,19 @@ impl SimulationStepper {
                         >= self.parameters.odor_guidance.minimum_acquisition_height_mm),
             self.parameters.odor_guidance,
         );
+        let food_search = self.food_search.update(FoodSearchInput {
+            time:self.world.time(), dt:window_seconds, position:root_position, forward:forward_xy,
+            concentration_ppm:cns_olfactory.map_or(0.0,|readout|0.5*(readout.concentration_ppm[0]+readout.concentration_ppm[1])),
+            eligible:odor_guidance.active && self.snapshot.hungry && !perceived_taste_active
+                && self.snapshot.flight_mode!=FlightMode::Landing
+                && !self.homeostasis.state().fatigue_landing_latched,
+            grounded:self.snapshot.flight_mode==FlightMode::Grounded,
+            up_clearance_mm:obstacle_sample.up_clearance_mm,
+            down_clearance_mm:obstacle_sample.down_clearance_mm,
+            bounds:self.habitat.room().flight_altitude_bounds_mm,
+        });
+        if let Some(steering)=food_search.steering {odor_guidance.steering=steering;}
+        if let Some(height)=food_search.height_target_mm {odor_guidance.approach_height_mm=height;}
         if odor_guidance.active && behavior.mode != BehaviorMode::Feed {
             next_motor.1 = odor_guidance.steering;
         }
@@ -988,12 +1016,16 @@ impl SimulationStepper {
                 odor_left: olfactory_sample.perceived_intensity[0],
                 odor_right: olfactory_sample.perceived_intensity[1],
                 taste_active: perceived_taste_active,
-                surface_contact_count: contact_count,
+                surface_contact_count: if food_search.vertical_sampling || food_search.escaping_overhang {0}else{contact_count},
                 brain_flight_drive,
                 brain_landing_drive,
                 cns_calibration: cns_motor.map(|_| self.parameters.cns_foraging),
                 cns_odor_guidance: (cns_motor.is_some() && self.parameters.odor_guidance.enabled)
-                    .then_some(odor_guidance),
+                    .then_some(crate::odor_guidance::OdorGuidanceCommand {
+                        close:odor_guidance.close && !food_search.vertical_sampling && !food_search.escaping_overhang
+                            && (previous_flight_mode==FlightMode::Grounded || obstacle_sample.down_clearance_mm<=12.0),
+                        ..odor_guidance
+                    }),
             })?
         } else {
             ForagingCommand::default()
@@ -1035,12 +1067,25 @@ impl SimulationStepper {
             next_motor.0 = 0.0;
             next_motor.1 = 0.0;
         }
+        let takeoff_inhibited_reason = if !self.flight_allowed {"flight disabled"}
+            else if food_contact_blocks_flight {"food contact"}
+            else if self.world.time()<self.settle_seconds {"initial support settling"}
+            else if self.world.time()<self.touchdown_settle_until {"touchdown support transfer"}
+            else if grooming_intent {"grooming"}
+            else if self.homeostasis.state().fatigue_landing_latched {"flight fatigue recovery"}
+            else if (foraging.takeoff_inhibited||homeostasis.takeoff_inhibited)&&!food_search.allow_takeoff {"ground food approach"}
+            else {"none"};
         let flight_behavior = self.flight_behavior.update(FlightBehaviorInput {
             dt_seconds: window_seconds,
             enabled: self.flight_allowed && !food_contact_blocks_flight,
             brain_enabled: self.brain.is_some(),
             root_height_mm: self.world.root_position()[2],
             vertical_velocity_mm_s: root_velocity[5],
+            support_aligned: self.wall_landing.map_or_else(|| {
+                let [_,x,y,_]=root_quaternion;
+                1.0-2.0*(x*x+y*y)>0.99
+                    && self.landing_support_shift_xy[0].hypot(self.landing_support_shift_xy[1])<0.4
+            },|target|target.alignment(root_quaternion)>0.99),
             angular_speed_rad_s: root_velocity[..3]
                 .iter()
                 .map(|rate| rate * rate)
@@ -1071,11 +1116,7 @@ impl SimulationStepper {
                 .active
                 .then_some(odor_guidance.approach_height_mm),
             landing_request: foraging.landing_request || homeostasis.landing_request,
-            takeoff_inhibited: foraging.takeoff_inhibited
-                || homeostasis.takeoff_inhibited
-                || grooming_intent
-                || self.world.time() < self.settle_seconds
-                || self.world.time() < self.touchdown_settle_until,
+            takeoff_inhibited: takeoff_inhibited_reason!="none",
             collision_escape_active: self.wall_escape.latched
                 || self.wall_escape.release_hold_windows > 0,
             flight_altitude_bounds_mm: self.habitat.room().flight_altitude_bounds_mm,
@@ -1132,6 +1173,8 @@ impl SimulationStepper {
             && (self.wall_escape.latched || self.wall_escape.release_hold_windows > 0);
         let navigation_override = navigation.obstacle_active || navigation.boundary_active;
         let mut next_walking_translation_scale = 1.0;
+        if food_search.vertical_sampling {next_motor.0=0.0;next_motor.1=0.0;}
+        if food_search.turning_back {next_walking_translation_scale=0.0;}
         if flight_behavior.mode == FlightMode::Grounded && navigation_override {
             let translation_scale = grounded_navigation_forward_gain(
                 obstacle_sample.forward_clearance_mm,
@@ -1143,6 +1186,17 @@ impl SimulationStepper {
                 next_motor.0 *= translation_scale;
             }
             next_motor.1 = navigation.steering;
+        }
+        // A local support-edge reflex, not a resource waypoint: do not walk off
+        // a narrow perch while the neural odor estimate is temporarily noisy.
+        let inward=self.walking_support_shift_xy;
+        if flight_behavior.mode==FlightMode::Grounded && !navigation_override
+            && !perceived_taste_active && inward[0].hypot(inward[1])>0.4
+            && cns_motor.is_none_or(|motor|motor.outputs_connected) {
+            let angle=(forward_xy[0]*inward[1]-forward_xy[1]*inward[0])
+                .atan2(forward_xy[0]*inward[0]+forward_xy[1]*inward[1]);
+            next_motor.1=angle.clamp(-0.7,0.7);
+            if angle.abs()>0.7 {next_walking_translation_scale=0.0;}
         }
         let collision_reflex_active =
             !landing && (wall_escape_active || navigation.collision_reflex_active);
@@ -1169,6 +1223,8 @@ impl SimulationStepper {
                 * if self.wall_escape.latched { 0.35 } else { 1.0 }
         } else if navigation.collision_reflex_active {
             1.0
+        } else if food_search.vertical_sampling || food_search.turning_back {
+            0.0
         } else {
             foraging.horizontal_speed_scale * homeostasis.flight_speed_scale
         }) * cns_motor
@@ -1289,7 +1345,7 @@ impl SimulationStepper {
             root_position[2],
             minimum_command_height_mm,
             overhead,
-            navigation.altitude_escape,
+            navigation.altitude_escape && !food_search.escaping_overhang,
         );
         let base_flight_command = FlightCommand {
             enabled: flight_behavior.mode != FlightMode::Grounded,
@@ -1331,6 +1387,9 @@ impl SimulationStepper {
         let mut flight_post_step_wall_seconds = 0.0;
         let mut flight_telemetry_wall_seconds = 0.0;
         let physics_started = Instant::now();
+        if landing&&self.wall_landing.is_none() {
+            self.flight.stabilize_landing_footprint(root_position,self.landing_support_shift_xy,window_seconds);
+        }
         for _ in 0..physics_steps {
             let command_started = self.physics_profile_enabled.then(Instant::now);
             let mut command_base = base_flight_command;
@@ -1341,7 +1400,9 @@ impl SimulationStepper {
                         * if self.wall_escape.latched { 0.35 } else { 1.0 }
                         * cns_motor.map_or(1.0, |motor| motor.flight_activation.sqrt());
             }
-            let cruise_limit = if odor_guidance.active && homeostasis.hungry && !wall_escape_active { 30.0 } else { 70.0 };
+            let cruise_limit = if odor_guidance.active && homeostasis.hungry && !wall_escape_active {
+                if odor_guidance.close {15.0}else{30.0}
+            } else {60.0};
             command_base.horizontal_speed_scale = command_base.horizontal_speed_scale.min(
                 cruise_limit / self.parameters.flight_dynamics.target_horizontal_speed_mm_s);
             let command = self.flight_stabilizer.command_with_base_limited(
@@ -1499,6 +1560,8 @@ impl SimulationStepper {
             cns_motor,
             cns_olfactory,
             odor_guidance,
+            food_search,
+            takeoff_inhibited_reason,
             foraging_mode: foraging.mode,
             flight_allowed: self.flight_allowed,
             flight_mode: flight_behavior.mode,
@@ -1577,6 +1640,8 @@ impl SimulationStepper {
         self.turn_gain = 0.0;
         self.walking_translation_scale = 1.0;
         self.landing_target_mm = None;
+        self.landing_support_shift_xy = [0.0;2];
+        self.walking_support_shift_xy = [0.0;2];
         self.airborne_target_mm = None;
         self.wall_landing = None;
         self.touchdown_gait_ramp = 1.0;
@@ -1591,6 +1656,7 @@ impl SimulationStepper {
         self.foraging.reset();
         self.homeostasis.reset(self.behavior_seed ^ 0xc011_ab1e_2026_0913);
         self.odor_guidance.reset();
+        self.food_search.reset();
         self.navigation.reset();
         self.ground_navigation.reset();
         self.obstacle_sample = self.world.obstacle_sample(180.0)?;

@@ -3,7 +3,7 @@ use std::path::Path;
 use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
-use mujoco_rs::prelude::{MjData, MjModel, MjSpec, MjtDisableBit, MjtEnableBit, MjtObj};
+use mujoco_rs::prelude::{MjData, MjModel, MjSpec, MjtDisableBit, MjtEnableBit, MjtObj, MjtGeom};
 use serde::Deserialize;
 
 use crate::embodiment::{JOINTS_PER_LEG, LEG_COUNT, SensorySample, SixLegVncCommand};
@@ -315,6 +315,7 @@ pub struct MuJoCoWorld {
     actuators: Box<[ActuatorMetadata]>,
     sensors: Box<[SensorMetadata]>,
     root_body_id: usize,
+    support_geom_ids: Box<[usize]>,
     vnc_actuator_indices: [[usize; JOINTS_PER_LEG]; LEG_COUNT],
     vnc_joint_addresses: [[JointAddress; JOINTS_PER_LEG]; LEG_COUNT],
     adhesion_actuator_indices: [usize; ADHESION_ACTUATOR_COUNT],
@@ -505,6 +506,11 @@ impl MuJoCoWorld {
             Err(std::env::VarError::NotPresent) => {}
             Err(error) => return Err(error).context("reading FLYBRAIN_MUJOCO_JACOBIAN"),
         }
+        let support_geom_ids=(0..data.model().geom_type().len()).filter(|&geom| {
+            let name=data.model().id_to_name(MjtObj::mjOBJ_GEOM,geom).unwrap_or("");
+            !name.starts_with("fly/") && !name.starts_with("room_wall_")
+                && (data.model().geom_conaffinity()[geom]!=0 || name=="ground_plane")
+        }).collect::<Vec<_>>().into_boxed_slice();
         let mut world = Self {
             data,
             metadata,
@@ -513,6 +519,7 @@ impl MuJoCoWorld {
             actuators,
             sensors,
             root_body_id,
+            support_geom_ids,
             vnc_actuator_indices,
             vnc_joint_addresses,
             adhesion_actuator_indices,
@@ -717,6 +724,59 @@ impl MuJoCoWorld {
         geom_id
             .and_then(|id| self.model().id_to_name(MjtObj::mjOBJ_GEOM, id))
             .unwrap_or("none")
+    }
+
+    /// Generic local support-footprint check, with no food or scene identity.
+    pub fn landing_support_correction(&mut self) -> Result<[f64;2]> {
+        self.local_support_correction(3.0)
+    }
+
+    pub fn local_support_correction(&mut self, radius_mm:f64) -> Result<[f64;2]> {
+        let position=self.root_position();
+        let mut samples=Vec::with_capacity(8);
+        for i in 0..8 {
+            let angle=i as f64*std::f64::consts::TAU/8.0;
+            let offset=[radius_mm*angle.cos(),radius_mm*angle.sin()];
+            let origin=[position[0]+offset[0],position[1]+offset[1],position[2]+4.0];
+            if let Some(distance)=self.support_ray_distance(origin) {samples.push((offset,origin[2]-distance));}
+        }
+        let highest=samples.iter().map(|(_,z)|*z).fold(f64::NEG_INFINITY,f64::max);
+        let lowest=samples.iter().map(|(_,z)|*z).fold(f64::INFINITY,f64::min);
+        // An occluded/missing ray is not proof of a drop. Require measured
+        // surface-height contrast; otherwise uneven ray visibility biases flat floors.
+        if highest-lowest<2.0 {return Ok([0.0;2]);}
+        let mut correction=[0.0;2];
+        let mut count=0;
+        for (offset,z) in samples {
+            if z>=highest-0.5 {
+                correction[0]+=offset[0];correction[1]+=offset[1];count+=1;
+            }
+        }
+        if count>0 {correction=correction.map(|x|x/count as f64);}
+        Ok(correction)
+    }
+
+    fn support_ray_distance(&mut self, origin:[f64;3]) -> Option<f64> {
+        // Intersect eligible supports directly. Advancing past decorative ray hits
+        // can skip the top of a thin table and falsely report its underside.
+        // This is used only by the new support reflex, not the existing retina/
+        // obstacle sensory path, and does not mutate geom groups or collision data.
+        let direction=[0.0,0.0,-1.0];
+        let mut nearest=180.0_f64;
+        let mut found=false;
+        for index in 0..self.support_geom_ids.len() {
+            let geom=self.support_geom_ids[index];
+            let kind=self.model().geom_type()[geom];
+            let distance=match kind {
+                MjtGeom::mjGEOM_MESH=>self.data.ray_mesh(geom,&origin,&direction,None),
+                MjtGeom::mjGEOM_HFIELD=>self.data.ray_hfield(geom,&origin,&direction,None),
+                _=>mujoco_rs::wrappers::fun::mju_ray_geom(
+                    &self.data.geom_xpos()[geom],&self.data.geom_xmat()[geom],
+                    &self.model().geom_size()[geom],&origin,&direction,kind,None),
+            };
+            if distance.is_finite() && distance>=0.0 && distance<nearest {nearest=distance;found=true;}
+        }
+        found.then_some(nearest)
     }
 
     fn environment_ray(
@@ -1611,6 +1671,35 @@ mod tests {
                 })
                 .unwrap_or_else(|| panic!("{surface} contact should be generated"));
             assert_eq!(food, ground, "{surface} contact parameters differ");
+        }
+    }
+
+    #[test]
+    fn sugar_decoration_does_not_create_a_false_table_edge() {
+        let mut world=MuJoCoWorld::from_assets_dir_and_scene(DEFAULT_ASSETS_DIR,"indoor-v2").unwrap();
+        for position in [[54.0,-11.6,30.68],[42.0,-11.8,30.68]] {
+            world.data_mut().qpos_mut()[..3].copy_from_slice(&position);
+            world.data_mut().forward();
+            let correction=world.local_support_correction(5.0).unwrap();
+            assert!(correction[0].hypot(correction[1])<1e-8,"{position:?}: {correction:?}");
+        }
+    }
+
+    #[test]
+    fn local_landing_footprint_points_inward_at_a_support_edge() {
+        let mut world=MuJoCoWorld::from_assets_dir_and_scene(DEFAULT_ASSETS_DIR,"indoor-v2").unwrap();
+        for (position,expected_inward) in [
+            ([0.0,0.0,35.0],None),
+            ([-48.0,12.0,68.0],None),
+            ([-54.0,8.0,68.0],Some([6.0,4.0])),
+            ([89.0,0.0,35.0],Some([-1.0,0.0])),
+        ] {
+            world.data_mut().qpos_mut()[..3].copy_from_slice(&position);
+            world.data_mut().forward();
+            let correction=world.landing_support_correction().unwrap();
+            if let Some(direction)=expected_inward {
+                assert!(correction[0]*direction[0]+correction[1]*direction[1]>0.1,"{position:?}: {correction:?}");
+            } else {assert!(correction[0].hypot(correction[1])<1e-8,"{position:?}: {correction:?}");}
         }
     }
 

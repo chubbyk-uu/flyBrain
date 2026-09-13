@@ -91,7 +91,8 @@ function connectSocket() {
     const s = message.snapshot;
     const percent = (value) => `${(100 * Number(value ?? 0)).toFixed(0)}%`;
     needs.textContent = `饥饿 ${percent(s.hunger)} · 飞行疲劳 ${percent(s.flight_fatigue)} · 清洁冲动 ${percent(s.grooming_urge)}`;
-    runState.textContent = `${s.paused ? "已暂停" : "运行中"} · epoch ${message.epoch} · 起飞限制：${s.takeoff_inhibited_reason}`;
+    const search = s.food_search?.escaping_overhang ? "离开上方遮挡" : s.food_search?.vertical_sampling ? "高度采样" : s.food_search?.recovery_active ? "无进展恢复" : s.food_search?.turning_back ? "回查感觉较强处" : "无额外搜索干预";
+    runState.textContent = `${s.paused ? "已暂停" : "运行中"} · epoch ${message.epoch} · 起飞限制：${s.takeoff_inhibited_reason || "none"} · ${search}`;
   }
   });
 }

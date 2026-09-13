@@ -1,0 +1,10 @@
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running unittests rust/src/lib.rs (target/release/deps/flybrain_engine-5e565c1aea0f2528)
+
+running 4 tests
+test food_search::tests::descending_probe_cannot_request_a_height_inside_the_support_surface ... ok
+test food_search::tests::weak_odor_samples_height_but_neural_ineligibility_cannot_move ... ok
+test food_search::tests::selected_height_must_be_reached_before_forward_search_or_resampling ... ok
+test food_search::tests::vertical_search_brackets_a_local_sensory_peak_without_source_coordinates ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 286 filtered out; finished in 0.00s

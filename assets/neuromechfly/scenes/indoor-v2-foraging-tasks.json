@@ -1,0 +1,16 @@
+{
+  "schema": "flybrain.indoor-foraging-acceptance",
+  "version": 1,
+  "seeds": [11, 13, 17, 19, 23],
+  "duration_seconds": 20,
+  "initial_hunger": 0.72,
+  "initial_fatigue": 0.05,
+  "initial_grooming_urge": 0.10,
+  "continuous_feeding_seconds": 0.2,
+  "tasks": [
+    {"id": "floor-to-sugar", "position_mm": [96, -12, 2.1], "yaw_deg": 180, "disable_resource": "flower_nectar", "required_resource": "sugar_drop"},
+    {"id": "table-to-nectar", "position_mm": [-70, -4, 32.1], "yaw_deg": 30, "disable_resource": "sugar_drop", "required_resource": "flower_nectar"},
+    {"id": "pot-base-to-nectar", "position_mm": [-61, 12, 32.1], "yaw_deg": 0, "disable_resource": "sugar_drop", "required_resource": "flower_nectar"},
+    {"id": "dual-to-food", "position_mm": [26, -12, 32.1], "yaw_deg": 0, "disable_resource": null, "required_resource": null}
+  ]
+}

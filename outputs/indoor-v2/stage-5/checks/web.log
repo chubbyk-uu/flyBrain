@@ -1,0 +1,9 @@
+
+> test
+> node scene-test.mjs && node native-pose-test.mjs && node wing-display-test.mjs && node frame-limiter-test.mjs && node native-retina-test.mjs && node --check native-gallery.js && node --check native-view.js
+
+PASS: mesh normals, camera zoom, binocular row layout, asynchronous eye pairing, pending frames and in-flight disposal
+PASS: native pose interpolation and epoch reset
+PASS: grounded fold, continuous carrier, CNS steering asymmetry and legacy telemetry fallback
+PASS: 60/90 Hz caps preserve cadence on a 144 Hz RAF source
+PASS: legacy and epoch-tagged native retina frames, malformed payload rejection
