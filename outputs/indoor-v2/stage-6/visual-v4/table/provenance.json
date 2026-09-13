@@ -1,0 +1,23 @@
+{
+  "input": "outputs/indoor-v2/stage-6/cns-grooming-v4/table-11.json",
+  "runtime_sha256": "3b8afdd744bfd5cac3a1fb658dc64b50a85fcdfe64c17397ad4593e35ba5d0cf",
+  "event": {
+    "completed": true,
+    "end_seconds": 3.031999999999699,
+    "head_eye_distance_mm": 0.5023230343782743,
+    "minimum_contacts": 4,
+    "minimum_support_legs": 4,
+    "opportunity_seconds": 0.002,
+    "position_mm": [
+      0.002452713324534739,
+      0.0013715371679388427,
+      31.098926980993724
+    ],
+    "rubbing_distance_mm": 0.17656974225460328,
+    "start_seconds": 0.5320000000000004,
+    "trigger": "autonomous"
+  },
+  "frames": 135,
+  "source_hz": 50,
+  "kind": "display-only replay of actual autonomous CNS/MuJoCo body poses; not performance evidence"
+}

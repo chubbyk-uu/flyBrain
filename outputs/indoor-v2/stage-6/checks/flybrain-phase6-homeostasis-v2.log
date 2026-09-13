@@ -1,0 +1,17 @@
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running unittests rust/src/lib.rs (target/release/deps/flybrain_engine-5e565c1aea0f2528)
+
+running 6 tests
+test homeostasis::tests::custom_initial_hunger_survives_reset ... ok
+test homeostasis::tests::pause_reset_dt_and_seed_are_deterministic_and_serializable ... ok
+test homeostasis::tests::hunger_requires_taste_extension_mn9_contact_and_connected_output ... ok
+test homeostasis::tests::fatigue_rises_in_powered_flight_and_recovers_on_stable_support ... ok
+test homeostasis::tests::fatigue_latch_requests_landing_and_allows_walking_during_recovery ... ok
+speed=60 mm/s: fatigue threshold at 32.728s
+speed=0 mm/s: fatigue threshold at 32.728s
+speed=0.5 mm/s: fatigue threshold at 32.728s
+supported speed=0 mm/s: flight eligibility at Some(10.0)s
+supported speed=4 mm/s: flight eligibility at Some(10.0)s
+test homeostasis::tests::registered_hunger_and_flight_fatigue_time_fixtures ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 291 filtered out; finished in 0.00s

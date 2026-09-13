@@ -24,7 +24,7 @@
     },
     "homeostasis": {
       "initial_hunger": 0.72,
-      "hunger_rate_per_second": 0.001,
+      "hunger_rate_per_second": 0.0041666666666666675,
       "feeding_relief_per_second": 0.22,
       "hunger_enter": 0.55,
       "hunger_release": 0.3,
@@ -35,7 +35,7 @@
       "support_recovery_rate_per_second": 0.06,
       "fatigue_landing_enter": 0.68,
       "fatigue_takeoff_release": 0.25,
-      "minimum_rest_seconds": 3.5,
+      "minimum_rest_seconds": 0.0,
       "minimum_grounded_seconds": 10.0,
       "waypoint_min_seconds": 2.0,
       "waypoint_max_seconds": 4.0,
@@ -45,16 +45,16 @@
     },
     "grooming": {
       "initial_dirt": 0.1,
-      "passive_dirt_rate_per_second": 0.0015,
-      "walking_dirt_rate_per_second": 0.002,
-      "flight_dirt_rate_per_second": 0.006,
-      "environment_dirt_rate_per_second": 0.001,
+      "passive_dirt_rate_per_second": 0.025,
+      "walking_dirt_rate_per_second": 0.0,
+      "flight_dirt_rate_per_second": 0.0,
+      "environment_dirt_rate_per_second": 0.0,
       "start_threshold": 0.4,
       "release_threshold": 0.25,
       "stable_support_seconds": 0.5,
       "neural_gate_rate_hz": 0.1,
       "neural_evidence_hold_seconds": 12.0,
-      "completed_cleaning_fraction": 0.45
+      "completed_cleaning_fraction": 0.9
     },
     "brain": {
       "neural": {

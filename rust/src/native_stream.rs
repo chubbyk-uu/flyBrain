@@ -219,7 +219,7 @@ fn snapshot_payload(frame: &view_worker::Frame) -> serde_json::Value {
         } else {
             snapshot.flight_amplitude_scale.clamp(0.0, 1.0)
         };
-    json!({
+    let mut payload=json!({
         "time_seconds": snapshot.time_seconds,
         "root_position": snapshot.root_position,
         "horizontal_speed_mm_s": snapshot.horizontal_speed_mm_s,
@@ -267,5 +267,9 @@ fn snapshot_payload(frame: &view_worker::Frame) -> serde_json::Value {
         "takeoff_inhibited_reason": snapshot.takeoff_inhibited_reason,
         "food_search": snapshot.food_search,
         "realtime_factor": frame.realtime_factor,
-    })
+    });
+    payload["grooming_cooldown_seconds"]=json!(snapshot.grooming_cooldown_seconds);
+    payload["grooming_completed_bouts"]=json!(snapshot.grooming_completed_bouts);
+    payload["grooming_opportunity_count"]=json!(snapshot.grooming_opportunity_count);
+    payload
 }

@@ -220,11 +220,17 @@ pub struct SimulationSnapshot {
     pub grooming_active: bool,
     pub grooming_phase: f64,
     pub grooming_support_leg_count: usize,
+    pub grooming_actual_support_leg_count:usize,
     pub dirt: f64,
     pub grooming_neural_gate_active: bool,
     pub grooming_stable_support_seconds: f64,
     pub grooming_completed_bouts: u64,
     pub grooming_interrupted_bouts: u64,
+    pub grooming_opportunity_count:u64,
+    pub grooming_last_opportunity_seconds:Option<f64>,
+    pub grooming_last_started_seconds:Option<f64>,
+    pub grooming_last_completed_seconds:Option<f64>,
+    pub grooming_cooldown_seconds:f64,
     pub front_tarsi_distance_mm: f64,
     pub front_tarsus_head_eye_min_distance_mm: f64,
     pub contact_count: usize,
@@ -422,6 +428,8 @@ pub struct SimulationStepper {
     obstacle_sample_elapsed_seconds: f64,
     wall_escape: WallEscapeState,
     grooming: GroomingController,
+    manual_grooming_requested:bool,
+    manual_grooming_stable_seconds:f64,
     grooming_neural_gate_connected: bool,
     brain: Option<BrainBodyBridge>,
     brain_telemetry_enabled: bool,
@@ -600,6 +608,8 @@ impl SimulationStepper {
             obstacle_sample_elapsed_seconds: 0.0,
             wall_escape: WallEscapeState::default(),
             grooming: GroomingController::with_parameters(parameters.grooming)?,
+            manual_grooming_requested:false,
+            manual_grooming_stable_seconds:0.0,
             grooming_neural_gate_connected: true,
             brain,
             brain_telemetry_enabled: false,
@@ -680,7 +690,8 @@ impl SimulationStepper {
         }
         let was_airborne = self.snapshot.flight_mode != FlightMode::Grounded;
         let mut sample = self.world.sensory_sample()?;
-        if was_airborne || (!self.feeding_pose_held && self.touchdown_gait_ramp >= 1.0) {
+        if was_airborne || (!self.feeding_pose_held && !self.snapshot.grooming_active
+            && !self.grooming.preparing() && self.touchdown_gait_ramp >= 1.0) {
             self.standing_joint_controls =
                 std::array::from_fn(|index| self.world.controls()[index]);
         }
@@ -857,9 +868,11 @@ impl SimulationStepper {
         } else {
             0.0
         };
-        sample.grooming_dirt = if self.snapshot.flight_mode == FlightMode::Grounded
-            && !self.snapshot.hungry
-            && root_position[2] <= 5.0
+        let on_horizontal_support=self.snapshot.flight_mode==FlightMode::Grounded
+            && self.wall_landing.is_none()
+            && 1.0-2.0*(root_quaternion[1].powi(2)+root_quaternion[2].powi(2))>0.95
+            && obstacle_sample.down_clearance_mm<=3.0;
+        sample.grooming_dirt = if on_horizontal_support && !self.snapshot.hungry
         {
             self.grooming.state().dirt
         } else {
@@ -1034,7 +1047,8 @@ impl SimulationStepper {
             dt_seconds: window_seconds,
             flight_mode: previous_flight_mode,
             contact_count,
-            support_contact: contact_count >= 2 || obstacle_sample.down_clearance_mm <= 2.0,
+            support_contact: contact_count>=2 && previous_flight_mode==FlightMode::Grounded
+                && 1.0-2.0*(root_quaternion[1].powi(2)+root_quaternion[2].powi(2))>0.8,
             horizontal_speed_mm_s,
             flight_amplitude: self.snapshot.flight_amplitude_scale,
             taste_active: perceived_taste_active,
@@ -1060,9 +1074,15 @@ impl SimulationStepper {
             perceived_taste_active,
             behavior.mode,
         );
-        let grooming_intent = self.grooming.autonomous_intent(!homeostasis.hungry)
-            && root_position[2] <= 5.0
-            && contact_count >= crate::grooming::GROOMING_MIN_SUPPORT_LEGS;
+        let grooming_intent = (self.manual_grooming_requested || self.snapshot.grooming_active
+            || self.grooming.autonomous_intent(!homeostasis.hungry))
+            && on_horizontal_support
+            && !taste_active && habitat_sample.taste_valence<=0.0 && next_motor.2<=0.01
+            && !self.snapshot.flight_escape_active
+            && contact_count>0;
+        if self.manual_grooming_requested && grooming_intent && contact_count>=4 && horizontal_speed_mm_s<=2.0 {
+            self.manual_grooming_stable_seconds+=window_seconds;
+        } else {self.manual_grooming_stable_seconds=0.0;}
         if grooming_intent {
             next_motor.0 = 0.0;
             next_motor.1 = 0.0;
@@ -1235,11 +1255,16 @@ impl SimulationStepper {
             horizontal_speed_scale
         };
         let grooming_completed_before = self.grooming.state().completed_bouts;
+        if self.manual_grooming_requested && self.manual_grooming_stable_seconds>=0.5 && !collision_reflex_active {
+            self.grooming.request_manual();
+            self.manual_grooming_requested=false;
+            self.manual_grooming_stable_seconds=0.0;
+        }
         let grooming_command = self.grooming.update(GroomingInput {
             dt_seconds: window_seconds,
             grounded: flight_behavior.mode == FlightMode::Grounded
                 && cns_motor.is_none_or(|motor| motor.outputs_connected),
-            on_ground_surface: root_position[2] <= 5.0,
+            on_ground_surface: on_horizontal_support,
             contact_count,
             allow_fallback: self.brain.is_none(),
             taste_active: perceived_taste_active,
@@ -1272,10 +1297,18 @@ impl SimulationStepper {
             if perched_on_wall {
                 joint_controls = std::array::from_fn(|index| self.world.neutral_control()[index]);
                 adhesion = [1.0; 6];
-            } else if grooming_command.active || self.grooming.preparing()
+            } else if grooming_command.active || self.grooming.preparing() || grooming_intent
                 || self.world.time() < self.touchdown_settle_until {
+                if grooming_intent && !grooming_command.active {
+                    for index in 0..42 {
+                        self.standing_joint_controls[index]+=(1.0-(-window_seconds/0.15).exp())
+                            *(self.world.neutral_control()[index]-self.standing_joint_controls[index]);
+                    }
+                }
                 joint_controls = self.standing_joint_controls;
-                adhesion = [1.0; 6];
+                // Let the feet settle into the preparation pose rather than
+                // pinning the preceding walking step to the floor with adhesion.
+                adhesion = if grooming_intent && !grooming_command.active {[0.2;6]}else{[1.0;6]};
             }
             if self.world.time() < self.touchdown_settle_until {
                 next_motor.0 = 0.0;
@@ -1505,11 +1538,17 @@ impl SimulationStepper {
             grooming_active: grooming_command.active,
             grooming_phase: grooming_command.phase,
             grooming_support_leg_count: grooming_command.support_leg_count,
+            grooming_actual_support_leg_count:[1,2,4,5].into_iter().filter(|&leg|sample.foot_contacts[leg]).count(),
             dirt: grooming_command.dirt,
             grooming_neural_gate_active: grooming_command.neural_gate_active,
             grooming_stable_support_seconds: grooming_command.stable_support_seconds,
             grooming_completed_bouts: grooming_command.completed_bouts,
             grooming_interrupted_bouts: grooming_command.interrupted_bouts,
+            grooming_opportunity_count:self.grooming.state().opportunity_count,
+            grooming_last_opportunity_seconds:self.grooming.state().last_opportunity_seconds,
+            grooming_last_started_seconds:self.grooming.state().last_start_seconds,
+            grooming_last_completed_seconds:self.grooming.state().last_complete_seconds,
+            grooming_cooldown_seconds:self.grooming.state().cooldown_seconds,
             front_tarsi_distance_mm: distance(left_front_tarsus, right_front_tarsus),
             front_tarsus_head_eye_min_distance_mm,
             contact_count,
@@ -1663,6 +1702,8 @@ impl SimulationStepper {
         self.obstacle_sample_elapsed_seconds = 0.0;
         self.wall_escape = WallEscapeState::default();
         self.grooming.reset();
+        self.manual_grooming_requested=false;
+        self.manual_grooming_stable_seconds=0.0;
         self.retina_summaries = [RetinaSummary::default(); 2];
         self.snapshot = SimulationSnapshot {
             root_position: self.world.root_position(),
@@ -1705,6 +1746,7 @@ impl SimulationStepper {
         self.explorer.reset(seed ^ 0x5eed_f17b_2026_0816);
         self.flight_behavior.reset(seed ^ 0xa17f_1eaf_2026_0816);
         self.homeostasis.reset(seed ^ 0xc011_ab1e_2026_0913);
+        self.grooming.set_seed(seed ^ 0x6a00_2026_0913);
         Ok(())
     }
 
@@ -1713,6 +1755,7 @@ impl SimulationStepper {
             bail!("initial dirt can only be set before stepping")
         }
         self.grooming.set_initial_dirt(dirt)?;
+        self.parameters.grooming.initial_dirt=dirt;
         self.snapshot.dirt = dirt;
         Ok(())
     }
@@ -1722,6 +1765,7 @@ impl SimulationStepper {
             bail!("initial hunger can only be set before stepping")
         }
         self.homeostasis.set_initial_hunger(hunger)?;
+        self.parameters.homeostasis.initial_hunger=hunger;
         let state = self.homeostasis.state();
         self.snapshot.hunger = state.hunger;
         self.snapshot.hungry = state.hungry;
@@ -1954,7 +1998,7 @@ impl SimulationStepper {
     }
 
     pub fn request_grooming(&mut self) {
-        self.grooming.request_manual();
+        self.manual_grooming_requested=true;
     }
 
     fn refresh_environment_snapshot(&mut self) -> Result<()> {
@@ -3204,6 +3248,60 @@ mod tests {
             })
             .unwrap();
         assert!(blocked.obstacle_active && blocked.collision_reflex_active);
+    }
+
+    #[test]
+    fn indoor_v2_grooming_physical_floor_and_table() {
+        for (surface,position) in [("floor",[0.0,-70.0,2.1]),("table",[0.0,0.0,32.1])] {
+            let mut simulation=SimulationStepper::new_with_parameters_physics_and_scene(
+                DEFAULT_ASSETS_DIR,None::<&str>,500.0,0.5,
+                SimulationParameters::default(),Some(0.0002),"indoor-v2").unwrap();
+            simulation.set_initial_position(position).unwrap();
+            simulation.set_initial_hunger(0.3).unwrap();
+            simulation.flight_allowed=false;
+            simulation.set_resource_enabled("sugar_drop",false).unwrap();
+            simulation.set_resource_enabled("flower_nectar",false).unwrap();
+            for _ in 0..250 {simulation.step_window().unwrap();}
+            simulation.request_grooming();
+            let mut start=None;let mut end=None;
+            let mut rubbing_min=f64::INFINITY;let mut head_min=f64::INFINITY;
+            let mut minimum_contacts=6;
+            let mut minimum_support=4;
+            let mut held_reference=None;
+            for step in 0..2000 {
+                let s=simulation.step_window().unwrap();
+                if step%100==0 {
+                    eprintln!("{surface} t={:.3} phase={:.3} root={:?} quat={:?} contacts={} feet={:?}",
+                        s.time_seconds,s.grooming_phase,s.root_position,simulation.world.root_quaternion(),s.contact_count,
+                        ["fly/lm_tarsus5","fly/lh_tarsus5","fly/rm_tarsus5","fly/rh_tarsus5"].map(|name|simulation.world.body_position(name).unwrap()));
+                }
+                if s.grooming_active {
+                    let reference=held_reference.get_or_insert(simulation.standing_joint_controls);
+                    assert_eq!(simulation.standing_joint_controls,*reference,"grooming overlay accumulated into its reference pose");
+                    start.get_or_insert(s.time_seconds);
+                    minimum_contacts=minimum_contacts.min(s.contact_count);
+                    if (0.15..=0.90).contains(&s.grooming_phase) {
+                        if s.grooming_actual_support_leg_count<minimum_support {
+                            eprintln!("{surface}: support loss at phase {} contacts {:?}",s.grooming_phase,simulation.world.support_contacts().unwrap());
+                        }
+                        minimum_support=minimum_support.min(s.grooming_actual_support_leg_count);
+                    }
+                    if (0.20..=0.40).contains(&s.grooming_phase) {rubbing_min=rubbing_min.min(s.front_tarsi_distance_mm);}
+                    if (0.52..=0.85).contains(&s.grooming_phase) {head_min=head_min.min(s.front_tarsus_head_eye_min_distance_mm);}
+                } else if start.is_some() {end=Some(s.time_seconds);break;}
+            }
+            eprintln!("{surface}: start={start:?} end={end:?} rubbing={rubbing_min:.6} head={head_min:.6} min_contacts={minimum_contacts} middle/hind_support={minimum_support}");
+            let duration=end.unwrap()-start.unwrap();
+            assert!((2.0..=3.0).contains(&duration),"{surface}: interrupted at {duration}");
+            assert!(minimum_contacts>=4,"{surface}: support legs {minimum_contacts}");
+            assert_eq!(minimum_support,4,"{surface}: middle/hind foot support");
+            assert!(rubbing_min<1.5,"{surface}: rubbing distance {rubbing_min}");
+            assert!(head_min<1.5,"{surface}: head/eye distance {head_min}");
+            let stopped=simulation.world.root_position();
+            for _ in 0..1000 {simulation.step_window().unwrap();}
+            let moved=super::distance(stopped,simulation.world.root_position());
+            assert!(moved>1.0,"{surface}: no locomotion after grooming ({moved})");
+        }
     }
 
     #[test]

@@ -32,7 +32,7 @@ impl Default for HomeostasisParameters {
     fn default() -> Self {
         Self {
             initial_hunger: 0.72,
-            hunger_rate_per_second: 0.001,
+            hunger_rate_per_second: (0.55-0.30)/60.0,
             feeding_relief_per_second: 0.22,
             hunger_enter: 0.55,
             hunger_release: 0.30,
@@ -43,7 +43,7 @@ impl Default for HomeostasisParameters {
             support_recovery_rate_per_second: 0.060,
             fatigue_landing_enter: 0.68,
             fatigue_takeoff_release: 0.25,
-            minimum_rest_seconds: 3.5,
+            minimum_rest_seconds: 0.0,
             minimum_grounded_seconds: 10.0,
             waypoint_min_seconds: 2.0,
             waypoint_max_seconds: 4.0,
@@ -74,7 +74,6 @@ impl HomeostasisParameters {
             self.feeding_mn9_threshold_hz,
             self.flight_fatigue_rate_per_second,
             self.support_recovery_rate_per_second,
-            self.minimum_rest_seconds,
             self.minimum_grounded_seconds,
             self.waypoint_min_seconds,
             self.waypoint_max_seconds,
@@ -88,6 +87,7 @@ impl HomeostasisParameters {
             || self.hunger_release >= self.hunger_enter
             || self.fatigue_takeoff_release >= self.fatigue_landing_enter
             || self.minimum_rest_seconds > self.minimum_grounded_seconds
+            || !self.minimum_rest_seconds.is_finite() || self.minimum_rest_seconds<0.0
             || self.waypoint_min_seconds > self.waypoint_max_seconds
         {
             bail!("homeostasis parameters are invalid")
@@ -168,6 +168,8 @@ pub struct HomeostaticController {
     waypoint_mm: [f64; 2],
     waypoint_seconds: f64,
     collision_was_active: bool,
+    quiet_seconds: f64,
+    quiet_choice: bool,
 }
 
 impl HomeostaticController {
@@ -185,6 +187,8 @@ impl HomeostaticController {
             waypoint_mm: [0.0; 2],
             waypoint_seconds: 0.0,
             collision_was_active: false,
+            quiet_seconds: 0.0,
+            quiet_choice: false,
         })
     }
 
@@ -202,6 +206,7 @@ impl HomeostaticController {
         }
         self.state.hunger = hunger;
         self.state.hungry = hunger >= self.parameters.hunger_enter;
+        self.parameters.initial_hunger=hunger;
         Ok(())
     }
 
@@ -216,6 +221,7 @@ impl HomeostaticController {
         }
 
         let feeding = input.motor_outputs_connected
+            && input.flight_mode==FlightMode::Grounded && input.contact_count>=2
             && input.taste_active
             && input.support_contact
             && input.feeding_extension >= self.parameters.feeding_extension_threshold
@@ -233,12 +239,11 @@ impl HomeostaticController {
         }
 
         let airborne = input.flight_mode != FlightMode::Grounded;
-        let powered_flight =
-            airborne && input.flight_amplitude > 0.1 && input.horizontal_speed_mm_s > 1.0;
+        let powered_flight = airborne && input.flight_amplitude > 0.1;
         let stable_support = !airborne && input.contact_count >= 3;
         if powered_flight {
-            let effort = input.flight_amplitude
-                * (0.5 + 0.5 * (input.horizontal_speed_mm_s / 300.0).clamp(0.0, 1.0));
+            // Holding the body aloft has a cost even at zero horizontal velocity.
+            let effort = 0.75 + 0.25*input.flight_amplitude.clamp(0.0,1.0);
             self.state.fatigue = (self.state.fatigue
                 + self.parameters.flight_fatigue_rate_per_second * effort * input.dt_seconds)
                 .clamp(0.0, 1.0);
@@ -266,6 +271,14 @@ impl HomeostaticController {
             self.state.supported_seconds =
                 (self.state.supported_seconds - input.dt_seconds).max(0.0);
         }
+
+        if self.state.fatigue_landing_latched && !airborne && !self.state.hungry {
+            self.quiet_seconds=(self.quiet_seconds-input.dt_seconds).max(0.0);
+            if self.quiet_seconds==0.0 && stable_support {
+                self.quiet_seconds=2.0+2.0*self.next_unit();
+                self.quiet_choice=self.next_unit()<0.5;
+            }
+        } else {self.quiet_seconds=0.0;self.quiet_choice=false;}
 
         self.waypoint_seconds = (self.waypoint_seconds - input.dt_seconds).max(0.0);
         let collision_started = input.collision_escape_active && !self.collision_was_active;
@@ -322,7 +335,7 @@ impl HomeostaticController {
     fn resting(&self, flight_mode: FlightMode) -> bool {
         self.state.fatigue_landing_latched
             && flight_mode == FlightMode::Grounded
-            && self.state.supported_seconds < self.parameters.minimum_rest_seconds
+            && (self.state.supported_seconds < self.parameters.minimum_rest_seconds || self.quiet_choice)
     }
 
     fn select_waypoint(&mut self, room: [f64; 3]) {
@@ -399,6 +412,8 @@ mod tests {
         let baseline = controller().update(valid).unwrap().hunger;
         assert!(baseline < HomeostasisParameters::default().initial_hunger);
         for invalid in [
+            HomeostaticInput {flight_mode:FlightMode::Cruise,..valid},
+            HomeostaticInput {contact_count:1,..valid},
             HomeostaticInput {
                 taste_active: false,
                 ..valid
@@ -452,7 +467,7 @@ mod tests {
     }
 
     #[test]
-    fn fatigue_latch_requests_landing_and_holds_a_supported_rest() {
+    fn fatigue_latch_requests_landing_and_allows_walking_during_recovery() {
         let mut state = controller();
         let flight = HomeostaticInput {
             dt_seconds: 1.0,
@@ -473,12 +488,66 @@ mod tests {
         };
         for _ in 0..6 {
             command = state.update(support).unwrap();
-            assert!(command.resting && command.takeoff_inhibited);
+            assert!(command.takeoff_inhibited);
+            assert!(!command.resting,"hungry recovery must not force the old 3.5-second rest");
         }
         for _ in 0..20 {
             command = state.update(support).unwrap();
         }
         assert!(!command.takeoff_inhibited);
+    }
+
+    #[test]
+    fn registered_hunger_and_flight_fatigue_time_fixtures() {
+        let mut hungry=HomeostaticController::new(11,HomeostasisParameters {initial_hunger:0.30,..Default::default()}).unwrap();
+        let mut onset=None;
+        for i in 1..=30002 {
+            if hungry.update(HomeostaticInput {dt_seconds:0.002,..Default::default()}).unwrap().hungry {onset=Some(i as f64*0.002);break;}
+        }
+        assert!((onset.unwrap()-60.0).abs()<=0.002001,"hunger onset {onset:?}");
+        for speed in [60.0,0.0,0.5] {
+            let mut state=controller();
+            let mut fatigue_onset=None;
+            for i in 1..=22501 {
+                let before=state.state().fatigue;
+                let command=state.update(HomeostaticInput {dt_seconds:0.002,flight_mode:FlightMode::Cruise,
+                    horizontal_speed_mm_s:speed,flight_amplitude:0.85,..Default::default()}).unwrap();
+                assert!(command.fatigue>before);
+                if command.landing_request {fatigue_onset=Some(i as f64*0.002);break;}
+            }
+            let time=fatigue_onset.unwrap();
+            assert!((30.0..=45.0).contains(&time));
+            eprintln!("speed={speed} mm/s: fatigue threshold at {time}s");
+        }
+        for speed in [0.0,4.0] {
+            let mut state=HomeostaticController::new(11,HomeostasisParameters {initial_hunger:0.3,initial_fatigue:0.72,..Default::default()}).unwrap();
+            state.state.fatigue_landing_latched=true;
+            let mut release=None;
+            for i in 1..=5501 {
+                let before=state.state().fatigue;
+                let command=state.update(HomeostaticInput {dt_seconds:0.002,contact_count:4,
+                    horizontal_speed_mm_s:speed,..Default::default()}).unwrap();
+                assert!(command.fatigue<=before);
+                if !command.takeoff_inhibited {release=Some(i as f64*0.002);break;}
+            }
+            assert!((9.0..=11.0).contains(&release.unwrap()));
+            eprintln!("supported speed={speed} mm/s: flight eligibility at {release:?}s");
+        }
+        let mut falling=controller();
+        let before=falling.state().fatigue;
+        falling.update(HomeostaticInput {dt_seconds:5.0,flight_mode:FlightMode::Landing,
+            contact_count:0,flight_amplitude:0.0,..Default::default()}).unwrap();
+        assert_eq!(falling.state().fatigue,before);
+    }
+
+    #[test]
+    fn custom_initial_hunger_survives_reset() {
+        let mut state=controller();
+        state.set_initial_hunger(0.3).unwrap();
+        state.update(HomeostaticInput {dt_seconds:10.0,..Default::default()}).unwrap();
+        assert!(state.state().hunger>0.3);
+        state.reset(7);
+        assert_eq!(state.state().hunger,0.3);
     }
 
     #[test]

@@ -1,0 +1,8 @@
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running unittests rust/src/lib.rs (target/release/deps/flybrain_engine-5e565c1aea0f2528)
+
+running 1 test
+food touchdown t=0.5999999999999502 position=[29.653582843702754, 14.864935630131116, 1.805280877931695] vz=-0.7725127020336341 up_z=0.9996510785258385 minimum_up_z=0.999341021428371 peak_ground_speed=1.9735424871541882 tasted=true final=[29.662933143506535, 14.871755319736208, 1.8077982189568953] quat=[0.9124805047623786, -0.009782105630796933, 0.014908435616601842, 0.4087314245142993] contacts=[true, true, true, true, true, true] vel=[-3.0096640263473074e-9, -3.5376634970160322e-9, 2.62508961866123e-9, -5.342343237611144e-9, -4.681093098548091e-10, -6.174996053877779e-9]
+test world_sim::tests::landing_on_food_levels_brakes_and_descends_before_support_handoff ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 296 filtered out; finished in 2.70s

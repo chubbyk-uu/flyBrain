@@ -1,4 +1,4 @@
-use std::f64::consts::{PI, TAU};
+use std::f64::consts::TAU;
 
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 pub const GROOMING_LEG_COUNT: usize = 6;
 pub const GROOMING_CONTROL_COUNT: usize = 42;
 pub const GROOMING_MIN_SUPPORT_LEGS: usize = 4;
-pub const GROOMING_BOUT_DURATION_SECONDS: f64 = 1.8;
+pub const GROOMING_BOUT_DURATION_SECONDS: f64 = 2.5;
+const DEFAULT_GROOMING_SEED:u64=0x6a00_2026_0913;
 pub const GROOMING_FALLBACK_INTERVAL_SECONDS: f64 = 8.0;
 const GROOMING_SUPPORT_LOSS_GRACE_SECONDS: f64 = 0.05;
 const BRUSH_FREQUENCY_HZ: f64 = 8.0;
@@ -33,16 +34,16 @@ impl Default for GroomingParameters {
     fn default() -> Self {
         Self {
             initial_dirt: 0.10,
-            passive_dirt_rate_per_second: 0.0015,
-            walking_dirt_rate_per_second: 0.0020,
-            flight_dirt_rate_per_second: 0.0060,
-            environment_dirt_rate_per_second: 0.0010,
+            passive_dirt_rate_per_second: 0.025,
+            walking_dirt_rate_per_second: 0.0,
+            flight_dirt_rate_per_second: 0.0,
+            environment_dirt_rate_per_second: 0.0,
             start_threshold: 0.40,
             release_threshold: 0.25,
             stable_support_seconds: 0.50,
             neural_gate_rate_hz: 0.10,
             neural_evidence_hold_seconds: 12.0,
-            completed_cleaning_fraction: 0.45,
+            completed_cleaning_fraction: 0.90,
         }
     }
 }
@@ -82,12 +83,18 @@ impl GroomingParameters {
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
 pub struct GroomingState {
     pub dirt: f64,
     pub stable_support_seconds: f64,
     pub neural_evidence_seconds: f64,
     pub completed_bouts: u64,
     pub interrupted_bouts: u64,
+    pub opportunity_count:u64,
+    pub last_opportunity_seconds:Option<f64>,
+    pub last_start_seconds:Option<f64>,
+    pub last_complete_seconds:Option<f64>,
+    pub cooldown_seconds:f64,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -185,6 +192,10 @@ pub struct GroomingController {
     next_fallback_left: bool,
     autonomous_latched: bool,
     stable_support_loss_seconds: f64,
+    seed:u64,
+    random_state:u64,
+    total_seconds:f64,
+    urge_rate:f64,
 }
 
 impl GroomingController {
@@ -193,8 +204,12 @@ impl GroomingController {
     }
 
     pub fn with_parameters(parameters: GroomingParameters) -> Result<Self> {
+        Self::with_seed(parameters,DEFAULT_GROOMING_SEED)
+    }
+
+    pub fn with_seed(parameters:GroomingParameters,seed:u64)->Result<Self> {
         let parameters = parameters.validate()?;
-        Ok(Self {
+        let mut controller=Self {
             parameters,
             state: GroomingState {
                 dirt: parameters.initial_dirt,
@@ -210,19 +225,26 @@ impl GroomingController {
             next_fallback_left: true,
             autonomous_latched: false,
             stable_support_loss_seconds: 0.0,
-        })
+            seed,random_state:seed,total_seconds:0.0,urge_rate:0.0,
+        };
+        controller.choose_interval(true);
+        Ok(controller)
     }
 
     pub fn reset(&mut self) {
-        *self = Self::with_parameters(self.parameters).expect("existing parameters are valid");
+        *self = Self::with_seed(self.parameters,self.seed).expect("existing parameters are valid");
+    }
+
+    pub fn set_seed(&mut self,seed:u64) {
+        *self=Self::with_seed(self.parameters,seed).expect("existing parameters are valid");
     }
 
     pub fn set_initial_dirt(&mut self, dirt: f64) -> Result<()> {
         if !dirt.is_finite() || !(0.0..=1.0).contains(&dirt) || self.elapsed_seconds > 0.0 {
             bail!("initial dirt must be in [0,1] before a bout starts")
         }
-        self.state.dirt = dirt;
-        self.autonomous_latched = dirt >= self.parameters.start_threshold;
+        self.parameters.initial_dirt=dirt;
+        self.reset();
         Ok(())
     }
 
@@ -231,7 +253,8 @@ impl GroomingController {
     }
 
     pub fn autonomous_intent(&self, satiated: bool) -> bool {
-        satiated && (self.autonomous_latched || self.active())
+        satiated && (self.active() || (self.autonomous_latched
+            && self.state.cooldown_seconds==0.0 && self.state.neural_evidence_seconds>0.0))
     }
 
     pub fn request_manual(&mut self) {
@@ -247,6 +270,8 @@ impl GroomingController {
         if input.dt_seconds == 0.0 {
             return Ok(self.command());
         }
+        self.total_seconds+=input.dt_seconds;
+        self.state.cooldown_seconds=(self.state.cooldown_seconds-input.dt_seconds).max(0.0);
         self.accumulate_dirt(input);
         if input.neural_outputs_connected
             && input.grooming_probe_rate_hz >= self.parameters.neural_gate_rate_hz
@@ -279,6 +304,10 @@ impl GroomingController {
             self.state.stable_support_seconds = 0.0;
         }
         if self.state.dirt >= self.parameters.start_threshold {
+            if !self.autonomous_latched {
+                self.state.opportunity_count+=1;
+                self.state.last_opportunity_seconds=Some(self.total_seconds);
+            }
             self.autonomous_latched = true;
         } else if self.state.dirt <= self.parameters.release_threshold {
             self.autonomous_latched = false;
@@ -286,7 +315,8 @@ impl GroomingController {
 
         if self.active() {
             self.waiting_for_support = false;
-            if !safe || (self.trigger == GroomingTrigger::Autonomous && input.hungry) {
+            if !safe || (self.trigger == GroomingTrigger::Autonomous
+                && (input.hungry || !input.neural_outputs_connected)) {
                 self.abort();
                 return Ok(self.command());
             }
@@ -300,7 +330,7 @@ impl GroomingController {
                 self.support_loss_elapsed_seconds = 0.0;
             }
             self.elapsed_seconds += input.dt_seconds;
-            if self.elapsed_seconds >= GROOMING_BOUT_DURATION_SECONDS {
+            if self.elapsed_seconds + 1e-9 >= GROOMING_BOUT_DURATION_SECONDS {
                 self.complete_bout();
             }
         } else if safe {
@@ -314,6 +344,7 @@ impl GroomingController {
                     && self.fallback_elapsed_seconds + 1e-9 >= GROOMING_FALLBACK_INTERVAL_SECONDS)
                 || (autonomous_safe
                     && self.autonomous_latched
+                    && self.state.cooldown_seconds==0.0
                     && self.state.stable_support_seconds + 1e-9
                         >= self.parameters.stable_support_seconds
                     && self.state.neural_evidence_seconds > 0.0
@@ -349,7 +380,7 @@ impl GroomingController {
     }
 
     fn accumulate_dirt(&mut self, input: GroomingInput) {
-        let mut rate = self.parameters.passive_dirt_rate_per_second;
+        let mut rate = self.urge_rate;
         if input.airborne_powered {
             rate += self.parameters.flight_dirt_rate_per_second;
         } else if input.grounded && input.horizontal_speed_mm_s > 0.5 {
@@ -372,38 +403,53 @@ impl GroomingController {
         }
 
         let active_front_legs = self.mode.active_front_legs();
+        let phase=self.phase();
         for (leg_index, active) in active_front_legs.into_iter().enumerate() {
             if active {
-                adhesion[leg_index * 3] = 0.0;
+                // Transfer load gradually as the forefeet lift, avoiding a
+                // discontinuous adhesion impulse that unloads a support foot.
+                adhesion[leg_index * 3] = if phase<0.20 {((0.20-phase)/0.05).clamp(0.0,1.0)}
+                    else if phase>0.90 {((phase-0.90)/0.05).clamp(0.0,1.0)}else{0.0};
             }
         }
         for leg_index in [1, 2, 4, 5] {
             adhesion[leg_index] = 1.0;
         }
 
-        let phase = self.phase();
-        let rub_envelope = phase_envelope(phase, 0.15, 0.52);
-        let reach_envelope = phase_envelope(phase, 0.45, 0.90);
+        // Move the middle feet forward before unloading the forelegs: the
+        // ordinary six-foot stance leaves the four-foot support polygon aft of COM.
+        // Finish repositioning before the foreleg adhesion is released at 0.15,
+        // leaving 175 ms for the support feet to settle under their real contacts.
+        let stance=(phase/0.08).clamp(0.0,1.0)*((1.0-phase)/0.10).clamp(0.0,1.0);
+        joint_controls[JOINTS_PER_LEG+2]-=0.65*stance;
+        joint_controls[4*JOINTS_PER_LEG+2]-=0.65*stance;
+        // Offline inverse-kinematic fits to the unchanged real body, including
+        // its spring/actuator equilibrium (tools/fit_grooming_keyframes.py).
+        let rub_pose=[-0.879945,-1.327075,-0.553451,-0.713990,0.733120,0.788068,1.574208];
+        // Aim outside the actual eye mesh, not its body-frame origin inside the head.
+        let head_pose=[-1.077356,-1.912542,-0.494815,-0.713990,0.761204,0.287024,2.107879];
+        let smooth=|x:f64| {let t=x.clamp(0.0,1.0);t*t*(3.0-2.0*t)};
+        let raised=smooth((phase-0.15)/0.10)*(1.0-smooth((phase-0.85)/0.10));
+        let head=smooth((phase-0.42)/0.12);
         let brush = (TAU * BRUSH_FREQUENCY_HZ * self.elapsed_seconds).sin();
-        let lift = reach_envelope * (0.72 + 0.28 * brush);
         for (front_index, active) in active_front_legs.into_iter().enumerate() {
             if !active {
                 continue;
             }
             let leg_index = if front_index == 0 { 0 } else { 3 };
-            let side = if front_index == 0 { -1.0 } else { 1.0 };
             let base = leg_index * JOINTS_PER_LEG;
-            joint_controls[base] += side * 0.03 * rub_envelope * brush;
-            joint_controls[base + 1] += 0.30 * lift;
-            joint_controls[base + 2] += side * 0.02 * rub_envelope * brush;
-            joint_controls[base + 3] -= 0.40 * lift;
-            joint_controls[base + 4] -= side * 0.20 * reach_envelope * brush;
-            joint_controls[base + 5] -= 0.50 * lift;
-            joint_controls[base + 6] -= 0.30 * lift;
+            // The right model joint axes are already mirrored. Equal joint
+            // coordinates produce bilateral mirror poses; do not negate them again.
+            for joint in 0..JOINTS_PER_LEG {
+                joint_controls[base+joint]+=raised*((1.0-head)*rub_pose[joint]+head*head_pose[joint]);
+            }
+            joint_controls[base+2]+=0.04*brush*raised;
+            joint_controls[base+6]+=(0.08-0.04*head)*brush*raised;
             for control in &mut joint_controls[base..base + JOINTS_PER_LEG] {
                 *control = control.clamp(-JOINT_CONTROL_LIMIT_RAD, JOINT_CONTROL_LIMIT_RAD);
             }
         }
+        for control in joint_controls.iter_mut() {*control=control.clamp(-JOINT_CONTROL_LIMIT_RAD,JOINT_CONTROL_LIMIT_RAD);}
     }
 
     fn active(&self) -> bool {
@@ -446,12 +492,16 @@ impl GroomingController {
         self.support_loss_elapsed_seconds = 0.0;
         self.fallback_elapsed_seconds = 0.0;
         self.waiting_for_support = false;
+        if trigger==GroomingTrigger::Autonomous {self.state.last_start_seconds=Some(self.total_seconds);}
     }
 
     fn complete_bout(&mut self) {
         if self.trigger == GroomingTrigger::Autonomous {
             self.state.dirt *= 1.0 - self.parameters.completed_cleaning_fraction;
             self.state.completed_bouts += 1;
+            self.state.last_complete_seconds=Some(self.total_seconds);
+            self.state.cooldown_seconds=5.0;
+            self.choose_interval(false);
             if self.state.dirt <= self.parameters.release_threshold {
                 self.autonomous_latched = false;
             }
@@ -470,17 +520,19 @@ impl GroomingController {
     fn abort(&mut self) {
         if self.trigger == GroomingTrigger::Autonomous {
             self.state.interrupted_bouts += 1;
+            self.state.cooldown_seconds=5.0;
         }
         self.finish_bout();
         self.fallback_elapsed_seconds = 0.0;
     }
-}
 
-fn phase_envelope(phase: f64, start: f64, end: f64) -> f64 {
-    if phase <= start || phase >= end {
-        0.0
-    } else {
-        (PI * (phase - start) / (end - start)).sin()
+    fn choose_interval(&mut self,first:bool) {
+        self.random_state=self.random_state.wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        let unit=(self.random_state>>32) as u32 as f64/u32::MAX as f64;
+        let interval=10.0+unit*if first {5.0}else{10.0};
+        self.urge_rate=(self.parameters.start_threshold-self.state.dirt).max(0.0)/interval
+            * (self.parameters.passive_dirt_rate_per_second/0.025);
     }
 }
 
@@ -511,6 +563,71 @@ fn validate_input(input: GroomingInput) -> Result<()> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn registered_opportunity_intervals_are_bounded_and_seeded() {
+        fn schedule(seed:u64)->Vec<[f64;3]> {
+            let mut controller=GroomingController::with_seed(GroomingParameters::default(),seed).unwrap();
+            let mut events=Vec::new();
+            for _ in 0..500_000 {
+                let command=controller.update(autonomous_input(0.002)).unwrap();
+                if command.completed_bouts as usize>events.len() {
+                    let state=controller.state();
+                    let event=[state.last_opportunity_seconds.unwrap(),state.last_start_seconds.unwrap(),state.last_complete_seconds.unwrap()];
+                    let previous=events.last().map_or(0.0,|old:&[f64;3]|old[2]);
+                    let interval=event[0]-previous;
+                    let maximum=if events.is_empty(){15.002}else{20.002};
+                    assert!((10.0..=maximum).contains(&interval),"seed {seed}: interval {interval}");
+                    assert!((0.0..=2.0).contains(&(event[1]-event[0])));
+                    assert!((2.0..=3.0).contains(&(event[2]-event[1])));
+                    assert_eq!(state.cooldown_seconds,5.0);
+                    assert!(state.dirt<=controller.parameters.release_threshold);
+                    events.push(event);
+                    if events.len()==20 {break;}
+                }
+            }
+            assert_eq!(events.len(),20);
+            events
+        }
+        let mut previous=None;
+        for seed in [11,13,17,19,23] {
+            let events=schedule(seed);
+            assert_eq!(events,schedule(seed));
+            if let Some(old)=previous {assert_ne!(events,old);}
+            let intervals=events.windows(2).map(|pair|pair[1][0]-pair[0][2]).collect::<Vec<_>>();
+            assert!(intervals.iter().any(|t|(t-intervals[0]).abs()>0.01));
+            eprintln!("seed {seed}: first opportunity {:.3}s, subsequent intervals {intervals:?}",events[0][0]);
+            previous=Some(events);
+        }
+    }
+
+    #[test]
+    fn fixed_low_urge_and_delayed_opportunity_do_not_make_a_backlog() {
+        let mut low=GroomingController::with_parameters(GroomingParameters {
+            passive_dirt_rate_per_second:0.0,..Default::default()}).unwrap();
+        for _ in 0..15_000 {assert!(!low.update(autonomous_input(0.002)).unwrap().active);}
+        assert_eq!(low.state().opportunity_count,0);
+        let mut delayed=GroomingController::new();
+        for _ in 0..100_000 {
+            assert!(!delayed.update(GroomingInput {hungry:true,grounded:false,..autonomous_input(0.002)}).unwrap().active);
+        }
+        assert_eq!(delayed.state().opportunity_count,1);
+        for _ in 0..1600 {delayed.update(autonomous_input(0.002)).unwrap();}
+        assert_eq!(delayed.state().completed_bouts,1);
+        for _ in 0..2500 {assert!(!delayed.update(autonomous_input(0.002)).unwrap().active);}
+        assert_eq!(delayed.state().completed_bouts,1);
+    }
+
+    #[test]
+    fn disconnecting_autonomous_neural_gate_aborts_without_completion_credit() {
+        let mut controller=GroomingController::new();controller.set_initial_dirt(0.9).unwrap();
+        for _ in 0..300 {controller.update(autonomous_input(0.002)).unwrap();}
+        assert!(controller.active());
+        let before=controller.state().dirt;
+        let command=controller.update(GroomingInput {neural_outputs_connected:false,..autonomous_input(0.002)}).unwrap();
+        assert!(!command.active);assert_eq!(command.completed_bouts,0);
+        assert_eq!(command.interrupted_bouts,1);assert!(command.dirt>=before);
+    }
+
     fn input(dt_seconds: f64) -> GroomingInput {
         GroomingInput {
             dt_seconds,
@@ -540,6 +657,7 @@ mod tests {
 
         let mut controls = [0.0; GROOMING_CONTROL_COUNT];
         let mut adhesion = [0.0; GROOMING_LEG_COUNT];
+        controller.update(input(0.5)).unwrap();
         controller.apply(&mut controls, &mut adhesion);
         assert_eq!(adhesion, [0.0, 1.0, 1.0, 0.0, 1.0, 1.0]);
         assert!(controls.iter().all(|control| control.is_finite()));
@@ -642,7 +760,7 @@ mod tests {
         }
         let mut command = controller.update(fallback_input).unwrap();
         assert_eq!(command.mode, GroomingMode::AntennaLeft);
-        for _ in 0..180 {
+        for _ in 0..(GROOMING_BOUT_DURATION_SECONDS/0.01).ceil() as usize {
             command = controller.update(fallback_input).unwrap();
         }
         assert!(!command.active);
@@ -676,8 +794,8 @@ mod tests {
         let mut bilateral = [0.0; GROOMING_CONTROL_COUNT];
         let mut adhesion = [0.0; GROOMING_LEG_COUNT];
         controller.apply(&mut bilateral, &mut adhesion);
-        assert!((bilateral[0] + bilateral[21]).abs() < 1e-10);
-        assert!((bilateral[2] + bilateral[23]).abs() < 1e-10);
+        assert!((bilateral[0] - bilateral[21]).abs() < 1e-10);
+        assert!((bilateral[2] - bilateral[23]).abs() < 1e-10);
         assert!((bilateral[1] - bilateral[22]).abs() < 1e-10);
         assert!(
             bilateral
@@ -705,6 +823,17 @@ mod tests {
                 .iter()
                 .any(|control| (*control - JOINT_CONTROL_LIMIT_RAD).abs() < 1e-12)
         );
+    }
+
+    #[test]
+    fn custom_initial_urge_reset_replays_opportunities() {
+        let mut controller=GroomingController::with_seed(GroomingParameters::default(),23).unwrap();
+        controller.set_initial_dirt(0.2).unwrap();
+        let initial=controller.state();
+        let first=(0..10_000).map(|_|controller.update(autonomous_input(0.002)).unwrap()).collect::<Vec<_>>();
+        controller.reset();
+        assert_eq!(controller.state(),initial);
+        for expected in first {assert_eq!(controller.update(autonomous_input(0.002)).unwrap(),expected);}
     }
 
     #[test]
@@ -791,7 +920,7 @@ mod tests {
         let mut completed = GroomingController::new();
         completed.set_initial_dirt(0.5).unwrap();
         let initial = completed.state().dirt;
-        for _ in 0..240 {
+        for _ in 0..330 {
             completed.update(autonomous_input(0.01)).unwrap();
         }
         assert_eq!(completed.state().completed_bouts, 1);
@@ -809,14 +938,19 @@ mod tests {
             controller.apply(&mut controls, &mut adhesion);
             controls
         };
-        controller.update(input(0.50)).unwrap();
+        controller.update(input(GROOMING_BOUT_DURATION_SECONDS*0.28)).unwrap();
         let rubbing = controls_at(&controller);
-        controller.update(input(0.60)).unwrap();
+        controller.update(input(GROOMING_BOUT_DURATION_SECONDS*0.38)).unwrap();
         let reaching = controls_at(&controller);
-        controller.update(input(0.60)).unwrap();
+        controller.update(input(GROOMING_BOUT_DURATION_SECONDS*0.30)).unwrap();
         let recovery = controls_at(&controller);
-        assert!(rubbing[0].abs() + rubbing[2].abs() > rubbing[1].abs() + rubbing[3].abs());
-        assert!(reaching[1].abs() + reaching[3].abs() > 0.1);
-        assert!(recovery.iter().all(|value| value.abs() < 1e-9));
+        // Both fitted poses lift the forefeet; eye brushing reaches higher and
+        // laterally outward rather than merely increasing the old yaw overlay.
+        assert!(rubbing[6]>1.0);
+        assert!(reaching[6]>rubbing[6]);
+        assert!(reaching[1]<rubbing[1]);
+        assert!(recovery[..7].iter().chain(&recovery[21..28]).all(|value| value.abs()<1e-9));
+        controller.update(input(GROOMING_BOUT_DURATION_SECONDS*0.04)).unwrap();
+        assert!(controls_at(&controller).iter().all(|value|value.abs()<1e-9));
     }
 }

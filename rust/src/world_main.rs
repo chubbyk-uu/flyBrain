@@ -445,6 +445,9 @@ struct CnsCheckOptions {
     initial_hunger: Option<f64>,
     #[arg(long)]
     disconnect_grooming_probe: bool,
+    /// Save native body poses at 50 Hz for display-only visual replay.
+    #[arg(long)]
+    record_display: bool,
     #[arg(long)]
     parameters: Option<PathBuf>,
     #[arg(long)]
@@ -580,7 +583,7 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         "behavior_seed": options.behavior_seed,
         "initial_dirt": options.initial_dirt,
         "initial_hunger": options.initial_hunger,
-        "grooming_probe_connected": !options.disconnect_grooming_probe,
+        "grooming_probe_connected": true,
         "sensory_encoder": "deterministic fractional-rate accumulator",
     });
     let initial_state_sha256 = format!("{:x}", Sha256::digest(serde_json::to_vec(&initial_state)?));
@@ -593,6 +596,10 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     let mut actual_feeding_events: Vec<serde_json::Value> = Vec::new();
     let mut food_search_recovery_failure_windows=0_u64;
     let mut olfactory_readout_spikes=0_u64;
+    let mut invalid_hunger_relief_windows=0_u64;
+    let mut grooming_events:Vec<serde_json::Value>=Vec::new();
+    let mut active_grooming_event:Option<usize>=None;
+    let mut previous_grooming_completions=0;
     let mut feeding_streak_seconds = 0.0_f64;
     let mut feeding_streak_resource = None;
     let mut feeding_streak_hunger = simulation.snapshot().hunger;
@@ -619,11 +626,25 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     let mut flight_telemetry_wall_seconds = 0.0;
     let mut window_wall_seconds = 0.0;
     let mut samples = Vec::new();
+    let mut display_frames=Vec::new();
+    let mut next_display_time=0.0;
     let period = simulation.control_period().as_secs_f64();
     let mut next_sample_time = 0.0;
     let mut next_progress_time = 1.0;
     while simulation.snapshot().time_seconds + period * 0.5 < options.duration_seconds {
         let snapshot = simulation.step_window()?;
+        if options.record_display && snapshot.time_seconds+1e-9>=next_display_time {
+            let wing_envelope=if snapshot.flight_mode==FlightMode::Grounded {0.0}else{snapshot.flight_amplitude_scale.clamp(0.0,1.0)};
+            display_frames.push(json!({
+                "poses":flybrain_engine::display_protocol::body_poses(simulation.world().data()),
+                "snapshot":{"time_seconds":snapshot.time_seconds,"root_position":snapshot.root_position,
+                    "flight_mode":snapshot.flight_mode.label(),"grooming_active":snapshot.grooming_active,
+                    "grooming_phase":snapshot.grooming_phase,"hunger":snapshot.hunger,
+                    "wing_display":{"envelope":wing_envelope,"steering":snapshot.brain_flight_steering,
+                        "physical_frequency_hz":if wing_envelope>0.0 {218.0*snapshot.flight_frequency_scale}else{0.0}}}
+            }));
+            next_display_time+=0.02;
+        }
         let command = snapshot.flight_command_velocity_mm_s;
         maximum_command_speed_mm_s = maximum_command_speed_mm_s.max(command[0].hypot(command[1]));
         maximum_command_acceleration_mm_s2 = maximum_command_acceleration_mm_s2.max(
@@ -673,6 +694,33 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
             && snapshot.filtered_mn9_rate_hz >= parameters.homeostasis.feeding_mn9_threshold_hz
             && snapshot.feeding_extension >= parameters.homeostasis.feeding_extension_threshold
             && snapshot.hunger < previous_hunger && snapshot.tasted_resource.is_some();
+        invalid_hunger_relief_windows+=u64::from(snapshot.hunger<previous_hunger&&!actual_feeding);
+        if snapshot.grooming_active {
+            let index=*active_grooming_event.get_or_insert_with(|| {
+                let index=grooming_events.len();
+                grooming_events.push(json!({"start_seconds":snapshot.grooming_last_started_seconds.unwrap_or(snapshot.time_seconds),
+                    "opportunity_seconds":snapshot.grooming_last_opportunity_seconds,
+                    "trigger":snapshot.grooming_trigger.label(),"position_mm":snapshot.root_position,
+                    "minimum_contacts":6,"minimum_support_legs":4,"rubbing_distance_mm":null,
+                    "head_eye_distance_mm":null,"completed":false}));
+                index
+            });
+            let event=&mut grooming_events[index];
+            event["minimum_contacts"]=json!(event["minimum_contacts"].as_u64().unwrap().min(snapshot.contact_count as u64));
+            if (0.15..=0.90).contains(&snapshot.grooming_phase) {
+                event["minimum_support_legs"]=json!(event["minimum_support_legs"].as_u64().unwrap().min(snapshot.grooming_actual_support_leg_count as u64));
+            }
+            for (key,value,eligible) in [
+                ("rubbing_distance_mm",snapshot.front_tarsi_distance_mm,(0.20..=0.40).contains(&snapshot.grooming_phase)),
+                ("head_eye_distance_mm",snapshot.front_tarsus_head_eye_min_distance_mm,(0.52..=0.85).contains(&snapshot.grooming_phase)),
+            ] {
+                if eligible {event[key]=json!(event[key].as_f64().unwrap_or(f64::INFINITY).min(value));}
+            }
+        } else if let Some(index)=active_grooming_event.take() {
+            grooming_events[index]["end_seconds"]=json!(snapshot.time_seconds);
+            grooming_events[index]["completed"]=json!(snapshot.grooming_completed_bouts>previous_grooming_completions);
+        }
+        previous_grooming_completions=snapshot.grooming_completed_bouts;
         if actual_feeding {
             if feeding_streak_resource != snapshot.tasted_resource {
                 feeding_streak_seconds = 0.0;
@@ -787,6 +835,7 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
             trace_sample["grooming_active"] = json!(snapshot.grooming_active);
             trace_sample["grooming_phase"] = json!(snapshot.grooming_phase);
             trace_sample["grooming_support_leg_count"] = json!(snapshot.grooming_support_leg_count);
+            trace_sample["grooming_actual_support_leg_count"] = json!(snapshot.grooming_actual_support_leg_count);
             trace_sample["grooming_trigger"] = json!(snapshot.grooming_trigger.label());
             trace_sample["grooming_neural_gate_active"] =
                 json!(snapshot.grooming_neural_gate_active);
@@ -794,6 +843,11 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
                 json!(snapshot.grooming_stable_support_seconds);
             trace_sample["grooming_completed_bouts"] = json!(snapshot.grooming_completed_bouts);
             trace_sample["grooming_interrupted_bouts"] = json!(snapshot.grooming_interrupted_bouts);
+            trace_sample["grooming_opportunity_count"] = json!(snapshot.grooming_opportunity_count);
+            trace_sample["grooming_last_opportunity_seconds"] = json!(snapshot.grooming_last_opportunity_seconds);
+            trace_sample["grooming_last_started_seconds"] = json!(snapshot.grooming_last_started_seconds);
+            trace_sample["grooming_last_completed_seconds"] = json!(snapshot.grooming_last_completed_seconds);
+            trace_sample["grooming_cooldown_seconds"] = json!(snapshot.grooming_cooldown_seconds);
             trace_sample["front_tarsi_distance_mm"] = json!(snapshot.front_tarsi_distance_mm);
             trace_sample["front_tarsus_head_eye_min_distance_mm"] =
                 json!(snapshot.front_tarsus_head_eye_min_distance_mm);
@@ -847,6 +901,7 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
             "sensory_neurons": simulation.brain_sensory_neuron_count(),
             "materialization": simulation.brain_materialization(),
             "motor_outputs_connected": !options.disconnect_motor_outputs,
+            "grooming_probe_connected": !options.disconnect_grooming_probe,
             "landing_output_connected": !options.disconnect_landing_output,
             "sensory_inputs_connected": !options.disconnect_sensory_inputs,
             "olfactory_evoked_inputs_connected": !options.disconnect_sensory_inputs && !options.disconnect_olfactory_evoked_inputs,
@@ -889,6 +944,14 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     report["summary"]["actual_feeding_events"] = json!(actual_feeding_events);
     report["summary"]["food_search_recovery_failure_windows"] = json!(food_search_recovery_failure_windows);
     report["summary"]["olfactory_readout_spikes"] = json!(olfactory_readout_spikes);
+    report["summary"]["invalid_hunger_relief_windows"] = json!(invalid_hunger_relief_windows);
+    report["summary"]["grooming_events"] = json!(grooming_events);
+    if options.record_display {
+        report["display_replay"]=json!({"kind":"recorded native physical poses; display-only replay",
+            "scene":flybrain_engine::display_protocol::scene_descriptor(simulation.world().data().model(),
+                simulation.brain_neuron_count(),Some("male_cns_v1"),Some("cuda")),
+            "frames":display_frames});
+    }
     report["summary"]["maximum_command_acceleration_mm_s2"] = json!(maximum_command_acceleration_mm_s2);
     report["summary"]["cruise_speed_p95_mm_s"] = json!(cruise_speed_p95_mm_s);
     if let Some(parent) = options.output.parent() {

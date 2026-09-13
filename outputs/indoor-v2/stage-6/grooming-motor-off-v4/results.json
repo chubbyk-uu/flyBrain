@@ -1,0 +1,22 @@
+[
+  {
+    "surface": "floor",
+    "mode": "motor-off",
+    "passed": false,
+    "event": null,
+    "events": [],
+    "invalid_hunger_relief_windows": 0,
+    "runtime_sha256": "3b8afdd744bfd5cac3a1fb658dc64b50a85fcdfe64c17397ad4593e35ba5d0cf",
+    "initial_state_sha256": "9bc30891b6488ac819f84630abc052e225d53df2f5683a04b1fa2679944f08b9"
+  },
+  {
+    "surface": "table",
+    "mode": "motor-off",
+    "passed": false,
+    "event": null,
+    "events": [],
+    "invalid_hunger_relief_windows": 0,
+    "runtime_sha256": "3b8afdd744bfd5cac3a1fb658dc64b50a85fcdfe64c17397ad4593e35ba5d0cf",
+    "initial_state_sha256": "55046ddf2a4ab4fc2bff1790a3005c49bf64a46b2ec5e436fb6971f9c89f2071"
+  }
+]

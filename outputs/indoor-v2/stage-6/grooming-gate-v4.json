@@ -1,0 +1,52 @@
+{
+  "passed": true,
+  "kind": "short full-CNS autonomous action and paired causal gates; not final 300-second acceptance",
+  "rows": [
+    {
+      "surface": "floor",
+      "passed": true,
+      "failures": [],
+      "event": {
+        "completed": true,
+        "end_seconds": 3.029999999999699,
+        "head_eye_distance_mm": 0.5023554615074751,
+        "minimum_contacts": 4,
+        "minimum_support_legs": 4,
+        "opportunity_seconds": 0.002,
+        "position_mm": [
+          0.01280514121231868,
+          -70.00097229713053,
+          1.1000756506381677
+        ],
+        "rubbing_distance_mm": 0.1765770934515696,
+        "start_seconds": 0.5300000000000004,
+        "trigger": "autonomous"
+      },
+      "initial_state_sha256": "9bc30891b6488ac819f84630abc052e225d53df2f5683a04b1fa2679944f08b9",
+      "runtime_sha256": "3b8afdd744bfd5cac3a1fb658dc64b50a85fcdfe64c17397ad4593e35ba5d0cf"
+    },
+    {
+      "surface": "table",
+      "passed": true,
+      "failures": [],
+      "event": {
+        "completed": true,
+        "end_seconds": 3.031999999999699,
+        "head_eye_distance_mm": 0.5023230343782743,
+        "minimum_contacts": 4,
+        "minimum_support_legs": 4,
+        "opportunity_seconds": 0.002,
+        "position_mm": [
+          0.002452713324534739,
+          0.0013715371679388427,
+          31.098926980993724
+        ],
+        "rubbing_distance_mm": 0.17656974225460328,
+        "start_seconds": 0.5320000000000004,
+        "trigger": "autonomous"
+      },
+      "initial_state_sha256": "55046ddf2a4ab4fc2bff1790a3005c49bf64a46b2ec5e436fb6971f9c89f2071",
+      "runtime_sha256": "3b8afdd744bfd5cac3a1fb658dc64b50a85fcdfe64c17397ad4593e35ba5d0cf"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running unittests rust/src/lib.rs (target/release/deps/flybrain_engine-5e565c1aea0f2528)
+
+running 2 tests
+test odor_guidance::tests::baseline_and_disconnected_outputs_cannot_guide_motion ... ok
+test world_sim::tests::baseline_parameter_artifact_matches_compiled_defaults ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 295 filtered out; finished in 0.00s
