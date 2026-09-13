@@ -1,17 +1,18 @@
-const HEADER_BYTES = 16;
-
 export function decodeRetinaPreview(buffer) {
   const bytes = new Uint8Array(buffer);
-  if (bytes.length < HEADER_BYTES || String.fromCharCode(...bytes.subarray(0, 4)) !== "FBR1") {
+  const magic = String.fromCharCode(...bytes.subarray(0, 4));
+  const headerBytes = magic === "FBR2" ? 24 : 16;
+  if (bytes.length < headerBytes || !["FBR1", "FBR2"].includes(magic)) {
     throw new Error("unknown native retina message");
   }
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const width = view.getUint16(4, true);
   const height = view.getUint16(6, true);
   const sequence = view.getBigUint64(8, true);
-  const pixels = bytes.subarray(HEADER_BYTES);
+  const epoch = magic === "FBR2" ? Number(view.getBigUint64(16, true)) : null;
+  const pixels = bytes.subarray(headerBytes);
   if (pixels.length !== width * height) throw new Error("native retina payload has the wrong size");
-  return { width, height, sequence, pixels };
+  return { width, height, sequence, epoch, pixels };
 }
 
 export function drawRetinaPreview(canvas, preview) {

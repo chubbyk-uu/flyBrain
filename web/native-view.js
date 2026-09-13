@@ -15,6 +15,19 @@ let renderedFrames = 0;
 let fpsStarted = performance.now();
 let lastRenderedAt = null;
 let reconnectTimer = null;
+let activeSocket = null;
+let readyPending = false;
+let currentEpoch = null;
+const needs = document.querySelector("#needs");
+const runState = document.querySelector("#run-state");
+function sendControl(command) {
+  if (activeSocket?.readyState === WebSocket.OPEN) activeSocket.send(JSON.stringify({ type: "control", command }));
+}
+for (const command of ["pause", "resume", "reset"]) {
+  document.querySelector(`#${command}`).addEventListener("click", () => sendControl(command));
+}
+document.querySelector("#overview").addEventListener("click", () => renderer.setObserverView([240,-300,230],[0,0,35]));
+document.querySelector("#follow").addEventListener("click", () => renderer.setCameraMode("chase"));
 const acceptance = {
   connected: false, reconnects: 0, streamFrames: 0, renderedFrames: 0,
   frameIntervalsMs: [], latestSnapshot: null, lastError: null,
@@ -32,6 +45,7 @@ const frameLimiter = new FrameLimiter(renderHz);
 const socketUrl = params.get("ws") ?? `ws://${location.hostname || "localhost"}:8765`;
 function connectSocket() {
   const socket = new WebSocket(socketUrl);
+  activeSocket = socket;
   socket.binaryType = "arraybuffer";
   socket.addEventListener("open", () => {
     acceptance.connected = true;
@@ -49,6 +63,7 @@ function connectSocket() {
   socket.addEventListener("message", ({ data }) => {
   if (data instanceof ArrayBuffer) {
     const preview = decodeRetinaPreview(data);
+    if (preview.epoch !== currentEpoch) return;
     drawRetinaPreview(retinaCanvas, preview);
     retinaStatus.textContent = `native processed retina · frame ${preview.sequence}`;
     return;
@@ -57,12 +72,26 @@ function connectSocket() {
   if (message.type === "scene") {
     renderer.setScene(message.scene);
     poses = new PoseBuffer(Number(message.scene.bodyCount) || 0);
+    latest = null;
+    currentEpoch = null;
+    readyPending = true;
     connection.textContent = `scene ready · ${message.scene.brain?.backend ?? "no brain"}`;
   } else if (message.type === "frame" && poses) {
+    if (message.epoch !== currentEpoch) {
+      currentEpoch = message.epoch;
+      renderer.resetTelemetry();
+      retinaCanvas.getContext("2d").clearRect(0, 0, retinaCanvas.width, retinaCanvas.height);
+      retinaStatus.textContent = "等待当前 epoch 的 native 双眼画面…";
+    }
     poses.push(message, performance.now());
     latest = message;
     acceptance.streamFrames += 1;
     acceptance.latestSnapshot = message.snapshot;
+    acceptance.epoch = message.epoch;
+    const s = message.snapshot;
+    const percent = (value) => `${(100 * Number(value ?? 0)).toFixed(0)}%`;
+    needs.textContent = `饥饿 ${percent(s.hunger)} · 飞行疲劳 ${percent(s.flight_fatigue)} · 清洁冲动 ${percent(s.grooming_urge)}`;
+    runState.textContent = `${s.paused ? "已暂停" : "运行中"} · epoch ${message.epoch} · 起飞限制：${s.takeoff_inhibited_reason}`;
   }
   });
 }
@@ -73,6 +102,11 @@ function animate(now) {
     const frame = poses?.sample(now);
     if (frame) renderer.updateFrame(frame.poses, frame.snapshot);
     renderer.render();
+    if (readyPending && frame) {
+      readyPending = false;
+      // Only the formal viewer sends ready, after scene and first pose rendered.
+      sendControl("viewer_ready");
+    }
     renderedFrames += 1;
     acceptance.renderedFrames += 1;
     if (lastRenderedAt !== null) {

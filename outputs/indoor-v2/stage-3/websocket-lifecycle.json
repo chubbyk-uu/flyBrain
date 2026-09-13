@@ -1,0 +1,66 @@
+{
+  "passed": true,
+  "events": [
+    {
+      "label": "diagnostic did not reset",
+      "epoch": 0,
+      "time": 5.000000000001703,
+      "paused": false,
+      "hunger": 0.7249999999998662,
+      "flight_fatigue": 0.09696662795895158,
+      "grooming_urge": 0.1373739999999912
+    },
+    {
+      "label": "first ready",
+      "epoch": 1,
+      "time": 0,
+      "paused": false,
+      "hunger": 0.72,
+      "flight_fatigue": 0.05,
+      "grooming_urge": 0.1
+    },
+    {
+      "label": "new tab / reconnect",
+      "epoch": 1,
+      "time": 0.65999999999996,
+      "paused": false,
+      "hunger": 0.7206599999999823,
+      "flight_fatigue": 0.04675003801166647,
+      "grooming_urge": 0.10482400000000021
+    },
+    {
+      "label": "paused five wall seconds",
+      "epoch": 1,
+      "time": 0.713999999999954,
+      "paused": true,
+      "hunger": 0.7207139999999809,
+      "flight_fatigue": 0.04743133972025911,
+      "grooming_urge": 0.10522900000000024
+    },
+    {
+      "label": "manual reset paused",
+      "epoch": 2,
+      "time": 0,
+      "paused": true,
+      "hunger": 0.72,
+      "flight_fatigue": 0.05,
+      "grooming_urge": 0.1
+    },
+    {
+      "label": "continued",
+      "epoch": 2,
+      "time": 0.11400000000000121,
+      "paused": false,
+      "hunger": 0.7201139999999969,
+      "flight_fatigue": 0.04447999999999991,
+      "grooming_urge": 0.10070499999999993
+    }
+  ],
+  "retinaFrames": 75,
+  "retinaEpochs": [
+    0,
+    1,
+    2
+  ],
+  "staleRetinaFrames": 0
+}

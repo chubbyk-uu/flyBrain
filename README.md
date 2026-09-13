@@ -377,7 +377,12 @@ tools/run_native_viewer.sh
 Then open `http://localhost:8080/native-view.html` in Windows Chrome or Edge. Native simulation
 publishes poses and a read-only snapshot at 30 Hz; the browser interpolates one stream interval and
 renders independently with `requestAnimationFrame`, capped at 60 FPS by default. Append `?fps=90`
-to test a 90 FPS display without changing the native simulation rate. The browser is display-only in this stage.
+to test a 90 FPS display without changing the native simulation rate. The default scene is the standalone
+`indoor-v2` room: a low coffee table with candy and a potted flower. Use `--scene legacy` only for the old environment.
+The backend runs immediately; the first formal viewer becomes ready, resets the backend once and continues.
+Refreshes, reconnects and additional tabs do not repeat that automatic reset. The toolbar offers pause,
+resume, reset-and-pause, overview and follow views; hunger, flight fatigue and grooming urge are native states.
+The browser controls lifecycle and display only, not sensory or motor decisions.
 The existing hidden native binocular retina continues to supply sensory summaries to the unchanged
 `BrainBodyBridge`; browser retina readback is explicitly deferred. Both neural realtime and the
 browser's actual RAF FPS are shown separately. See the

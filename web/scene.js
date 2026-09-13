@@ -570,6 +570,14 @@ export class FlySceneRenderer {
     this.needsRender = true;
   }
 
+  resetTelemetry() {
+    this.wingDisplay = new WingDisplayController();
+    this.wingDisplayState = this.wingDisplay.sample(performance.now());
+    this.snapshot = null;
+    this.pendingVision = false;
+    this.needsRender = true;
+  }
+
   updateFood(snapshot) {
     if (!snapshot || !Array.isArray(snapshot.food_center)) return;
     const center = vector3(snapshot.food_center);

@@ -3,7 +3,7 @@ import { WingDisplayController, wingSignal } from "./wing-display.js";
 
 assert.equal(wingSignal({ flight_mode: "Grounded", brain_flight_drive: 1 }).envelope, 0);
 assert.deepEqual(wingSignal({ wing_display: { envelope: 2, steering: -3, physical_frequency_hz: 218, phase_cycles: 1.25 } }), {
-  envelope: 1, steering: -1, physicalFrequencyHz: 218, phaseCycles: 0.25, connected: true,
+  envelope: 1, steering: -1, physicalFrequencyHz: 218, phaseCycles: 0.25, connected: true, paused: false,
 });
 
 const controller = new WingDisplayController();
@@ -30,4 +30,7 @@ disconnected.ingest({ flight_mode: "Cruise", brain_flight_drive: 0.6, brain_flig
 for (let frame = 0; frame < 60; frame += 1) final = disconnected.sample(frame * 1000 / 60);
 assert.equal(final.connected, false);
 assert.ok(final.leftEnvelope > final.rightEnvelope, "legacy telemetry must degrade to a live neutral-compatible signal");
+disconnected.ingest({ paused: true, flight_mode: "Cruise", brain_flight_drive: 0.6 });
+const beforePause = disconnected.sample(1001);
+assert.deepEqual(disconnected.sample(6001), beforePause, "paused viewer wing state must freeze");
 console.log("PASS: grounded fold, continuous carrier, CNS steering asymmetry and legacy telemetry fallback");

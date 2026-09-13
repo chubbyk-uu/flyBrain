@@ -28,7 +28,12 @@ pub struct Frame {
 pub enum Command {
     Input(LiveInput),
     Telemetry(bool),
+    Viewer(ViewerControl),
 }
+
+#[derive(Clone, Copy, Debug, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ViewerControl { ViewerReady, Pause, Resume, Reset }
 
 type VisionMailbox = Arc<Mutex<Option<(u64, [RetinaSummary; 2])>>>;
 
@@ -99,6 +104,7 @@ impl Worker {
                     .map_err(|_| anyhow::anyhow!("viewer closed during startup"))?;
                 let mut paused = false;
                 let mut epoch = 0;
+                let mut first_viewer_ready = false;
                 let mut anchor = (Instant::now(), simulation.world().time());
                 let mut stats = anchor;
                 let mut realtime_factor = 0.0;
@@ -112,8 +118,32 @@ impl Worker {
                 let mut windows = 0_u64;
                 while !worker_stop.load(Ordering::Relaxed) {
                     let mut force_publish = false;
+                    let mut reset_this_iteration = false;
                     for command in receiver.try_iter() {
+                        let command = match command {
+                            Command::Viewer(control) => match control {
+                                ViewerControl::ViewerReady if first_viewer_ready => continue,
+                                ViewerControl::ViewerReady | ViewerControl::Reset => {
+                                    if matches!(control, ViewerControl::ViewerReady) {
+                                        first_viewer_ready = true;
+                                        paused = false;
+                                    } else {
+                                        paused = true;
+                                    }
+                                    Command::Input(LiveInput { reset: true, ..LiveInput::default() })
+                                }
+                                ViewerControl::Pause | ViewerControl::Resume => {
+                                    paused = matches!(control, ViewerControl::Pause);
+                                    anchor = (Instant::now(), simulation.world().time());
+                                    stats = anchor;
+                                    force_publish = true;
+                                    continue;
+                                }
+                            },
+                            other => other,
+                        };
                         match command {
+                            Command::Viewer(_) => unreachable!(),
                             Command::Telemetry(enabled) => {
                                 simulation.set_brain_telemetry_enabled(enabled)?
                             }
@@ -125,6 +155,7 @@ impl Worker {
                                 }
                                 if input.reset {
                                     simulation.reset()?;
+                                    reset_this_iteration = true;
                                     epoch += 1;
                                     field_samples.clear();
                                     field_sequence = 0;
@@ -163,7 +194,7 @@ impl Worker {
                     }
                     let due = simulation.world().time() + period * 0.5
                         < anchor.1 + anchor.0.elapsed().as_secs_f64() * options.speed;
-                    if !paused && due {
+                    if !paused && due && !reset_this_iteration {
                         let snapshot = simulation.step_window()?;
                         if profile {
                             windows += 1;
@@ -429,4 +460,57 @@ mod tests {
         opts.assets = "missing-viewer-test-assets".into();
         assert!(Worker::start(opts).is_err());
     }
+
+    fn viewer_lifecycle_gate(with_brain: bool) {
+        let mut opts = options();
+        opts.scene = "indoor-v2".into();
+        opts.physics_dt_ms = Some(0.2);
+        opts.with_brain = with_brain;
+        let mut worker = Worker::start(opts).unwrap();
+        wait_until(|| worker.frame.lock().unwrap().snapshot.time_seconds >= 5.0);
+        assert_eq!(worker.frame.lock().unwrap().epoch, 0);
+        for _ in 0..2 { worker.commands.send(Command::Viewer(ViewerControl::ViewerReady)).unwrap(); }
+        wait_until(|| worker.frame.lock().unwrap().epoch == 1);
+        assert!(!worker.frame.lock().unwrap().paused);
+        worker.commands.send(Command::Viewer(ViewerControl::Pause)).unwrap();
+        wait_until(|| worker.frame.lock().unwrap().paused);
+        let (time, hunger, fatigue, dirt, poses, spikes) = {
+            let f = worker.frame.lock().unwrap();
+            (f.snapshot.time_seconds, f.snapshot.hunger, f.snapshot.fatigue, f.snapshot.dirt,
+             f.data.qpos().to_vec(), f.snapshot.cumulative_spiking_neuron_count)
+        };
+        std::thread::sleep(Duration::from_secs(5));
+        {
+            let f = worker.frame.lock().unwrap();
+            assert_eq!((f.snapshot.time_seconds,f.snapshot.hunger,f.snapshot.fatigue,f.snapshot.dirt), (time,hunger,fatigue,dirt));
+            assert_eq!(f.data.qpos(), poses);
+            assert_eq!(f.snapshot.cumulative_spiking_neuron_count,spikes);
+            assert_eq!(f.epoch,1);
+        }
+        worker.commands.send(Command::Viewer(ViewerControl::Reset)).unwrap();
+        wait_until(|| worker.frame.lock().unwrap().epoch == 2);
+        for _ in 0..3 { worker.commands.send(Command::Viewer(ViewerControl::ViewerReady)).unwrap(); }
+        std::thread::sleep(Duration::from_millis(100));
+        {
+            let f = worker.frame.lock().unwrap();
+            assert_eq!(f.epoch,2); assert!(f.paused);
+            assert_eq!(f.snapshot.time_seconds,0.0);
+            assert_eq!(f.snapshot.root_position,[26.0,-12.0,32.1]);
+            assert_eq!(f.snapshot.hunger,0.72);
+            assert_eq!(f.snapshot.fatigue,0.05);
+            assert_eq!(f.snapshot.dirt,0.1);
+            assert_eq!(f.snapshot.cumulative_spiking_neuron_count,0);
+        }
+        worker.commands.send(Command::Viewer(ViewerControl::Resume)).unwrap();
+        wait_until(|| worker.frame.lock().unwrap().snapshot.time_seconds > 0.01);
+        worker.finish().unwrap();
+        eprintln!("viewer lifecycle gate passed: CNS={with_brain}, pre-run5s, paused5s, once-only ready, full reset");
+    }
+
+    #[test]
+    fn viewer_lifecycle_without_brain() { viewer_lifecycle_gate(false); }
+
+    #[test]
+    #[ignore = "explicit full CNS lifecycle acceptance"]
+    fn viewer_lifecycle_full_cns() { viewer_lifecycle_gate(true); }
 }

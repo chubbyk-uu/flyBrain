@@ -399,6 +399,8 @@ pub struct SimulationStepper {
     world: MuJoCoWorld,
     gait: GaitLibrary,
     habitat: Habitat,
+    initial_habitat: Habitat,
+    behavior_seed: u64,
     olfactory_transducer: OlfactoryTransducer,
     explorer: ExplorerController,
     flight: FlightRuntime,
@@ -558,7 +560,9 @@ impl SimulationStepper {
             parameters,
             world,
             gait,
+            initial_habitat: habitat.clone(),
             habitat,
+            behavior_seed: 0,
             olfactory_transducer: OlfactoryTransducer::default(),
             explorer: ExplorerController::with_parameters(
                 0x5eed_f17b_2026_0816,
@@ -1512,6 +1516,9 @@ impl SimulationStepper {
             self.food_center = self.world.metadata().environment.food_center;
         }
         self.brain = brain;
+        self.habitat = self.initial_habitat.clone();
+        self.food_enabled = true;
+        self.flight_allowed = true;
         self.brain_materialization = brain_materialization;
         self.phase_rad = 0.0;
         self.forward_gain = 1.0;
@@ -1525,10 +1532,10 @@ impl SimulationStepper {
         self.feeding_pose_held = false;
         self.feeding_extension = 0.0;
         self.olfactory_transducer.reset();
-        self.explorer.reset(0x5eed_f17b_2026_0816);
-        self.flight_behavior.reset(0xa17f_1eaf_2026_0816);
+        self.explorer.reset(self.behavior_seed ^ 0x5eed_f17b_2026_0816);
+        self.flight_behavior.reset(self.behavior_seed ^ 0xa17f_1eaf_2026_0816);
         self.foraging.reset();
-        self.homeostasis.reset(0xc011_ab1e_2026_0913);
+        self.homeostasis.reset(self.behavior_seed ^ 0xc011_ab1e_2026_0913);
         self.odor_guidance.reset();
         self.navigation.reset();
         self.ground_navigation.reset();
@@ -1574,6 +1581,7 @@ impl SimulationStepper {
         if self.world.time() != 0.0 {
             bail!("behavior seed can only be set before stepping")
         }
+        self.behavior_seed = seed;
         self.explorer.reset(seed ^ 0x5eed_f17b_2026_0816);
         self.flight_behavior.reset(seed ^ 0xa17f_1eaf_2026_0816);
         self.homeostasis.reset(seed ^ 0xc011_ab1e_2026_0913);

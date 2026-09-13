@@ -1,4 +1,4 @@
-//! Read-only WebSocket transport from the native simulation to the Three.js viewer.
+//! Native display transport with a restricted lifecycle-only control channel.
 use super::*;
 use flybrain_engine::display_protocol::{body_poses, scene_descriptor};
 use std::net::{SocketAddr, TcpListener};
@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use tungstenite::{Message, WebSocket, accept};
 
-type RetinaMailbox = Arc<Mutex<Option<(u64, Vec<u8>)>>>;
+type RetinaMailbox = Arc<Mutex<Option<(u64, u64, Vec<u8>)>>>;
 
 pub struct Server {
     stop: Arc<AtomicBool>,
@@ -20,6 +20,7 @@ impl Server {
         bind: SocketAddr,
         publish_hz: u32,
         frame: Arc<Mutex<view_worker::Frame>>,
+        commands: std::sync::mpsc::SyncSender<view_worker::Command>,
     ) -> Result<Self> {
         let listener = TcpListener::bind(bind)
             .with_context(|| format!("binding native viewer WebSocket to {bind}"))?;
@@ -50,6 +51,7 @@ impl Server {
                     scene,
                     worker_retina,
                     worker_stop,
+                    commands,
                 )
             })?;
         Ok(Self {
@@ -59,8 +61,8 @@ impl Server {
         })
     }
 
-    pub fn update_retina(&self, sequence: u64, pixels: Vec<u8>) {
-        *self.retina.lock().unwrap() = Some((sequence, pixels));
+    pub fn update_retina(&self, sequence: u64, epoch: u64, pixels: Vec<u8>) {
+        *self.retina.lock().unwrap() = Some((sequence, epoch, pixels));
     }
 
     pub fn finish(&mut self) -> Result<()> {
@@ -89,6 +91,7 @@ fn serve(
     scene: String,
     retina: RetinaMailbox,
     stop: Arc<AtomicBool>,
+    commands: std::sync::mpsc::SyncSender<view_worker::Command>,
 ) -> Result<()> {
     let period = Duration::from_secs_f64(1.0 / f64::from(publish_hz));
     let mut clients: Vec<WebSocket<std::net::TcpStream>> = Vec::new();
@@ -101,9 +104,11 @@ fn serve(
                 Ok((stream, peer)) => {
                     stream.set_nodelay(true)?;
                     stream.set_write_timeout(Some(Duration::from_millis(100)))?;
+                    stream.set_read_timeout(Some(Duration::from_millis(100)))?;
                     match accept(stream) {
                         Ok(mut socket) => {
                             socket.send(Message::Text(scene.clone().into()))?;
+                            socket.get_mut().set_nonblocking(true)?;
                             eprintln!("Native browser viewer connected: {peer}");
                             clients.push(socket);
                         }
@@ -114,6 +119,27 @@ fn serve(
                 Err(error) => return Err(error.into()),
             }
         }
+        clients.retain_mut(|client| {
+            for _ in 0..8 {
+                match client.read() {
+                    Ok(Message::Text(text)) if text.len() < 1024 => {
+                        #[derive(serde::Deserialize)]
+                        struct Request { r#type: String, command: view_worker::ViewerControl }
+                        if let Ok(request) = serde_json::from_str::<Request>(&text)
+                            && request.r#type == "control" {
+                            if commands.try_send(view_worker::Command::Viewer(request.command)).is_err() {
+                                return false;
+                            }
+                        }
+                    }
+                    Ok(Message::Close(_)) => return false,
+                    Ok(_) => {},
+                    Err(tungstenite::Error::Io(error)) if error.kind() == std::io::ErrorKind::WouldBlock => break,
+                    Err(_) => return false,
+                }
+            }
+            true
+        });
         let now = Instant::now();
         if now >= next_publish {
             let payload = {
@@ -138,10 +164,10 @@ fn serve(
         }
         let retina_message = {
             let retina = retina.lock().unwrap();
-            retina.as_ref().and_then(|(sequence, pixels)| {
-                (*sequence != last_retina_sequence).then(|| {
+            retina.as_ref().and_then(|(sequence, epoch, pixels)| {
+                (*sequence != last_retina_sequence && *epoch == frame.lock().unwrap().epoch).then(|| {
                     last_retina_sequence = *sequence;
-                    encode_retina_preview(*sequence, pixels)
+                    encode_retina_preview(*sequence, *epoch, pixels)
                 })
             })
         };
@@ -154,15 +180,16 @@ fn serve(
     Ok(())
 }
 
-fn encode_retina_preview(sequence: u64, pixels: &[u8]) -> Vec<u8> {
+fn encode_retina_preview(sequence: u64, epoch: u64, pixels: &[u8]) -> Vec<u8> {
     const WIDTH: u16 = 450;
     const HEIGHT: u16 = 256;
     debug_assert_eq!(pixels.len(), usize::from(WIDTH) * usize::from(HEIGHT));
-    let mut message = Vec::with_capacity(16 + pixels.len());
-    message.extend_from_slice(b"FBR1");
+    let mut message = Vec::with_capacity(24 + pixels.len());
+    message.extend_from_slice(b"FBR2");
     message.extend_from_slice(&WIDTH.to_le_bytes());
     message.extend_from_slice(&HEIGHT.to_le_bytes());
     message.extend_from_slice(&sequence.to_le_bytes());
+    message.extend_from_slice(&epoch.to_le_bytes());
     message.extend_from_slice(pixels);
     message
 }
@@ -174,12 +201,13 @@ mod tests {
     #[test]
     fn retina_preview_binary_header_is_stable() {
         let pixels = vec![7; 450 * 256];
-        let message = encode_retina_preview(42, &pixels);
-        assert_eq!(&message[..4], b"FBR1");
+        let message = encode_retina_preview(42, 3, &pixels);
+        assert_eq!(&message[..4], b"FBR2");
         assert_eq!(u16::from_le_bytes(message[4..6].try_into().unwrap()), 450);
         assert_eq!(u16::from_le_bytes(message[6..8].try_into().unwrap()), 256);
         assert_eq!(u64::from_le_bytes(message[8..16].try_into().unwrap()), 42);
-        assert_eq!(&message[16..], pixels);
+        assert_eq!(u64::from_le_bytes(message[16..24].try_into().unwrap()), 3);
+        assert_eq!(&message[24..], pixels);
     }
 }
 
@@ -230,6 +258,14 @@ fn snapshot_payload(frame: &view_worker::Frame) -> serde_json::Value {
         "brain_wall_seconds": snapshot.brain_wall_seconds,
         "physics_wall_seconds": snapshot.physics_wall_seconds,
         "paused": frame.paused,
+        "hunger": snapshot.hunger,
+        "hungry": snapshot.hungry,
+        "flight_fatigue": snapshot.fatigue,
+        "grooming_urge": snapshot.dirt,
+        "takeoff_inhibited": snapshot.homeostatic_takeoff_inhibited,
+        "takeoff_inhibited_reason": if snapshot.homeostatic_resting { "flight fatigue recovery" }
+            else if snapshot.homeostatic_takeoff_inhibited { "homeostatic / food approach gate" }
+            else { "none" },
         "realtime_factor": frame.realtime_factor,
     })
 }

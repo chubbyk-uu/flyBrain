@@ -14,6 +14,7 @@ export function wingSignal(snapshot) {
     physicalFrequencyHz: clamp(signal?.physical_frequency_hz ?? 218, 1, 1000),
     phaseCycles: ((Number(signal?.phase_cycles) || 0) % 1 + 1) % 1,
     connected: Boolean(signal),
+    paused: Boolean(snapshot?.paused),
   };
 }
 
@@ -35,7 +36,7 @@ export class WingDisplayController {
 
   sample(nowMs) {
     const now = Number(nowMs) || 0;
-    const dt = this.lastNowMs === null ? 0 : clamp((now - this.lastNowMs) / 1000, 0, 0.1);
+    const dt = this.lastNowMs === null || this.signal.paused ? 0 : clamp((now - this.lastNowMs) / 1000, 0, 0.1);
     this.lastNowMs = now;
     const response = 1 - Math.exp(-dt / 0.045);
     this.envelope += (this.signal.envelope - this.envelope) * response;

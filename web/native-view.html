@@ -11,6 +11,8 @@
       .status strong, .status span { display: block; }
       .status span { margin-top: 4px; color: #b8c9dc; font-variant-numeric: tabular-nums; }
       .error { color: #ff9d9d !important; }
+      .controls { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+      button { border: 1px solid #60768d; border-radius: 5px; padding: 6px 10px; color: #edf4ff; background: #1c2d40; cursor: pointer; }
       .retina { position: fixed; right: 16px; top: 16px; width: min(440px, 42vw); padding: 10px; border: 1px solid #ffffff26; border-radius: 8px; background: #07101bd9; }
       .retina canvas { display: block; width: 100%; height: auto; margin-top: 7px; background: #000; image-rendering: pixelated; }
       .retina .labels { display: flex; justify-content: space-around; margin-top: 4px; color: #b8c9dc; }
@@ -26,6 +28,13 @@
       <strong>CUDA MaleCNS · native MuJoCo · Three.js display</strong>
       <span id="connection">connecting…</span>
       <span id="metrics">waiting for scene</span>
+      <span id="needs">等待 native 状态…</span>
+      <span id="run-state">运行控制待连接</span>
+      <div class="controls">
+        <button id="pause">暂停</button><button id="resume">继续</button>
+        <button id="reset">重置并暂停</button><button id="overview">全景</button>
+        <button id="follow">跟随果蝇</button>
+      </div>
       <span>Drag to orbit · scroll to zoom · wings are CNS-gated display animation</span>
     </div>
     <aside class="retina">

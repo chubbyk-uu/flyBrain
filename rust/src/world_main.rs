@@ -198,7 +198,7 @@ enum Command {
     WebView {
         #[arg(long, default_value = DEFAULT_ASSETS_DIR)]
         assets: PathBuf,
-        #[arg(long, default_value = "legacy")]
+        #[arg(long, default_value = "indoor-v2")]
         scene: String,
         #[arg(long, default_value = "outputs/packs/male_cns_v1")]
         pack: PathBuf,
@@ -1022,7 +1022,7 @@ fn web_view_world(options: ViewOptions, bind: std::net::SocketAddr) -> Result<()
     let msaa_samples = 0;
     eprintln!("Loading native CUDA MaleCNS and MuJoCo simulation worker...");
     let mut worker = view_worker::Worker::start(options)?;
-    let mut publisher = native_stream::Server::start(bind, publish_hz, worker.frame.clone())?;
+    let mut publisher = native_stream::Server::start(bind, publish_hz, worker.frame.clone(), worker.commands.clone())?;
     let (mut data, mut sequence, mut epoch) = {
         let frame = worker.frame.lock().unwrap();
         (frame.data.clone(), frame.sequence, frame.epoch)
@@ -1067,7 +1067,7 @@ fn web_view_world(options: ViewOptions, bind: std::net::SocketAddr) -> Result<()
             let capture_sequence = retina.retina_capture_sequence();
             if capture_sequence != retina_capture_sequence {
                 retina_capture_sequence = capture_sequence;
-                publisher.update_retina(capture_sequence, retina.retina_preview_gray_half());
+                publisher.update_retina(capture_sequence, epoch, retina.retina_preview_gray_half());
             }
             if captured {
                 *worker.vision.lock().unwrap() = Some((epoch, retina.retina_summaries()));
@@ -2278,6 +2278,7 @@ mod tests {
         let cli = Cli::parse_from(["flybrain-world", "web-view"]);
         match cli.command {
             Command::WebView {
+                scene,
                 pack,
                 publish_hz,
                 bind,
@@ -2285,6 +2286,7 @@ mod tests {
                 no_brain,
                 ..
             } => {
+                assert_eq!(scene, "indoor-v2");
                 assert_eq!(pack.to_str(), Some("outputs/packs/male_cns_v1"));
                 assert_eq!(publish_hz, 30);
                 assert_eq!(bind.to_string(), "127.0.0.1:8765");

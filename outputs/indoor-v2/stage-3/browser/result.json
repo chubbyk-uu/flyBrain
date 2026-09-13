@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "firstEpoch": 1,
+  "resetEpoch": 2,
+  "resetTime": 0,
+  "resumedTime": 0.2040000000000038,
+  "needsLabel": "饥饿 72% · 飞行疲劳 4% · 清洁冲动 10%",
+  "note": "Linux Chromium/SwiftShader functional UI evidence; not Windows performance acceptance"
+}
