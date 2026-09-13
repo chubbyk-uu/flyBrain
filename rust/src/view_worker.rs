@@ -66,7 +66,17 @@ impl Worker {
                     options.physics_dt_ms.map(|value| value / 1000.0),
                     &options.scene,
                 )?;
-                simulation.place_food_ahead(options.start_food_distance)?;
+                if let Some(position) = simulation
+                    .world()
+                    .metadata()
+                    .scene
+                    .as_ref()
+                    .and_then(|scene| scene.spawn_position_mm)
+                {
+                    simulation.set_initial_position(position)?;
+                } else {
+                    simulation.place_food_ahead(options.start_food_distance)?;
+                }
                 simulation.set_brain_telemetry_enabled(
                     options.with_brain && std::env::var_os("FLYBRAIN_BENCH_NO_TELEMETRY").is_none(),
                 )?;

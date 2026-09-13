@@ -1,0 +1,22 @@
+{
+  "schema": "flybrain-scene-layout-v1",
+  "id": "indoor-v2",
+  "model_file": "indoor-v2.xml",
+  "habitat_file": "indoor-v2-habitat.json",
+  "room_half_extents_mm": [
+    150,
+    110,
+    70
+  ],
+  "food_center_mm": [
+    48.0,
+    -12.0,
+    30.6
+  ],
+  "spawn_position_mm": [
+    26.0,
+    -12.0,
+    32.1
+  ],
+  "fly_subtree_sha256": "741ed45ff54788059751f3daa195410c17d7de8b0fedd13531bcc041fa65b55c"
+}

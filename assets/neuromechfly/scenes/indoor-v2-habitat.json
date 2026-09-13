@@ -1,0 +1,68 @@
+{
+  "schema": "flybrain-habitat-v2",
+  "room": {
+    "half_extents_mm": [
+      150,
+      110,
+      70
+    ],
+    "open_ceiling": false,
+    "front_doorway_width_mm": 0,
+    "flight_altitude_bounds_mm": [
+      5,
+      110
+    ]
+  },
+  "airflow_mm_s": [
+    0,
+    0,
+    0
+  ],
+  "resources": [
+    {
+      "id": "sugar_drop",
+      "kind": "food",
+      "geom": "food_patch",
+      "position": [
+        48.0,
+        -12.0,
+        30.6
+      ],
+      "movable": true,
+      "taste_radius_mm": 3.0,
+      "odor_source_ppm": 175.0,
+      "odor_length_mm": 35.0,
+      "taste_valence": 1.0,
+      "nutrition": 1.0,
+      "hydration": 0.3
+    },
+    {
+      "id": "flower_nectar",
+      "kind": "food",
+      "geom": "resource_nectar",
+      "position": [
+        -48.0,
+        12.0,
+        65.4
+      ],
+      "movable": false,
+      "taste_radius_mm": 3.0,
+      "odor_source_ppm": 175.0,
+      "odor_length_mm": 35.0,
+      "taste_valence": 1.0,
+      "nutrition": 1.0,
+      "hydration": 0.3
+    }
+  ],
+  "units": {
+    "length": "millimeter",
+    "time": "second",
+    "mass": "gram",
+    "odor_concentration": "isobutylene-equivalent ppm"
+  },
+  "sensory_model": {
+    "odor": "advection-diffusion plume v1",
+    "taste": "mouth-to-resource distance v2",
+    "vision": "native binocular FlyGym retina"
+  }
+}

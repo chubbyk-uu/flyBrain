@@ -3,7 +3,9 @@ import { PoseBuffer } from "./native-pose-buffer.js";
 import { decodeRetinaPreview, drawRetinaPreview } from "./native-retina.js";
 
 const definitions = [
-  ["room", "Small indoor room"], ["table", "Tea table and sugar"], ["plant", "Potted plant and flower"],
+  ["room", "Indoor room"], ["north", "North view"], ["south", "South view"],
+  ["east", "East view"], ["west", "West view"],
+  ["table", "Coffee table"], ["plant", "Potted flower"], ["candy", "Candy"],
   ["grounded", "Grounded fly"], ["walking", "Walking"], ["flight", "CNS-gated flight"],
   ["feeding", "Sugar / nectar feeding"], ["grooming", "Leg and head/eye grooming"],
   ["retina-left", "Native retina · left"], ["retina-right", "Native retina · right"],
@@ -23,6 +25,7 @@ const renderer = createSceneRenderer(canvas, { onError: (error) => { status.text
 let poses;
 let latest;
 let captureBusy = false;
+let indoorV2 = false;
 const captured = new Set();
 
 function store(key, dataUrl, detail) {
@@ -52,6 +55,20 @@ async function captureFixedViews() {
   if (captureBusy || captured.has("room") || !latest) return;
   captureBusy = true;
   try {
+    if (indoorV2) {
+      for (const [key, position, target] of [
+        ["room", [240, -300, 230], [0, 0, 35]],
+        ["north", [0, 290, 155], [0, 0, 35]],
+        ["south", [0, -290, 155], [0, 0, 35]],
+        ["east", [330, 0, 170], [0, 0, 35]],
+        ["west", [-330, 0, 170], [0, 0, 35]],
+        ["table", [165, -180, 125], [0, 0, 25]],
+        ["plant", [0, -57, 95], [-48, 12, 49]],
+        ["candy", [65, -37, 49], [48, -12, 30]],
+      ]) await captureView(key, position, target, "indoor-v2 display-only camera");
+      renderer.setCameraMode("chase");
+      return;
+    }
     await captureView("room", [560, -590, 330], [0, 0, 70], `t=${latest.snapshot.time_seconds.toFixed(1)}s`);
     await captureView("table", [270, -70, 125], [120, 70, 48], "display-only camera");
     await captureView("plant", [286, -218, 105], [220, -130, 35], "display-only camera");
@@ -106,6 +123,7 @@ socket.addEventListener("message", ({ data }) => {
   }
   const message = JSON.parse(data);
   if (message.type === "scene") {
+    indoorV2 = message.scene.geoms.some((geom) => String(geom.material).startsWith("indoor-v2/"));
     renderer.setScene(message.scene);
     poses = new PoseBuffer(Number(message.scene.bodyCount) || 0);
   } else if (message.type === "frame" && poses) {
@@ -118,9 +136,13 @@ socket.addEventListener("message", ({ data }) => {
 
 function animate() {
   const frame = poses?.sample(performance.now());
-  if (frame && !captureBusy) renderer.updateFrame(frame.poses, frame.snapshot);
-  renderer.render();
-  requestAnimationFrame(animate);
+  if (!captureBusy) {
+    if (frame) renderer.updateFrame(frame.poses, frame.snapshot);
+    renderer.render();
+  }
+  // This is an evidence gallery, not the live viewer. Avoid an unbounded render
+  // queue competing with its own synchronous capture on software review hosts.
+  setTimeout(() => requestAnimationFrame(animate), 100);
 }
 requestAnimationFrame(animate);
 window.addEventListener("resize", () => renderer.resize());

@@ -10,6 +10,7 @@ pub const LEGACY_SCENE_ID: &str = "legacy";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SceneMetadata {
+    pub spawn_position_mm: Option<[f64; 3]>,
     pub id: String,
     pub schema: String,
     pub sha256: String,
@@ -22,6 +23,10 @@ pub struct SceneMetadata {
 
 #[derive(Debug, Deserialize)]
 pub struct SceneLayout {
+    #[serde(default)]
+    spawn_position_mm: Option<[f64; 3]>,
+    #[serde(default)]
+    pub model_file: Option<String>,
     schema: String,
     id: String,
     habitat_file: String,
@@ -101,6 +106,7 @@ impl SceneLayout {
             .chain(layout.additions.iter().map(|geom| geom.name.clone()))
             .collect();
         let metadata = SceneMetadata {
+            spawn_position_mm: layout.spawn_position_mm,
             id: layout.id.clone(),
             schema: layout.schema.clone(),
             sha256,
@@ -116,6 +122,19 @@ impl SceneLayout {
     fn validate(&self) -> Result<()> {
         if self.schema != "flybrain-scene-layout-v1" || self.id.is_empty() {
             bail!("unsupported scene layout schema or empty id")
+        }
+        if self.model_file.as_ref().is_some_and(|name| {
+            let path = Path::new(name);
+            path.components().count() != 1
+                || path.extension().and_then(|s| s.to_str()) != Some("xml")
+        }) || self.spawn_position_mm.is_some_and(|p| {
+            p.iter().any(|v| !v.is_finite())
+                || p[0].abs() >= self.room_half_extents_mm[0]
+                || p[1].abs() >= self.room_half_extents_mm[1]
+                || p[2] <= 0.0
+                || p[2] >= 2.0 * self.room_half_extents_mm[2]
+        }) {
+            bail!("scene model filename or spawn position is invalid")
         }
         if self.habitat_file.is_empty()
             || self

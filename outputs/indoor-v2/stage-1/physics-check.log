@@ -1,0 +1,10 @@
+    Finished `release` profile [optimized] target(s) in 0.10s
+     Running unittests rust/src/lib.rs (target/release/deps/flybrain_engine-5e565c1aea0f2528)
+
+running 1 test
+indoor-v2 ground: 20ms median |vz|=0.036093, instantaneous=2.129159, root=[111.61971908717337, 0.5375246011292538, 1.081454079568406]
+indoor-v2 table: 20ms median |vz|=0.042007, instantaneous=2.173480, root=[27.862697308548633, -12.045965644523102, 31.07952082554022]
+indoor-v2 flower: 20ms median |vz|=0.036962, instantaneous=1.861531, root=[-46.13257364370095, 11.945076506351914, 66.08178270876043]
+test world::tests::indoor_v2_standalone_body_and_support_contract ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 275 filtered out; finished in 11.46s

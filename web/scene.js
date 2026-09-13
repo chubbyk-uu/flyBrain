@@ -294,6 +294,7 @@ export class FlySceneRenderer {
     key.shadow.camera.top = 500;
     key.shadow.camera.bottom = -500;
     key.shadow.bias = -0.0002;
+    this.keyLight = key;
     this.scene.add(key);
     const fill = new THREE.DirectionalLight(0x8ca9d1, 0.35);
     fill.position.set(-240, 180, 180);
@@ -320,6 +321,12 @@ export class FlySceneRenderer {
     if (!descriptor || !Array.isArray(descriptor.geoms) || !Array.isArray(descriptor.meshes) || !Array.isArray(descriptor.cameras)) {
       throw new Error("scene descriptor must contain geoms, meshes, and cameras arrays");
     }
+    const indoor = descriptor.geoms.some((geom) => String(geom.material).startsWith("indoor-v2/"));
+    const shadow = this.keyLight.shadow;
+    const extent = indoor ? 220 : 500;
+    Object.assign(shadow.camera, { left: -extent, right: extent, top: extent, bottom: -extent, far: indoor ? 700 : 1800 });
+    shadow.normalBias = indoor ? 0.15 : 0;
+    shadow.camera.updateProjectionMatrix();
     this.disposeSceneObjects();
     this.bodyGroups = Array.from({ length: Math.max(0, Number(descriptor?.bodyCount) || 0) }, () => new THREE.Group());
     this.bodyDescriptors = Array.isArray(descriptor?.bodies) ? descriptor.bodies : [];
@@ -448,7 +455,8 @@ export class FlySceneRenderer {
   }
 
   makeMaterial(kind, descriptor) {
-    const key = JSON.stringify([kind, descriptor?.rgba, descriptor?.texrepeat]);
+    const indoor = String(descriptor?.material ?? "").startsWith("indoor-v2/");
+    const key = JSON.stringify([kind, descriptor?.material, descriptor?.rgba, descriptor?.texrepeat]);
     const cached = this.materialCache.get(key);
     if (cached) return cached;
     const { color, opacity } = colorForKind(kind, descriptor?.rgba);
@@ -462,7 +470,32 @@ export class FlySceneRenderer {
       metalness: kind === "eye" ? 0.08 : kind === "ceramic" ? 0.02 : 0,
     };
     const material = kind === "eye" ? new THREE.MeshPhysicalMaterial({ ...options, clearcoat: 0.18, clearcoatRoughness: 0.32 }) : new THREE.MeshStandardMaterial(options);
-    if (kind === "oak") {
+    if (indoor) {
+      // Newly authored deterministic surface grain; no inherited habitat texture.
+      const wood = descriptor.material.endsWith("/ashwood");
+      const canvas = document.createElement("canvas");
+      canvas.width = 128; canvas.height = 128;
+      const context = canvas.getContext("2d");
+      const pixels = context.createImageData(128, 128);
+      let grainSeed = 271828;
+      for (let y = 0; y < 128; y += 1) {
+        for (let x = 0; x < 128; x += 1) {
+          const grain = wood ? 3 * Math.sin(y * 0.48 + 0.7 * Math.sin(x * 0.06)) : 0;
+          grainSeed = (Math.imul(grainSeed, 1664525) + 1013904223) >>> 0;
+          const noise = (grainSeed / 4294967296 - 0.5) * 2;
+          const value = Math.round(243 + grain + noise);
+          const offset = (y * 128 + x) * 4;
+          pixels.data.set([value, value, value, 255], offset);
+        }
+      }
+      context.putImageData(pixels, 0, 0);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.repeat.set(wood ? 3 : 2, 2);
+      material.map = texture;
+      material.roughness = wood ? 0.72 : kind === "ceramic" ? 0.32 : 0.8;
+    } else if (kind === "oak") {
       const texture = new THREE.TextureLoader().load(OAK_TEXTURE_URL, () => {
         this.needsRender = true;
         this.pendingVision = this.frameReady;

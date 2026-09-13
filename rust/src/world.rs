@@ -343,7 +343,7 @@ impl MuJoCoWorld {
             None => Self::from_assets_dir(dir),
             Some(scene_path) => {
                 let (layout, metadata) = SceneLayout::load(&scene_path)?;
-                let model_path = dir.join("fly.xml");
+                let model_path = dir.join(layout.model_file.as_deref().unwrap_or("fly.xml"));
                 let mut spec = MjSpec::from_xml(&model_path)
                     .with_context(|| format!("loading MuJoCo spec {}", model_path.display()))?;
                 layout.apply(&mut spec)?;
@@ -1647,6 +1647,81 @@ mod tests {
                 .name_to_id(MjtObj::mjOBJ_GEOM, name)
                 .expect("closed room surface is present");
             assert_eq!(world.model().geom_conaffinity()[geom_id], 1);
+        }
+    }
+
+    #[test]
+    fn indoor_v2_standalone_body_and_support_contract() {
+        let reference = world();
+        let mut room = MuJoCoWorld::from_assets_dir_and_scene(DEFAULT_ASSETS_DIR, "indoor-v2")
+            .expect("standalone indoor model compiles");
+        assert_eq!(room.counts().dofs, 132);
+        assert_eq!(room.counts().bodies, reference.counts().bodies);
+        assert_eq!(room.model().body_mass(), reference.model().body_mass());
+        assert_eq!(
+            room.model().body_inertia(),
+            reference.model().body_inertia()
+        );
+        assert_eq!(room.model().jnt_type(), reference.model().jnt_type());
+        assert_eq!(
+            room.model().actuator_trnid(),
+            reference.model().actuator_trnid()
+        );
+        for i in 0..room.model().ngeom() as usize {
+            let name = room.model().id_to_name(MjtObj::mjOBJ_GEOM, i).unwrap_or("");
+            assert!(!name.starts_with("detail_") && !name.contains("rug"));
+        }
+        for (surface, position) in [
+            ("ground", [110.0, 0.0, 2.1]),
+            ("table", [26.0, -12.0, 32.1]),
+            ("flower", [-48.0, 12.0, 67.1]),
+        ] {
+            room.reset().unwrap();
+            room.set_timestep_seconds(0.0002).unwrap();
+            room.data.qpos_mut()[0..3].copy_from_slice(&position);
+            room.data.forward();
+            let mut tail = Vec::new();
+            let mut instantaneous = Vec::new();
+            let mut heights = Vec::new();
+            let mut previous_height = room.root_position()[2];
+            for step in 0..25_000 {
+                room.step().unwrap();
+                if step % 100 == 99 {
+                    let height = room.root_position()[2];
+                    if step >= 15_000 {
+                        // Same 20 ms displacement estimator as the pre-existing support gate.
+                        tail.push(((height - previous_height) / 0.02).abs());
+                        instantaneous.push(room.qvel()[2].abs());
+                        heights.push(height);
+                    }
+                    previous_height = height;
+                }
+            }
+            tail.sort_by(f64::total_cmp);
+            instantaneous.sort_by(f64::total_cmp);
+            let median = tail[tail.len() / 2];
+            eprintln!(
+                "indoor-v2 {surface}: 20ms median |vz|={median:.6}, instantaneous={:.6}, root={:?}",
+                instantaneous[instantaneous.len() / 2],
+                room.root_position()
+            );
+            assert!(median <= 2.0, "{surface} unstable vertical motion");
+            assert!(
+                room.data()
+                    .warning()
+                    .iter()
+                    .all(|warning| warning.number == 0),
+                "{surface}: MuJoCo warning"
+            );
+            assert!(
+                (heights.last().unwrap() - heights.first().unwrap()).abs() < 0.1,
+                "{surface}: sustained vertical drift"
+            );
+            let expected_surface = position[2] - 2.1;
+            assert!(
+                room.root_position()[2] > expected_surface + 0.3,
+                "{surface} support penetrated"
+            );
         }
     }
 

@@ -4,9 +4,14 @@
 
 This fork retains its Windows/RTX 5080 browser baseline and now prioritizes a
 real-time Linux/WSL2 simulation with full MaleCNS, CUDA and native MuJoCo.
-The [project goals and constraints](docs/project-spec.md) define the scope. The current six-stage
-[autonomous fly roadmap](docs/autonomous-fly-roadmap-2026-09-13.md) fixes the implementation order
-and acceptance gates before behavior and scene work proceeds.
+The [project goals and constraints](docs/project-spec.md) define the scope. The current
+[indoor repair plan and acceptance gates](docs/indoor-repair-plan-2026-09-13.md) supersede the
+[historical six-stage roadmap](docs/autonomous-fly-roadmap-2026-09-13.md). Actual browser inspection
+found scene assembly defects, and long-running food-search loops remain unresolved.
+The new plan requires a fresh room, a low elongated coffee table with both candy and a flowering pot,
+new environment materials, no ambient wind, two sources of one odor, and 20-second near-source feeding.
+It also specifies one automatic reset on the first ready viewer per backend process, manual controls,
+and hunger/fatigue/grooming-urge displays. These repairs are planned, not accepted as implemented.
 The [2026-09-13 simplification plan](docs/realtime-simplification-plan-2026-09-13.md)
 allows lighter joints, collision geometry and averaged flight forces, while preserving
 a meaningful sensory–neural–body feedback loop. These changes are planned, not implemented.
@@ -25,11 +30,11 @@ not remain in the browser/WASM path. Bridge readback and CUDA propagation have s
 been optimized. The retained full body now reaches approximately 1.065x in the recorded
 20-second run with a 0.2 ms MuJoCo timestep; viewer FPS remains the current bottleneck.
 The new target permits engineered satiety, flight fatigue, persistent random exploration,
-and one dust level triggering one combined foreleg-rubbing/head-and-eye-cleaning routine.
+and one grooming-urge state triggering one combined foreleg-rubbing/head-and-eye-cleaning routine.
 Neural outputs must still have a demonstrable causal role in active movement and feeding.
 Later milestones include a smaller indoor world with a coffee table, candy and flowering
-potted plants. Visual food recognition, the new internal-state rules, and the unified cleaning
-routine are not yet implemented. The reference assets and historical tests remain preserved.
+potted plants. Internal-state and unified-cleaning controllers exist but need the repairs above;
+visual food recognition is not implemented. Reference assets and historical tests remain preserved.
 Neural dt remains 0.1 ms while native `view` and `cns-check` now default MuJoCo to 0.2 ms.
 Headless realtime and 30 FPS GUI playback remain separate measurements.
 Use the dedicated `flybrain` Conda environment described in
