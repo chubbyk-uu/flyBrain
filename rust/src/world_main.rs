@@ -506,7 +506,8 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
         simulation.set_initial_hunger(hunger)?;
     }
     simulation.set_grooming_neural_gate_connected(!options.disconnect_grooming_probe)?;
-    if !options.keep_scene_food {
+    if !options.keep_scene_food && simulation.world().metadata().scene.as_ref()
+        .and_then(|scene| scene.spawn_position_mm).is_none() {
         simulation.place_food_ahead(options.start_food_distance)?;
     }
     simulation.set_brain_telemetry_enabled(true)?;

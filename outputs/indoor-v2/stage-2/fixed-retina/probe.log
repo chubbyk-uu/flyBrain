@@ -1,0 +1,3 @@
+Viewer OpenGL renderer: D3D12 (NVIDIA GeForce RTX 5080)
+fixed retina sugar: root=[26.0, -12.0, 32.1], summaries=[RetinaSummary { mean_intensity: 0.3765572384509734, spatial_contrast: 0.09701514623007208 }, RetinaSummary { mean_intensity: 0.3869963151923438, spatial_contrast: 0.09672131958480684 }]
+fixed retina nectar: root=[-60.0, 12.0, 67.1], summaries=[RetinaSummary { mean_intensity: 0.41947328766288644, spatial_contrast: 0.14300349717055474 }, RetinaSummary { mean_intensity: 0.38898503337121587, spatial_contrast: 0.13868770747714992 }]

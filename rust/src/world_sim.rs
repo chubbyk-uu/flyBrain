@@ -622,7 +622,11 @@ impl SimulationStepper {
                 ..SimulationSnapshot::default()
             },
         };
-        stepper.refresh_environment_snapshot()?;
+        if let Some(position) = stepper.world.metadata().scene.as_ref().and_then(|scene| scene.spawn_position_mm) {
+            stepper.set_initial_position(position)?;
+        } else {
+            stepper.refresh_environment_snapshot()?;
+        }
         Ok(stepper)
     }
 
@@ -1502,6 +1506,11 @@ impl SimulationStepper {
             bridge.set_telemetry_enabled(self.brain_telemetry_enabled)?;
         }
         self.world.reset()?;
+        if let Some(position) = self.world.metadata().scene.as_ref().and_then(|scene| scene.spawn_position_mm) {
+            self.world.data_mut().qpos_mut()[0..3].copy_from_slice(&position);
+            self.world.data_mut().forward();
+            self.food_center = self.world.metadata().environment.food_center;
+        }
         self.brain = brain;
         self.brain_materialization = brain_materialization;
         self.phase_rad = 0.0;
@@ -1798,6 +1807,12 @@ impl SimulationStepper {
 
     pub fn toggle_food(&mut self) -> Result<()> {
         self.food_enabled = !self.food_enabled;
+        self.refresh_environment_snapshot()
+    }
+
+    /// Explicit experimental ablation, not a navigation input.
+    pub fn set_resource_enabled(&mut self, id: &str, enabled: bool) -> Result<()> {
+        self.habitat.set_resource_enabled(id, enabled)?;
         self.refresh_environment_snapshot()
     }
 
@@ -2287,6 +2302,36 @@ mod tests {
     use crate::grooming::GroomingTrigger;
     use crate::world::{DEFAULT_ASSETS_DIR, MuJoCoWorld};
     use mujoco_rs::prelude::*;
+
+    #[test]
+    fn indoor_v2_spawn_reset_and_taste_latency() {
+        let mut sim = SimulationStepper::new_with_parameters_physics_and_scene(
+            DEFAULT_ASSETS_DIR, None::<&std::path::Path>, 500.0, 0.5,
+            SimulationParameters::default(), Some(0.0002), "indoor-v2").unwrap();
+        assert_eq!(sim.world().root_position(), [26.0,-12.0,32.1]);
+        assert!(!sim.snapshot().taste_active);
+        for index in 0..2 {
+            let center = sim.habitat.resources()[index].position;
+            for (offset, expected) in [(0.0, Some(index)), (4.0, None)] {
+                let mouth = sim.world().body_position("fly/c_haustellum").unwrap();
+                let root = sim.world().root_position();
+                let target = [center[0],center[1],center[2]+offset];
+                let position = std::array::from_fn(|axis| root[axis]+target[axis]-mouth[axis]);
+                sim.set_initial_position(position).unwrap();
+                assert_eq!(sim.snapshot().tasted_resource, expected);
+                // State is refreshed immediately; no 20 ms deferred sensory queue.
+                assert_eq!(sim.world().time(), 0.0);
+            }
+        }
+        sim.set_food_center([0.0,0.0,1.0]).unwrap();
+        sim.step_window().unwrap();
+        sim.reset().unwrap();
+        assert_eq!(sim.food_center(), [48.0,-12.0,30.6]);
+        assert_eq!(sim.world().root_position(), [26.0,-12.0,32.1]);
+        assert!(!sim.snapshot().taste_active);
+        sim.set_resource_enabled("flower_nectar",false).unwrap();
+        assert!(sim.set_resource_enabled("missing",false).is_err());
+    }
 
     fn prime_airborne_simulation(
         simulation: &mut SimulationStepper,

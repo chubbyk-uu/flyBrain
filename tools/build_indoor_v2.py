@@ -100,7 +100,8 @@ def build():
     for name, geom_name, pos in [("sugar_drop", "food_patch", SUGAR),
                                  ("flower_nectar", "resource_nectar", NECTAR)]:
         resources.append(dict(id=name, kind="food", geom=geom_name, position=pos,
-            movable=name == "sugar_drop", taste_radius_mm=3.0, odor_source_ppm=175.0,
+            movable=name == "sugar_drop", taste_radius_mm=3.0, taste_half_height_mm=0.75,
+            odor_source_ppm=175.0,
             odor_length_mm=35.0, taste_valence=1.0, nutrition=1.0, hydration=0.3))
     habitat = dict(schema="flybrain-habitat-v2", room=dict(half_extents_mm=[150,110,70],
         open_ceiling=False, front_doorway_width_mm=0, flight_altitude_bounds_mm=[5,110]),

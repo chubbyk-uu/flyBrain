@@ -1,6 +1,7 @@
 // Capture rendered acceptance cards using an already running local Chromium CDP.
 import { mkdir, writeFile } from "node:fs/promises";
 const output = process.argv[2] ?? "outputs/indoor-v2/stage-1";
+const indices = process.argv.includes("--retina") ? [13, 14] : [0,1,2,3,4,5,6,7];
 const pages = await (await fetch("http://127.0.0.1:9337/json/list")).json();
 const socket = new WebSocket(pages.find((page) => page.type === "page").webSocketDebuggerUrl);
 await new Promise((resolve) => socket.addEventListener("open", resolve, { once: true }));
@@ -24,15 +25,15 @@ let cards = [];
 for (let attempt = 0; attempt < 45; attempt += 1) {
   await new Promise((resolve) => setTimeout(resolve, 1000));
   const result = await call("Runtime.evaluate", {
-    expression: `Array.from(document.querySelectorAll('figure')).slice(0,8).map(f => ({label:f.querySelector('figcaption').textContent,src:Boolean(f.querySelector('img'))}))`, returnByValue: true,
+    expression: `${JSON.stringify(indices)}.map(i => document.querySelectorAll('figure')[i]).map(f => ({label:f.querySelector('figcaption').textContent,src:Boolean(f.querySelector('img'))}))`, returnByValue: true,
   });
   cards = result.result.value ?? [];
-  if (cards.length === 8 && cards.every((card) => card.src)) break;
+  if (cards.length === indices.length && cards.every((card) => card.src)) break;
 }
-if (cards.length !== 8 || cards.some((card) => !card.src)) throw new Error("Missing static review images");
+if (cards.length !== indices.length || cards.some((card) => !card.src)) throw new Error("Missing review images");
 await mkdir(output, { recursive: true });
 for (let i = 0; i < cards.length; i += 1) {
-  const result = await call("Runtime.evaluate", {expression: `document.querySelectorAll('figure')[${i}].querySelector('img').src`, returnByValue:true});
+  const result = await call("Runtime.evaluate", {expression: `document.querySelectorAll('figure')[${indices[i]}].querySelector('img').src`, returnByValue:true});
   await writeFile(`${output}/${i}-${cards[i].label.split(" · ")[0].replaceAll(/[^a-zA-Z0-9]+/g, "-")}.png`, Buffer.from(result.result.value.split(",")[1], "base64"));
 }
 const screenshot = await call("Page.captureScreenshot", { format: "png" });

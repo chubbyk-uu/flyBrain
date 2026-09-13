@@ -66,15 +66,8 @@ impl Worker {
                     options.physics_dt_ms.map(|value| value / 1000.0),
                     &options.scene,
                 )?;
-                if let Some(position) = simulation
-                    .world()
-                    .metadata()
-                    .scene
-                    .as_ref()
-                    .and_then(|scene| scene.spawn_position_mm)
-                {
-                    simulation.set_initial_position(position)?;
-                } else {
+                if simulation.world().metadata().scene.as_ref()
+                    .and_then(|scene| scene.spawn_position_mm).is_none() {
                     simulation.place_food_ahead(options.start_food_distance)?;
                 }
                 simulation.set_brain_telemetry_enabled(

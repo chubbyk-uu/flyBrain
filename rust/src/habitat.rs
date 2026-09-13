@@ -44,12 +44,17 @@ fn default_flight_altitude_bounds_mm() -> [f64; 2] {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Resource {
+    #[serde(default = "resource_enabled")]
+    pub enabled: bool,
     pub id: String,
     pub kind: String,
     pub geom: String,
     pub position: [f64; 3],
     pub movable: bool,
     pub taste_radius_mm: f64,
+    /// Optional finite vertical contact slab for thin tabletop food surfaces.
+    #[serde(default)]
+    pub taste_half_height_mm: Option<f64>,
     pub odor_source_ppm: f64,
     pub odor_length_mm: f64,
     pub taste_valence: f64,
@@ -60,6 +65,8 @@ pub struct Resource {
     #[serde(default)]
     pub taste_margin_mm: Option<f64>,
 }
+
+fn resource_enabled() -> bool { true }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct TasteCapsule {
@@ -113,6 +120,13 @@ impl Habitat {
         &self.resources
     }
 
+    pub fn set_resource_enabled(&mut self, id: &str, enabled: bool) -> Result<()> {
+        let resource = self.resources.iter_mut().find(|resource| resource.id == id)
+            .ok_or_else(|| anyhow::anyhow!("unknown resource {id}"))?;
+        resource.enabled = enabled;
+        Ok(())
+    }
+
     pub fn sample(
         &self,
         left_antenna: [f64; 3],
@@ -130,7 +144,7 @@ impl Habitat {
         let mut nearest_resource = None;
         let mut nearest_distance_mm = f64::INFINITY;
         for (index, resource) in self.resources.iter().enumerate() {
-            let enabled = !resource.movable || movable_sugar_enabled;
+            let enabled = resource.enabled && (!resource.movable || movable_sugar_enabled);
             if !enabled {
                 continue;
             }
@@ -202,6 +216,7 @@ impl Habitat {
                 || resource.position.iter().any(|value| !value.is_finite())
                 || !resource.taste_radius_mm.is_finite()
                 || resource.taste_radius_mm <= 0.0
+                || resource.taste_half_height_mm.is_some_and(|h| !h.is_finite() || h <= 0.0)
                 || !resource.odor_source_ppm.is_finite()
                 || resource.odor_source_ppm < 0.0
                 || !resource.odor_length_mm.is_finite()
@@ -248,7 +263,7 @@ impl Habitat {
     ) -> f64 {
         self.resources
             .iter()
-            .filter(|resource| !resource.movable || movable_sugar_enabled)
+            .filter(|resource| resource.enabled && (!resource.movable || movable_sugar_enabled))
             .map(|resource| {
                 let source = self.resource_position(resource, movable_sugar_position);
                 let delta = subtract(sample_position, source);
@@ -277,6 +292,9 @@ impl Resource {
     }
 
     fn taste_distance_mm(&self, mouth: [f64; 3], position: [f64; 3]) -> f64 {
+        if self.taste_half_height_mm.is_some_and(|h| (mouth[2] - position[2]).abs() > h) {
+            return f64::INFINITY;
+        }
         if self.taste_capsules.is_empty() {
             return distance(mouth, position);
         }
@@ -365,6 +383,8 @@ mod tests {
             airflow_mm_s: [35.0, 8.0, 0.0],
             resources: vec![
                 Resource {
+                    enabled: true,
+                    taste_half_height_mm: None,
                     id: "sugar_drop".to_owned(),
                     kind: "sugar".to_owned(),
                     geom: "food_patch".to_owned(),
@@ -380,6 +400,8 @@ mod tests {
                     taste_margin_mm: None,
                 },
                 Resource {
+                    enabled: true,
+                    taste_half_height_mm: None,
                     id: "banana".to_owned(),
                     kind: "fruit".to_owned(),
                     geom: "banana_food".to_owned(),
@@ -395,6 +417,8 @@ mod tests {
                     taste_margin_mm: None,
                 },
                 Resource {
+                    enabled: true,
+                    taste_half_height_mm: None,
                     id: "water".to_owned(),
                     kind: "water".to_owned(),
                     geom: "water_dish".to_owned(),
@@ -428,6 +452,49 @@ mod tests {
         assert_eq!(habitat.room().flight_altitude_bounds_mm, [5.0, 208.0]);
         assert!(!habitat.room().open_ceiling);
         assert_eq!(habitat.room().front_doorway_width_mm, 0.0);
+    }
+
+    #[test]
+    fn indoor_v2_dual_source_concentration_and_contact_contract() {
+        let both = Habitat::load_path("assets/neuromechfly/scenes/indoor-v2-habitat.json").unwrap();
+        let sugar = both.resources[0].position;
+        let mut one = both.clone();
+        one.set_resource_enabled("flower_nectar", false).unwrap();
+        let mut other = both.clone();
+        other.set_resource_enabled("sugar_drop", false).unwrap();
+        for position in [[26.0,-12.0,32.1], [0.0,0.0,40.0], [-48.0,12.0,45.0], [48.0,-12.0,50.0]] {
+            let total = both.odor_at(position, sugar, true);
+            let a = one.odor_at(position, sugar, true);
+            let b = other.odor_at(position, sugar, true);
+            assert!((total-a-b).abs() < 1e-12);
+            let mut encoder = crate::olfaction::OlfactoryTransducer::default();
+            let next = [position[0]+1.0, position[1]+0.5, position[2]+1.0];
+            let signal = encoder.update([total, both.odor_at(next, sugar, true)], 0.002).unwrap();
+            assert!(signal.receptor_activation.iter().flatten().all(|v| v.is_finite() && (0.0..1.0).contains(v)));
+            assert!((signal.perceived_intensity[0]-signal.perceived_intensity[1]).abs() > 1e-5);
+            eprintln!("indoor-v2 odor {position:?}: total={total:.6}, sugar={a:.6}, nectar={b:.6}, encoded={:?}", signal.perceived_intensity);
+        }
+        for index in 0..2 {
+            let mut single = both.clone();
+            single.set_resource_enabled(&both.resources[1-index].id, false).unwrap();
+            let center = both.resources[index].position;
+            let mut previous = f64::INFINITY;
+            for d in [0.0, 2.0, 5.0, 10.0, 20.0, 40.0, 80.0] {
+                let value = single.odor_at([center[0],center[1],center[2]+d], sugar, true);
+                assert!(value < previous);
+                previous = value;
+            }
+            for (delta, expected) in [(0.0, Some(index)), (2.9, Some(index)), (3.1, None), (10.0, None)] {
+                let mouth = [center[0]+delta,center[1],center[2]];
+                assert_eq!(single.sample(mouth,mouth,mouth,sugar,true).tasted_resource, expected);
+            }
+            let hovering_mouth = [center[0],center[1],center[2]+1.0];
+            assert_eq!(single.sample(hovering_mouth,hovering_mouth,hovering_mouth,sugar,true).tasted_resource, None);
+            single.set_resource_enabled(&both.resources[index].id, false).unwrap();
+            assert_eq!(single.odor_at(center,sugar,true), 0.0);
+            assert_eq!(single.sample(center,center,center,sugar,true).tasted_resource, None);
+        }
+        assert_eq!(both.sample([0.0;3],[0.0;3],[-48.0,12.0,31.0],sugar,true).tasted_resource, None);
     }
 
     #[test]
