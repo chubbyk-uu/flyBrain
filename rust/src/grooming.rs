@@ -6,7 +6,14 @@ use serde::{Deserialize, Serialize};
 pub const GROOMING_LEG_COUNT: usize = 6;
 pub const GROOMING_CONTROL_COUNT: usize = 42;
 pub const GROOMING_MIN_SUPPORT_LEGS: usize = 4;
-pub const GROOMING_BOUT_DURATION_SECONDS: f64 = 2.5;
+pub const GROOMING_BOUT_DURATION_SECONDS: f64 = 4.0;
+
+// Preserve the proven 2.5-second lift/support/head/return timing, inserting
+// 1.5 seconds only in the forefoot-rubbing portion (not in load transfer).
+fn motion_phase(elapsed_seconds: f64) -> f64 {
+    let inserted = (elapsed_seconds - 1.05).clamp(0.0, 1.5);
+    ((elapsed_seconds - inserted) / 2.5).clamp(0.0, 1.0)
+}
 const DEFAULT_GROOMING_SEED:u64=0x6a00_2026_0913;
 pub const GROOMING_FALLBACK_INTERVAL_SECONDS: f64 = 8.0;
 const GROOMING_SUPPORT_LOSS_GRACE_SECONDS: f64 = 0.05;
@@ -152,6 +159,10 @@ pub struct GroomingInput {
     pub grounded: bool,
     pub on_ground_surface: bool,
     pub contact_count: usize,
+    /// Runtime physical preparation gate; synthetic controller fixtures may omit it.
+    pub preparation_pending: bool,
+    /// Actual middle/hind support, when supplied by the physical world.
+    pub support_legs: Option<usize>,
     pub allow_fallback: bool,
     pub taste_active: bool,
     pub taste_valence: f64,
@@ -315,6 +326,13 @@ impl GroomingController {
 
         if self.active() {
             self.waiting_for_support = false;
+            let next_phase=motion_phase(self.elapsed_seconds+input.dt_seconds);
+            if let Some(support)=input.support_legs {
+                if input.contact_count<4 || ((0.15..=0.90).contains(&next_phase)&&support<4) {
+                    self.abort();
+                    return Ok(self.command());
+                }
+            }
             if !safe || (self.trigger == GroomingTrigger::Autonomous
                 && (input.hungry || !input.neural_outputs_connected)) {
                 self.abort();
@@ -350,7 +368,7 @@ impl GroomingController {
                     && self.state.neural_evidence_seconds > 0.0
                     && input.neural_outputs_connected);
             self.waiting_for_support = bout_requested;
-            if bout_requested && input.contact_count >= GROOMING_MIN_SUPPORT_LEGS {
+            if bout_requested && !input.preparation_pending && input.contact_count >= GROOMING_MIN_SUPPORT_LEGS {
                 let manual = self.pending_manual;
                 self.pending_manual = false;
                 let (mode, trigger) = if manual {
@@ -403,7 +421,7 @@ impl GroomingController {
         }
 
         let active_front_legs = self.mode.active_front_legs();
-        let phase=self.phase();
+        let phase=motion_phase(self.elapsed_seconds);
         for (leg_index, active) in active_front_legs.into_iter().enumerate() {
             if active {
                 // Transfer load gradually as the forefeet lift, avoiding a
@@ -425,12 +443,20 @@ impl GroomingController {
         joint_controls[4*JOINTS_PER_LEG+2]-=0.65*stance;
         // Offline inverse-kinematic fits to the unchanged real body, including
         // its spring/actuator equilibrium (tools/fit_grooming_keyframes.py).
-        let rub_pose=[-0.879945,-1.327075,-0.553451,-0.713990,0.733120,0.788068,1.574208];
+        // Both tips reach in front of the face along a shared sagittal line.
+        // Slide along that line, rather than sweeping the feet sideways apart.
+        let rub_near=[-0.429847,-0.546259,-0.630746,-0.534366,0.625335,0.315598,0.393899];
+        let rub_far=[-0.369316,-0.507093,-0.645774,-0.228465,0.618963,0.047549,0.107292];
+        let lifted_pose=[-0.879945,-1.327075,-0.553451,-0.713990,0.733120,0.788068,1.574208];
         // Aim outside the actual eye mesh, not its body-frame origin inside the head.
         let head_pose=[-1.077356,-1.912542,-0.494815,-0.713990,0.761204,0.287024,2.107879];
         let smooth=|x:f64| {let t=x.clamp(0.0,1.0);t*t*(3.0-2.0*t)};
         let raised=smooth((phase-0.15)/0.10)*(1.0-smooth((phase-0.85)/0.10));
         let head=smooth((phase-0.42)/0.12);
+        // Unload and lift with the proven folded pose before reaching forward;
+        // dragging a straightened foreleg while adhesion remains active trips
+        // the four-foot support guard.
+        let reach=smooth((phase-0.25)/0.15);
         let brush = (TAU * BRUSH_FREQUENCY_HZ * self.elapsed_seconds).sin();
         for (front_index, active) in active_front_legs.into_iter().enumerate() {
             if !active {
@@ -438,13 +464,19 @@ impl GroomingController {
             }
             let leg_index = if front_index == 0 { 0 } else { 3 };
             let base = leg_index * JOINTS_PER_LEG;
+            let direction=if front_index==0 {1.0}else{-1.0};
+            let slide=0.5+0.5*direction*(TAU*5.0*self.elapsed_seconds).sin();
             // The right model joint axes are already mirrored. Equal joint
             // coordinates produce bilateral mirror poses; do not negate them again.
             for joint in 0..JOINTS_PER_LEG {
-                joint_controls[base+joint]+=raised*((1.0-head)*rub_pose[joint]+head*head_pose[joint]);
+                let lifted=lifted_pose[joint]+match joint {2=>0.12*direction*brush,6=>0.20*direction*brush,_=>0.0};
+                let extended=rub_near[joint]+slide*(rub_far[joint]-rub_near[joint]);
+                let rub=lifted+reach*(extended-lifted);
+                joint_controls[base+joint]+=raised*((1.0-head)*rub+head*head_pose[joint]);
             }
-            joint_controls[base+2]+=0.04*brush*raised;
-            joint_controls[base+6]+=(0.08-0.04*head)*brush*raised;
+            // The established eye-brush pose and stroke remain unchanged.
+            joint_controls[base+2]+=0.04*head*brush*raised;
+            joint_controls[base+6]+=0.04*head*brush*raised;
             for control in &mut joint_controls[base..base + JOINTS_PER_LEG] {
                 *control = control.clamp(-JOINT_CONTROL_LIMIT_RAD, JOINT_CONTROL_LIMIT_RAD);
             }
@@ -578,7 +610,7 @@ mod tests {
                     let maximum=if events.is_empty(){15.002}else{20.002};
                     assert!((10.0..=maximum).contains(&interval),"seed {seed}: interval {interval}");
                     assert!((0.0..=2.0).contains(&(event[1]-event[0])));
-                    assert!((2.0..=3.0).contains(&(event[2]-event[1])));
+                    assert!(((event[2]-event[1])-GROOMING_BOUT_DURATION_SECONDS).abs()<=0.0021);
                     assert_eq!(state.cooldown_seconds,5.0);
                     assert!(state.dirt<=controller.parameters.release_threshold);
                     events.push(event);
@@ -611,10 +643,24 @@ mod tests {
             assert!(!delayed.update(GroomingInput {hungry:true,grounded:false,..autonomous_input(0.002)}).unwrap().active);
         }
         assert_eq!(delayed.state().opportunity_count,1);
-        for _ in 0..1600 {delayed.update(autonomous_input(0.002)).unwrap();}
+        for _ in 0..2350 {delayed.update(autonomous_input(0.002)).unwrap();}
         assert_eq!(delayed.state().completed_bouts,1);
         for _ in 0..2500 {assert!(!delayed.update(autonomous_input(0.002)).unwrap().active);}
         assert_eq!(delayed.state().completed_bouts,1);
+    }
+
+    #[test]
+    fn physical_preparation_and_support_loss_cannot_receive_completion_credit() {
+        let mut controller=GroomingController::new();controller.set_initial_dirt(0.9).unwrap();
+        for _ in 0..500 {
+            assert!(!controller.update(GroomingInput {preparation_pending:true,..autonomous_input(0.002)}).unwrap().active);
+        }
+        assert!(controller.update(autonomous_input(0.002)).unwrap().active);
+        for _ in 0..200 {controller.update(GroomingInput {support_legs:Some(4),..autonomous_input(0.002)}).unwrap();}
+        let before=controller.state().dirt;
+        let result=controller.update(GroomingInput {support_legs:Some(3),..autonomous_input(0.002)}).unwrap();
+        assert!(!result.active);assert_eq!(result.completed_bouts,0);
+        assert_eq!(result.interrupted_bouts,1);assert!(result.dirt>=before);
     }
 
     #[test]
@@ -786,22 +832,33 @@ mod tests {
     }
 
     #[test]
-    fn left_and_right_sweeps_are_mirrored() {
+    fn paired_rub_keeps_mirrored_pose_but_counter_moves_the_feet() {
         let mut controller = GroomingController::new();
         controller.request_manual();
         controller.update(input(0.01)).unwrap();
-        controller.update(input(0.6)).unwrap();
+        controller.update(input(0.65)).unwrap();
         let mut bilateral = [0.0; GROOMING_CONTROL_COUNT];
         let mut adhesion = [0.0; GROOMING_LEG_COUNT];
         controller.apply(&mut bilateral, &mut adhesion);
-        assert!((bilateral[0] - bilateral[21]).abs() < 1e-10);
-        assert!((bilateral[2] - bilateral[23]).abs() < 1e-10);
-        assert!((bilateral[1] - bilateral[22]).abs() < 1e-10);
+        assert!((bilateral[0] - bilateral[21]).abs() < 0.07);
+        assert!((bilateral[6] - bilateral[27]).abs() > 0.05);
+        assert!((bilateral[1] - bilateral[22]).abs() < 0.05);
         assert!(
             bilateral
                 .iter()
                 .all(|control| control.abs() <= JOINT_CONTROL_LIMIT_RAD)
         );
+    }
+
+    #[test]
+    fn inserted_rub_preserves_support_transfer_and_provides_nearly_two_seconds() {
+        assert!((motion_phase(0.375)-0.15).abs()<1e-12);
+        assert!((motion_phase(0.625)-0.25).abs()<1e-12);
+        for time in [1.05,1.5,2.0,2.55] {assert!((motion_phase(time)-0.42).abs()<1e-12);}
+        assert!((2.55-0.625-1.925_f64).abs()<1e-12);
+        assert!((motion_phase(2.85)-0.54).abs()<1e-12);
+        assert!((motion_phase(3.875)-0.95).abs()<1e-12);
+        assert_eq!(motion_phase(4.0),1.0);
     }
 
     #[test]
@@ -920,7 +977,7 @@ mod tests {
         let mut completed = GroomingController::new();
         completed.set_initial_dirt(0.5).unwrap();
         let initial = completed.state().dirt;
-        for _ in 0..330 {
+        for _ in 0..500 {
             completed.update(autonomous_input(0.01)).unwrap();
         }
         assert_eq!(completed.state().completed_bouts, 1);
@@ -940,17 +997,17 @@ mod tests {
         };
         controller.update(input(GROOMING_BOUT_DURATION_SECONDS*0.28)).unwrap();
         let rubbing = controls_at(&controller);
-        controller.update(input(GROOMING_BOUT_DURATION_SECONDS*0.38)).unwrap();
+        controller.update(input(GROOMING_BOUT_DURATION_SECONDS*0.48)).unwrap();
         let reaching = controls_at(&controller);
-        controller.update(input(GROOMING_BOUT_DURATION_SECONDS*0.30)).unwrap();
+        controller.update(input(GROOMING_BOUT_DURATION_SECONDS*0.225)).unwrap();
         let recovery = controls_at(&controller);
         // Both fitted poses lift the forefeet; eye brushing reaches higher and
         // laterally outward rather than merely increasing the old yaw overlay.
-        assert!(rubbing[6]>1.0);
+        assert!((0.0..0.5).contains(&rubbing[6]));
         assert!(reaching[6]>rubbing[6]);
         assert!(reaching[1]<rubbing[1]);
         assert!(recovery[..7].iter().chain(&recovery[21..28]).all(|value| value.abs()<1e-9));
-        controller.update(input(GROOMING_BOUT_DURATION_SECONDS*0.04)).unwrap();
+        controller.update(input(GROOMING_BOUT_DURATION_SECONDS*0.015)).unwrap();
         assert!(controls_at(&controller).iter().all(|value|value.abs()<1e-9));
     }
 }

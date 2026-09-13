@@ -30,9 +30,11 @@ joints = model.actuator_trnid[:7, 0]
 qadr = model.jnt_qposadr[joints]
 dadr = model.jnt_dofadr[joints]
 result = {}
-for name, target in [('rub', target_eye + [0.25, -target_eye[1]+0.07, -0.15]),
+for name, target in [('rub_near', target_eye + [0.75, -target_eye[1]+0.025, -0.05]),
+                     ('rub_far', target_eye + [0.95, -target_eye[1]+0.025, -0.05]),
+                     ('original_rub_reference', target_eye + [0.25, -target_eye[1]+0.07, -0.15]),
                      ('head', target_eye + [0.02, 0.08, 0.02])]:
-    if name == 'rub':
+    if name != 'head':
         data.qpos[:] = initial
     for _ in range(250):
         mujoco.mj_forward(model, data)

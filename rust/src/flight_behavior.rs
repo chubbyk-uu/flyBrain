@@ -54,11 +54,11 @@ fn default_neural_altitude_rate_mm_s() -> f64 {
 }
 
 fn default_takeoff_ramp_seconds() -> f64 {
-    0.35
+    0.55
 }
 
 fn default_altitude_command_rate_mm_s() -> f64 {
-    45.0
+    35.0
 }
 
 fn default_landing_descent_rate_mm_s() -> f64 {
@@ -684,7 +684,7 @@ mod tests {
                     dt_seconds:0.002,root_height_mm:height, ..Default::default()
                 }).unwrap();
                 if command.mode==FlightMode::Takeoff { observed_takeoff=true;elapsed+=0.002; }
-                if command.mode==FlightMode::Cruise { assert!(elapsed>=0.35); }
+                if command.mode==FlightMode::Cruise { assert!(elapsed>=0.55); }
             }
             assert!(observed_takeoff);
         }

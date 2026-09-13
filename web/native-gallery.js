@@ -5,7 +5,7 @@ import { decodeRetinaPreview, drawRetinaPreview } from "./native-retina.js";
 const definitions = [
   ["room", "Indoor room"], ["north", "North view"], ["south", "South view"],
   ["east", "East view"], ["west", "West view"],
-  ["table", "Coffee table"], ["plant", "Potted flower"], ["candy", "Candy"],
+  ["table", "Coffee table"], ["plant", "Tabletop flower"], ["candy", "Sugar-water droplet"],
   ["grounded", "Grounded fly"], ["walking", "Walking"], ["flight", "CNS-gated flight"],
   ["feeding", "Sugar / nectar feeding"], ["grooming", "Leg and head/eye grooming"],
   ["retina-left", "Native retina · left"], ["retina-right", "Native retina · right"],
@@ -63,7 +63,7 @@ async function captureFixedViews() {
         ["east", [330, 0, 170], [0, 0, 35]],
         ["west", [-330, 0, 170], [0, 0, 35]],
         ["table", [165, -180, 125], [0, 0, 25]],
-        ["plant", [0, -57, 95], [-48, 12, 49]],
+        ["plant", [-23, -18, 55], [-48, 12, 30]],
         ["candy", [65, -37, 49], [48, -12, 30]],
       ]) await captureView(key, position, target, "indoor-v2 display-only camera");
       renderer.setCameraMode("chase");

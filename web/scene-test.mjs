@@ -2,6 +2,31 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { FlySceneRenderer, makeMeshGeometry, retinaRgba, RETINA_WIDTH, RETINA_HEIGHT, RETINA_PAIR_BYTES, RETINA_EYE_BYTES } from './scene.js';
 
+const lights = Object.create(FlySceneRenderer.prototype);
+lights.scene = new THREE.Scene();
+lights.addLights();
+for (const indoor of [true, false, true]) {
+  lights.setIndoorLighting(indoor);
+  assert.equal(lights.keyLight.visible, !indoor);
+  assert.equal(lights.fillLight.visible, !indoor);
+  assert.equal(lights.ceilingLight.visible, indoor);
+  assert.equal(lights.ceilingLight.castShadow, true);
+  assert.equal(lights.ambientLight.intensity, indoor ? 0.35 : 1.1);
+}
+const liquid = Object.create(FlySceneRenderer.prototype);
+liquid.primitiveGeometries = new Map();
+liquid.materialCache = new Map();
+const drop = liquid.makeSugarWaterGeometry([3.5, 3, 0.2]);
+assert.equal(liquid.makeSugarWaterGeometry([3.5, 3, 0.2]), drop);
+drop.computeBoundingBox();
+assert.ok(drop.boundingBox.max.x <= 3.5 && drop.boundingBox.max.y <= 3);
+assert.ok(drop.boundingBox.max.z < 0.201 && drop.boundingBox.min.z > -0.201);
+const waterMaterial = liquid.makeMaterial('food', { material: 'indoor-v2/candy' });
+assert.ok(waterMaterial.isMeshPhysicalMaterial);
+assert.equal(waterMaterial.clearcoat, 1);
+assert.equal(waterMaterial.transparent, false);
+drop.dispose(); waterMaterial.dispose();
+
 const mesh = makeMeshGeometry({
   vertices: [[0, 0, 0], [1, 0, 0], [0, 1, 0]],
   faces: [[0, 1, 2]],

@@ -1,6 +1,7 @@
 //! Engineered local chemotaxis and active height sampling, driven by CNS ORN readout.
 //! Resource positions and resource identities deliberately do not enter this API.
 use serde::Serialize;
+use std::collections::VecDeque;
 use crate::search_progress::{ProgressMonitor,SearchObservation};
 
 #[derive(Clone,Copy)]
@@ -28,6 +29,8 @@ pub struct FoodSearchCommand {
     pub recovery_active:bool,
     pub recovery_failed:bool,
     pub recovery_count:u64,
+    pub retreating:bool,
+    pub retreat_direction_xy:Option<[f64;2]>,
 }
 
 struct VerticalProbe {
@@ -54,6 +57,11 @@ pub struct LocalFoodSearch {
     blocked_seconds:f64,
     escape:Option<([f64;3],[f64;2])>,
     acquisition_settled:f64,
+    breadcrumbs:VecDeque<[f64;3]>,
+    recovery_wait_seconds:f64,
+    retreat:Option<([f64;3],[f64;2])>,
+    sampling_anchor:Option<[f64;3]>,
+    sampling_stationary_seconds:f64,
 }
 
 impl LocalFoodSearch {
@@ -72,6 +80,45 @@ impl LocalFoodSearch {
             recovery_active:progress.recovering,recovery_failed:progress.recovery_failed,
             recovery_count:progress.recovery_count,..Default::default()
         };
+        if self.breadcrumbs.back().is_none_or(|p|(input.position[0]-p[0]).hypot(input.position[1]-p[1])>=1.0) {
+            self.breadcrumbs.push_back(input.position);
+            if self.breadcrumbs.len()>256 {self.breadcrumbs.pop_front();}
+        }
+        self.recovery_wait_seconds=if progress.recovering {self.recovery_wait_seconds+input.dt}else{0.0};
+        let sampling=self.probe.is_some() || (self.sampled_height.is_some()&&self.acquisition_settled<0.5);
+        if sampling && !input.grounded {
+            let moved=self.sampling_anchor.map_or(f64::INFINITY,|p|
+                ((input.position[0]-p[0]).powi(2)+(input.position[1]-p[1]).powi(2)+(input.position[2]-p[2]).powi(2)).sqrt());
+            if moved>1.0 {self.sampling_anchor=Some(input.position);self.sampling_stationary_seconds=0.0;}
+            else {self.sampling_stationary_seconds+=input.dt;}
+        } else {self.sampling_anchor=None;self.sampling_stationary_seconds=0.0;}
+        // Sensory fluctuations cannot prove that an obstructed height command
+        // was reached. Retrace after three seconds without physical progress.
+        let blocked_probe=self.sampling_stationary_seconds>=3.0;
+        if self.retreat.is_none() && !input.grounded && (self.recovery_wait_seconds>=2.0 || blocked_probe) {
+            // Retrace a physically visited position, never a resource coordinate.
+            // A turn-in-place can be impossible when the body touches a planter.
+            let target=self.breadcrumbs.iter().rev().find(|p|
+                (input.position[0]-p[0]).hypot(input.position[1]-p[1])>=8.0)
+                .map(|p|[p[0],p[1]])
+                .unwrap_or([input.position[0]-8.0*input.forward[0],input.position[1]-8.0*input.forward[1]]);
+            self.retreat=Some((input.position,target));
+            self.probe=None;self.sampled_height=None;self.return_to_best=false;
+        }
+        if let Some((origin,target))=self.retreat {
+            let delta=[target[0]-input.position[0],target[1]-input.position[1]];
+            let remaining=delta[0].hypot(delta[1]);
+            let moved=(input.position[0]-origin[0]).hypot(input.position[1]-origin[1]);
+            if remaining<2.0&&moved>5.0 {
+                self.retreat=None;self.best=None;self.recovery_wait_seconds=0.0;
+            } else {
+                command.recovery_active=true;
+                command.retreating=true;command.allow_takeoff=true;
+                command.height_target_mm=Some(origin[2]);
+                command.retreat_direction_xy=Some([delta[0]/remaining.max(1e-6),delta[1]/remaining.max(1e-6)]);
+                return command;
+            }
+        }
         if self.best.is_none_or(|(_,c)| self.concentration>c) {
             self.best=Some((input.position,self.concentration));
         }
@@ -189,6 +236,31 @@ impl LocalFoodSearch {
 mod tests {
     use super::*;
     #[test]
+    fn stalled_airborne_search_retraces_real_history_without_faking_recovery() {
+        let mut search=LocalFoodSearch::default();
+        let mut command=FoodSearchCommand::default();
+        for i in 0..4500 {
+            let t=i as f64*0.002;
+            command=search.update(FoodSearchInput {time:t,dt:0.002,
+                position:[(t*10.0).min(20.0),0.0,20.0],forward:[1.0,0.0],
+                concentration_ppm:2.0,eligible:true,grounded:false,
+                up_clearance_mm:100.0,down_clearance_mm:20.0,bounds:[5.0,110.0]});
+        }
+        assert!(command.retreating);assert!(command.retreat_direction_xy.unwrap()[0] < -0.9);
+        // Issuing a retreat command is not proof that the body actually moved.
+        for i in 4500..6500 {
+            command=search.update(FoodSearchInput {time:i as f64*0.002,dt:0.002,
+                position:[20.0,0.0,20.0],forward:[1.0,0.0],concentration_ppm:2.0,
+                eligible:true,grounded:false,up_clearance_mm:100.0,down_clearance_mm:20.0,bounds:[5.0,110.0]});
+        }
+        assert!(command.recovery_failed);
+        command=search.update(FoodSearchInput {time:13.0,dt:0.002,position:[12.0,0.0,20.0],
+            forward:[1.0,0.0],concentration_ppm:2.0,eligible:true,grounded:false,
+            up_clearance_mm:100.0,down_clearance_mm:20.0,bounds:[5.0,110.0]});
+        assert!(!command.retreating);assert!(!command.recovery_failed);
+    }
+
+    #[test]
     fn descending_probe_cannot_request_a_height_inside_the_support_surface() {
         let mut search=LocalFoodSearch::default();
         search.probe=Some(VerticalProbe {target:28.0,best_height:35.0,best_concentration:2.0,
@@ -210,6 +282,7 @@ mod tests {
         let mut input=FoodSearchInput {time:0.0,dt:0.002,position:[0.0,0.0,20.0],forward:[1.0,0.0],concentration_ppm:2.0,eligible:true,grounded:false,up_clearance_mm:100.0,down_clearance_mm:20.0,bounds:[5.0,110.0]};
         for i in 0..2000 {
             input.time=i as f64*input.dt;
+            input.position[2]=20.0+i as f64*0.006;
             let command=search.update(input);
             assert!(command.vertical_sampling);
             assert_eq!(command.height_target_mm,Some(40.0));
@@ -218,6 +291,21 @@ mod tests {
         for _ in 0..260 {input.time+=input.dt;search.update(input);}
         assert!(!search.update(input).vertical_sampling);
     }
+    #[test]
+    fn sensory_fluctuations_cannot_hide_a_physically_blocked_height_probe() {
+        let mut search=LocalFoodSearch::default();
+        search.sampled_height=Some(40.0);
+        let mut started=None;
+        for i in 0..1600 {
+            let t=i as f64*0.002;
+            let command=search.update(FoodSearchInput {time:t,dt:0.002,position:[0.0,0.0,20.0],
+                forward:[1.0,0.0],concentration_ppm:2.0+0.5*(t*4.0).sin(),eligible:true,grounded:false,
+                up_clearance_mm:100.0,down_clearance_mm:20.0,bounds:[5.0,110.0]});
+            if command.retreating {assert!(!command.vertical_sampling);started=Some(t);break;}
+        }
+        assert!((3.0..=3.01).contains(&started.unwrap()));
+    }
+
     #[test]
     fn weak_odor_samples_height_but_neural_ineligibility_cannot_move() {
         let mut search=LocalFoodSearch::default();

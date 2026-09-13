@@ -194,6 +194,7 @@ impl SimulationParameters {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SimulationSnapshot {
     pub time_seconds: f64,
+    pub behavior_seed: u64,
     pub root_position: [f64; 3],
     pub horizontal_speed_mm_s: f64,
     pub forward_speed_mm_s: f64,
@@ -291,6 +292,7 @@ pub struct SimulationSnapshot {
     pub flight_boundary_avoidance: f64,
     pub flight_obstacle_avoidance: f64,
     pub flight_escape_active: bool,
+    pub collision_reflex_active:bool,
     pub flight_forward_clearance_mm: f64,
     pub flight_up_clearance_mm: f64,
     pub flight_down_clearance_mm: f64,
@@ -429,7 +431,7 @@ pub struct SimulationStepper {
     wall_escape: WallEscapeState,
     grooming: GroomingController,
     manual_grooming_requested:bool,
-    manual_grooming_stable_seconds:f64,
+    grooming_preparation_seconds:f64,
     grooming_neural_gate_connected: bool,
     brain: Option<BrainBodyBridge>,
     brain_telemetry_enabled: bool,
@@ -609,7 +611,7 @@ impl SimulationStepper {
             wall_escape: WallEscapeState::default(),
             grooming: GroomingController::with_parameters(parameters.grooming)?,
             manual_grooming_requested:false,
-            manual_grooming_stable_seconds:0.0,
+            grooming_preparation_seconds:0.0,
             grooming_neural_gate_connected: true,
             brain,
             brain_telemetry_enabled: false,
@@ -1016,6 +1018,12 @@ impl SimulationStepper {
         });
         if let Some(steering)=food_search.steering {odor_guidance.steering=steering;}
         if let Some(height)=food_search.height_target_mm {odor_guidance.approach_height_mm=height;}
+        if self.snapshot.flight_mode == FlightMode::Grounded && odor_guidance.active
+            && !perceived_taste_active && food_search.steering.is_none() {
+            if let Some(steering) = near_food_antenna_steering(olfactory_sample.concentration_ppm) {
+                odor_guidance.steering = steering;
+            }
+        }
         if odor_guidance.active && behavior.mode != BehaviorMode::Feed {
             next_motor.1 = odor_guidance.steering;
         }
@@ -1029,13 +1037,13 @@ impl SimulationStepper {
                 odor_left: olfactory_sample.perceived_intensity[0],
                 odor_right: olfactory_sample.perceived_intensity[1],
                 taste_active: perceived_taste_active,
-                surface_contact_count: if food_search.vertical_sampling || food_search.escaping_overhang {0}else{contact_count},
+                surface_contact_count: if food_search.vertical_sampling || food_search.escaping_overhang || food_search.retreating {0}else{contact_count},
                 brain_flight_drive,
                 brain_landing_drive,
                 cns_calibration: cns_motor.map(|_| self.parameters.cns_foraging),
                 cns_odor_guidance: (cns_motor.is_some() && self.parameters.odor_guidance.enabled)
                     .then_some(crate::odor_guidance::OdorGuidanceCommand {
-                        close:odor_guidance.close && !food_search.vertical_sampling && !food_search.escaping_overhang
+                        close:odor_guidance.close && !food_search.vertical_sampling && !food_search.escaping_overhang && !food_search.retreating
                             && (previous_flight_mode==FlightMode::Grounded || obstacle_sample.down_clearance_mm<=12.0),
                         ..odor_guidance
                     }),
@@ -1048,6 +1056,9 @@ impl SimulationStepper {
             flight_mode: previous_flight_mode,
             contact_count,
             support_contact: contact_count>=2 && previous_flight_mode==FlightMode::Grounded
+                && 1.0-2.0*(root_quaternion[1].powi(2)+root_quaternion[2].powi(2))>0.8,
+            supported_locomotion:previous_flight_mode==FlightMode::Grounded && contact_count>0
+                && obstacle_sample.down_clearance_mm<=3.0
                 && 1.0-2.0*(root_quaternion[1].powi(2)+root_quaternion[2].powi(2))>0.8,
             horizontal_speed_mm_s,
             flight_amplitude: self.snapshot.flight_amplitude_scale,
@@ -1064,6 +1075,9 @@ impl SimulationStepper {
                 self.habitat.room().half_extents_mm,
             ),
             collision_escape_active: self.snapshot.flight_escape_active,
+            // Separate landing safety from exploration renewal: an overhead
+            // table is not a reason to keep flying above the clear floor.
+            urgent_collision_escape_active: self.snapshot.collision_reflex_active,
         })?;
         if homeostasis.resting {
             next_motor.0 = 0.0;
@@ -1074,15 +1088,15 @@ impl SimulationStepper {
             perceived_taste_active,
             behavior.mode,
         );
-        let grooming_intent = (self.manual_grooming_requested || self.snapshot.grooming_active
+        let grooming_intent = (self.manual_grooming_requested || self.snapshot.grooming_active || self.grooming.preparing()
             || self.grooming.autonomous_intent(!homeostasis.hungry))
             && on_horizontal_support
             && !taste_active && habitat_sample.taste_valence<=0.0 && next_motor.2<=0.01
             && !self.snapshot.flight_escape_active
             && contact_count>0;
-        if self.manual_grooming_requested && grooming_intent && contact_count>=4 && horizontal_speed_mm_s<=2.0 {
-            self.manual_grooming_stable_seconds+=window_seconds;
-        } else {self.manual_grooming_stable_seconds=0.0;}
+        if grooming_intent && contact_count>=4 && horizontal_speed_mm_s<=2.0 {
+            self.grooming_preparation_seconds+=window_seconds;
+        } else {self.grooming_preparation_seconds=0.0;}
         if grooming_intent {
             next_motor.0 = 0.0;
             next_motor.1 = 0.0;
@@ -1193,6 +1207,13 @@ impl SimulationStepper {
             && (self.wall_escape.latched || self.wall_escape.release_hold_windows > 0);
         let navigation_override = navigation.obstacle_active || navigation.boundary_active;
         let mut next_walking_translation_scale = 1.0;
+        if grounded && odor_guidance.active && !perceived_taste_active
+            && food_search.steering.is_none()
+            && near_food_antenna_steering(olfactory_sample.concentration_ppm).is_some() {
+            // Modest stride reduction plus stronger differential turning tightens
+            // the approach radius without collapsing the support gait.
+            next_walking_translation_scale = 0.85;
+        }
         if food_search.vertical_sampling {next_motor.0=0.0;next_motor.1=0.0;}
         if food_search.turning_back {next_walking_translation_scale=0.0;}
         if flight_behavior.mode == FlightMode::Grounded && navigation_override {
@@ -1220,14 +1241,16 @@ impl SimulationStepper {
         }
         let collision_reflex_active =
             !landing && (wall_escape_active || navigation.collision_reflex_active);
-        let flight_steering = if landing || wall_escape_active {
+        let flight_steering = if landing || wall_escape_active || food_search.retreating {
             0.0
         } else if navigation.collision_reflex_active {
             navigation.steering
         } else {
             flight_behavior.steering
         };
-        let planar_velocity_direction = if collision_reflex_active {
+        let planar_velocity_direction = if food_search.retreating && !wall_escape_active {
+            food_search.retreat_direction_xy
+        } else if collision_reflex_active {
             Some(if wall_escape_active {
                 self.wall_escape.direction_xy
             } else {
@@ -1241,6 +1264,8 @@ impl SimulationStepper {
         } else if wall_escape_active {
             wall_escape_speed_scale(forward_xy, self.wall_escape.direction_xy)
                 * if self.wall_escape.latched { 0.35 } else { 1.0 }
+        } else if food_search.retreating {
+            20.0/self.parameters.flight_dynamics.target_horizontal_speed_mm_s
         } else if navigation.collision_reflex_active {
             1.0
         } else if food_search.vertical_sampling || food_search.turning_back {
@@ -1255,10 +1280,9 @@ impl SimulationStepper {
             horizontal_speed_scale
         };
         let grooming_completed_before = self.grooming.state().completed_bouts;
-        if self.manual_grooming_requested && self.manual_grooming_stable_seconds>=0.5 && !collision_reflex_active {
+        if self.manual_grooming_requested && self.grooming_preparation_seconds>=0.5 && !collision_reflex_active {
             self.grooming.request_manual();
             self.manual_grooming_requested=false;
-            self.manual_grooming_stable_seconds=0.0;
         }
         let grooming_command = self.grooming.update(GroomingInput {
             dt_seconds: window_seconds,
@@ -1267,6 +1291,8 @@ impl SimulationStepper {
             on_ground_surface: on_horizontal_support,
             contact_count,
             allow_fallback: self.brain.is_none(),
+            preparation_pending:self.grooming_preparation_seconds<0.5,
+            support_legs:Some([1,2,4,5].into_iter().filter(|&leg|sample.foot_contacts[leg]).count()),
             taste_active: perceived_taste_active,
             taste_valence: habitat_sample.taste_valence,
             feeding_extension: next_motor.2,
@@ -1357,29 +1383,35 @@ impl SimulationStepper {
             self.landing_target_mm = None;
             if flight_behavior.mode == FlightMode::Grounded {
                 self.airborne_target_mm = None;
-                flight_behavior.target_height_mm
-            } else {
-                let target = self.airborne_target_mm.get_or_insert(root_position[2]);
-                let maximum_change =
-                    self.parameters.flight_behavior.altitude_command_rate_mm_s * window_seconds;
-                *target += (flight_behavior.target_height_mm - *target)
-                    .clamp(-maximum_change, maximum_change);
-                *target
             }
+            flight_behavior.target_height_mm
         };
         let minimum_command_height_mm = if flight_behavior.mode == FlightMode::Landing {
             self.parameters.flight_behavior.landing_height_mm
         } else {
             self.habitat.room().flight_altitude_bounds_mm[0]
         };
+        let altitude_escape =
+            navigation.altitude_escape && !food_search.escaping_overhang && !food_search.retreating;
         let commanded_height_mm = commanded_flight_height(
             flight_behavior.mode,
             desired_height_mm,
             root_position[2],
             minimum_command_height_mm,
             overhead,
-            navigation.altitude_escape && !food_search.escaping_overhang,
+            altitude_escape,
         );
+        let commanded_height_mm = if matches!(flight_behavior.mode, FlightMode::Grounded | FlightMode::Landing) {
+            commanded_height_mm
+        } else {
+            slew_airborne_height(
+                &mut self.airborne_target_mm,
+                commanded_height_mm,
+                root_position[2],
+                self.parameters.flight_behavior.altitude_command_rate_mm_s * window_seconds,
+                overhead || altitude_escape,
+            )
+        };
         let base_flight_command = FlightCommand {
             enabled: flight_behavior.mode != FlightMode::Grounded,
             amplitude: 1.0,
@@ -1509,6 +1541,7 @@ impl SimulationStepper {
             .fold(f64::INFINITY, f64::min);
         self.snapshot = SimulationSnapshot {
             time_seconds: self.world.time(),
+            behavior_seed: self.behavior_seed,
             root_position: self.world.root_position(),
             horizontal_speed_mm_s: {
                 let velocity = self.world.root_velocity();
@@ -1615,6 +1648,7 @@ impl SimulationStepper {
             flight_boundary_avoidance: navigation.boundary_steering,
             flight_obstacle_avoidance: navigation.obstacle_steering,
             flight_escape_active: navigation.escape_active || wall_escape_active,
+            collision_reflex_active,
             flight_forward_clearance_mm: obstacle_sample.forward_clearance_mm,
             flight_up_clearance_mm: obstacle_sample.up_clearance_mm,
             flight_down_clearance_mm: obstacle_sample.down_clearance_mm,
@@ -1703,9 +1737,10 @@ impl SimulationStepper {
         self.wall_escape = WallEscapeState::default();
         self.grooming.reset();
         self.manual_grooming_requested=false;
-        self.manual_grooming_stable_seconds=0.0;
+        self.grooming_preparation_seconds=0.0;
         self.retina_summaries = [RetinaSummary::default(); 2];
         self.snapshot = SimulationSnapshot {
+            behavior_seed: self.behavior_seed,
             root_position: self.world.root_position(),
             food_center: self.food_center,
             food_enabled: self.food_enabled,
@@ -1743,6 +1778,7 @@ impl SimulationStepper {
             bail!("behavior seed can only be set before stepping")
         }
         self.behavior_seed = seed;
+        self.snapshot.behavior_seed = seed;
         self.explorer.reset(seed ^ 0x5eed_f17b_2026_0816);
         self.flight_behavior.reset(seed ^ 0xa17f_1eaf_2026_0816);
         self.homeostasis.reset(seed ^ 0xc011_ab1e_2026_0913);
@@ -1988,6 +2024,11 @@ impl SimulationStepper {
         self.refresh_environment_snapshot()
     }
 
+    /// Isolated environmental odor intervention: no taste, body, or CNS mapping edit.
+    pub fn set_resource_odor_enabled(&mut self, id: &str, enabled: bool) -> Result<()> {
+        self.habitat.set_resource_odor_enabled(id,enabled)
+    }
+
     pub fn toggle_flight(&mut self) {
         self.flight_allowed = !self.flight_allowed;
         self.snapshot.flight_allowed = self.flight_allowed;
@@ -2128,6 +2169,24 @@ fn flight_frequency_scale(
     }
 }
 
+// Store the final delivered target, not an unconstrained target that can build
+// up under a table. Safety may lower the command immediately; releasing safety
+// must always resume from that lowered command at the normal slew rate.
+fn slew_airborne_height(
+    state: &mut Option<f64>,
+    desired_mm: f64,
+    current_mm: f64,
+    maximum_change_mm: f64,
+    safety_ceiling: bool,
+) -> f64 {
+    let target = state.get_or_insert(current_mm);
+    *target += (desired_mm - *target).clamp(-maximum_change_mm, maximum_change_mm);
+    if safety_ceiling {
+        *target = (*target).min(desired_mm);
+    }
+    *target
+}
+
 fn commanded_flight_height(
     mode: FlightMode,
     desired_height_mm: f64,
@@ -2262,6 +2321,17 @@ fn wall_inward_direction(position_mm: [f64; 3], room_half_extents_mm: [f64; 3]) 
 fn planar_wall_clearance(position_mm: [f64; 3], room_half_extents_mm: [f64; 3]) -> f64 {
     (room_half_extents_mm[0] - position_mm[0].abs())
         .min(room_half_extents_mm[1] - position_mm[1].abs())
+}
+
+fn near_food_antenna_steering(concentration_ppm: [f64; 2]) -> Option<f64> {
+    // Engineered local antennal reflex, used only after CNS acquisition. Avoid
+    // amplifying saturated inverse neural concentration estimates at the source.
+    // It sees no resource coordinates and cannot activate locomotion or feeding.
+    if concentration_ppm.iter().any(|v| !v.is_finite() || *v < 15.0) {
+        return None;
+    }
+    let [left, right] = concentration_ppm;
+    Some((150.0 * (left - right) / (left + right)).clamp(-0.9, 0.9))
 }
 
 fn full_brain_walking_turn(
@@ -2466,7 +2536,7 @@ mod tests {
         full_brain_walking_turn, grounded_food_contact_blocks_flight,
         grounded_navigation_forward_gain, optic_flow_altitude_control, planar_forward,
         planar_wall_clearance, surface_relative_landing_height, wall_escape_speed_scale,
-        wall_inward_direction,
+        wall_inward_direction, slew_airborne_height, near_food_antenna_steering,
     };
     use crate::behavior::BehaviorMode;
     use crate::flight::WallLandingTarget;
@@ -2498,7 +2568,7 @@ mod tests {
         sim.set_food_center([0.0,0.0,1.0]).unwrap();
         sim.step_window().unwrap();
         sim.reset().unwrap();
-        assert_eq!(sim.food_center(), [48.0,-12.0,30.6]);
+        assert_eq!(sim.food_center(), [48.0,-12.0,30.2]);
         assert_eq!(sim.world().root_position(), [26.0,-12.0,32.1]);
         assert!(!sim.snapshot().taste_active);
         sim.set_resource_enabled("flower_nectar",false).unwrap();
@@ -2696,6 +2766,22 @@ mod tests {
     }
 
     #[test]
+    fn overhead_navigation_does_not_permanently_veto_fatigue_landing() {
+        let mut parameters=SimulationParameters::default();
+        parameters.homeostasis.initial_fatigue=0.72;
+        let mut sim=SimulationStepper::new_with_parameters_physics_and_scene(
+            DEFAULT_ASSETS_DIR,None::<&str>,500.0,0.0,parameters,Some(0.0002),"indoor-v2").unwrap();
+        prime_airborne_simulation(&mut sim,[48.0,-12.0,5.0],[0.0,0.0,0.0]);
+        // The broad ceiling-avoidance state is not an urgent collision. The
+        // floor below is clear, so fatigue must still request a real touchdown.
+        sim.snapshot.flight_escape_active=true;
+        sim.snapshot.collision_reflex_active=false;
+        let snapshot=sim.step_window().unwrap();
+        assert!(snapshot.homeostatic_landing_request);
+        assert_eq!(snapshot.flight_mode,FlightMode::Landing);
+    }
+
+    #[test]
     fn landing_on_food_levels_brakes_and_descends_before_support_handoff() {
         let mut simulation =
             SimulationStepper::new(DEFAULT_ASSETS_DIR, None::<&str>, 500.0, 0.0).unwrap();
@@ -2875,7 +2961,7 @@ mod tests {
                     minimum_up = minimum_up.min(1.0 - 2.0 * (x*x+y*y));
                 }
                 assert!(maximum_height > origin[2] + 5.0, "{surface}/{trial}: no lift {maximum_height} from {origin:?}");
-                assert!(takeoff_seconds >= 0.34, "ramp bypassed: {takeoff_seconds}");
+                assert!(takeoff_seconds >= 0.54, "ramp bypassed: {takeoff_seconds}");
                 simulation.flight_behavior.update(FlightBehaviorInput {
                     enabled: true, landing_request: true, dt_seconds: 0.002,
                     root_height_mm: simulation.world.root_position()[2], ..Default::default()
@@ -3096,18 +3182,50 @@ mod tests {
 
     #[test]
     fn airborne_wall_escape_turns_then_leaves_head_first_without_relatching() {
+        for (scene, corner, yaw) in [
+            ("legacy", false, 0.0_f64),
+            ("indoor-v2", false, 0.0),
+            ("indoor-v2", false, std::f64::consts::FRAC_PI_2),
+            ("indoor-v2", true, std::f64::consts::FRAC_PI_4),
+        ] {
         let mut parameters = SimulationParameters::default();
         parameters.flight_behavior.landing_odor_threshold = 2.1;
-        let mut simulation = SimulationStepper::new_with_parameters(
+        let mut simulation = SimulationStepper::new_with_parameters_physics_and_scene(
             DEFAULT_ASSETS_DIR,
             None::<&str>,
             500.0,
             0.0,
             parameters,
+            Some(0.0002),
+            scene,
         )
         .unwrap();
         simulation.toggle_food().unwrap();
-        prime_airborne_simulation(&mut simulation, [0.0, 0.0, 30.0], [250.0, 0.0, 0.0]);
+        let room = simulation.habitat.room().half_extents_mm;
+        // Start at the wall: a room-centre launch made the old six-second test
+        // spend 5.06s approaching at today's lower speed, leaving <1s to turn.
+        let position = if corner {
+            [room[0] - 3.0, room[1] - 3.0, 30.0]
+        } else if yaw > 0.0 {
+            [0.0, room[1] - 3.0, 30.0]
+        } else { [room[0] - 3.0, 0.0, 30.0] };
+        prime_airborne_simulation(&mut simulation, position, [60.0 * yaw.cos(), 60.0 * yaw.sin(), 0.0]);
+        let [pitch_w, _, pitch_y, _] = simulation.world.root_quaternion();
+        let (sy, cy) = (0.5 * yaw).sin_cos();
+        simulation.world.data_mut().qpos_mut()[3..7].copy_from_slice(&[cy * pitch_w, -sy * pitch_y, cy * pitch_y, sy * pitch_w]);
+        simulation.world.data_mut().forward();
+        simulation.refresh_environment_snapshot().unwrap();
+        // This fixture targets cruise-wall recovery, not launch ramp dynamics.
+        // Wall takeoff and floor/table takeoff have separate physical fixtures.
+        let mut cruise = Default::default();
+        for _ in 0..400 {
+            cruise = simulation.flight_behavior.update(FlightBehaviorInput {
+                enabled: true, dt_seconds: 0.002, root_height_mm: position[2],
+                brain_flight_drive: 1.0, ..Default::default()
+            }).unwrap();
+        }
+        assert_eq!(cruise.mode, FlightMode::Cruise);
+        simulation.snapshot.flight_mode = FlightMode::Cruise;
 
         let mut saw_turn_hold = false;
         let mut escape_windows = 0;
@@ -3123,6 +3241,9 @@ mod tests {
             let forward = planar_forward(simulation.world().root_quaternion());
             let escape_active =
                 simulation.wall_escape.latched || simulation.wall_escape.release_hold_windows > 0;
+            if !was_latched && simulation.wall_escape.latched {
+                eprintln!("wall escape acquired at {:.3}s: pos={:?} forward={forward:?} inward={:?}", snapshot.time_seconds, snapshot.root_position, simulation.wall_escape.direction_xy);
+            }
             if escape_active {
                 escape_windows += 1;
                 minimum_escape_height = minimum_escape_height.min(snapshot.root_position[2]);
@@ -3153,7 +3274,7 @@ mod tests {
         }
         let released_position = released_position.unwrap_or_else(|| {
             panic!(
-                "wall escape never completed: pos={:?} forward={:?} velocity={:?} mode={} latched={} speed_scale={}",
+                "wall escape never completed after {escape_windows} active windows: pos={:?} forward={:?} velocity={:?} mode={} latched={} speed_scale={}",
                 simulation.snapshot().root_position,
                 planar_forward(simulation.world().root_quaternion()),
                 simulation.world().root_velocity(),
@@ -3172,8 +3293,9 @@ mod tests {
                 < half_turn_seconds + release_dwell_seconds + 0.2,
             "escape_windows={escape_windows}"
         );
-        assert!(minimum_escape_height > 20.0);
-        assert!(300.0 - released_position[0].abs() >= PLANAR_WALL_ESCAPE_RELEASE_MM);
+        assert!(minimum_escape_height > 20.0, "{scene}: minimum escape z={minimum_escape_height}, release={released_position:?}, target={}", simulation.snapshot().flight_target_height_mm);
+        assert!(planar_wall_clearance(released_position, room) >= PLANAR_WALL_ESCAPE_RELEASE_MM);
+        eprintln!("{scene}: head-first release after {:.3}s, position={released_position:?}", escape_windows as f64 * control_period);
 
         let departure_start = released_position;
         for _ in 0..100 {
@@ -3197,6 +3319,7 @@ mod tests {
             simulation.world().root_velocity(),
         );
         assert!(departure[2] > 20.0);
+        }
     }
 
     #[test]
@@ -3268,7 +3391,10 @@ mod tests {
             let mut minimum_contacts=6;
             let mut minimum_support=4;
             let mut held_reference=None;
-            for step in 0..2000 {
+            let mut paired_forward_min=f64::INFINITY;
+            let mut paired_lateral_max=0.0_f64;
+            let mut paired_distance_max=0.0_f64;
+            for step in 0..2500 {
                 let s=simulation.step_window().unwrap();
                 if step%100==0 {
                     eprintln!("{surface} t={:.3} phase={:.3} root={:?} quat={:?} contacts={} feet={:?}",
@@ -3280,23 +3406,38 @@ mod tests {
                     assert_eq!(simulation.standing_joint_controls,*reference,"grooming overlay accumulated into its reference pose");
                     start.get_or_insert(s.time_seconds);
                     minimum_contacts=minimum_contacts.min(s.contact_count);
-                    if (0.15..=0.90).contains(&s.grooming_phase) {
+                    if (0.09375..=0.9375).contains(&s.grooming_phase) {
                         if s.grooming_actual_support_leg_count<minimum_support {
                             eprintln!("{surface}: support loss at phase {} contacts {:?}",s.grooming_phase,simulation.world.support_contacts().unwrap());
                         }
                         minimum_support=minimum_support.min(s.grooming_actual_support_leg_count);
                     }
-                    if (0.20..=0.40).contains(&s.grooming_phase) {rubbing_min=rubbing_min.min(s.front_tarsi_distance_mm);}
-                    if (0.52..=0.85).contains(&s.grooming_phase) {head_min=head_min.min(s.front_tarsus_head_eye_min_distance_mm);}
+                    if (0.15625..=0.6375).contains(&s.grooming_phase) {rubbing_min=rubbing_min.min(s.front_tarsi_distance_mm);}
+                    if (0.2625..=0.6375).contains(&s.grooming_phase) {
+                        let forward=planar_forward(simulation.world.root_quaternion());
+                        let head=simulation.world.body_position("fly/c_head").unwrap();
+                        let left=simulation.world.body_position("fly/lf_tarsus5").unwrap();
+                        let right=simulation.world.body_position("fly/rf_tarsus5").unwrap();
+                        for foot in [left,right] {
+                            paired_forward_min=paired_forward_min.min((foot[0]-head[0])*forward[0]+(foot[1]-head[1])*forward[1]);
+                        }
+                        paired_lateral_max=paired_lateral_max.max(((left[0]-right[0])*(-forward[1])+(left[1]-right[1])*forward[0]).abs());
+                        paired_distance_max=paired_distance_max.max(s.front_tarsi_distance_mm);
+                    }
+                    if (0.7125..=0.90625).contains(&s.grooming_phase) {head_min=head_min.min(s.front_tarsus_head_eye_min_distance_mm);}
                 } else if start.is_some() {end=Some(s.time_seconds);break;}
             }
             eprintln!("{surface}: start={start:?} end={end:?} rubbing={rubbing_min:.6} head={head_min:.6} min_contacts={minimum_contacts} middle/hind_support={minimum_support}");
             let duration=end.unwrap()-start.unwrap();
-            assert!((2.0..=3.0).contains(&duration),"{surface}: interrupted at {duration}");
+            assert!((duration-4.0).abs()<=0.0021,"{surface}: interrupted at {duration}");
             assert!(minimum_contacts>=4,"{surface}: support legs {minimum_contacts}");
             assert_eq!(minimum_support,4,"{surface}: middle/hind foot support");
             assert!(rubbing_min<1.5,"{surface}: rubbing distance {rubbing_min}");
             assert!(head_min<1.5,"{surface}: head/eye distance {head_min}");
+            eprintln!("{surface}: forward={paired_forward_min:.4} lateral={paired_lateral_max:.4} tip_distance_max={paired_distance_max:.4}");
+            assert!(paired_forward_min>0.45,"forefeet must extend in front of head");
+            assert!(paired_lateral_max<0.15,"forefeet must stay together laterally");
+            assert!(paired_distance_max<0.35,"paired rubbing must not separate the tips");
             let stopped=simulation.world.root_position();
             for _ in 0..1000 {simulation.step_window().unwrap();}
             let moved=super::distance(stopped,simulation.world.root_position());
@@ -3334,6 +3475,85 @@ mod tests {
             flight_frequency_scale(FlightMode::Takeoff, 100.0, -100.0),
             1.5
         );
+    }
+
+    #[test]
+    fn near_food_precision_requires_bilateral_signal_and_preserves_turning() {
+        assert_eq!(near_food_antenna_steering([0.0, 100.0]), None);
+        assert_eq!(near_food_antenna_steering([f64::NAN, 100.0]), None);
+        assert_eq!(near_food_antenna_steering([20.0, 20.0]), Some(0.0));
+        assert_eq!(near_food_antenna_steering([25.0, 20.0]), Some(0.9));
+        assert_eq!(near_food_antenna_steering([20.0, 25.0]), Some(-0.9));
+    }
+
+    #[test]
+    fn indoor_v2_physical_table_edge_release_has_no_height_command_jump() {
+        // Controlled physical fixture, not a claim of autonomous CNS behavior.
+        let mut sim = SimulationStepper::new_with_parameters_physics_and_scene(
+            DEFAULT_ASSETS_DIR, None::<&str>, 500.0, 0.0,
+            SimulationParameters::default(), Some(0.0002), "indoor-v2",
+        ).unwrap();
+        sim.set_resource_enabled("sugar_drop", false).unwrap();
+        sim.set_resource_enabled("flower_nectar", false).unwrap();
+        sim.set_initial_hunger(0.3).unwrap();
+        prime_airborne_simulation(&mut sim, [85.0, 0.0, 15.0], [30.0, 0.0, 0.0]);
+        let mut previous = None;
+        let mut saw_overhead = false;
+        let mut release_time = None;
+        let mut max_rise = 0.0_f64;
+        for _ in 0..1000 {
+            let sample = sim.world.obstacle_sample(180.0).unwrap();
+            let overhead = sample.overhead_geom_id.is_some() && sample.up_clearance_mm <= 55.0;
+            saw_overhead |= overhead;
+            if saw_overhead && !overhead { release_time.get_or_insert(sim.world.time()); }
+            let s = sim.step_window().unwrap();
+            assert!(matches!(s.flight_mode, FlightMode::Takeoff | FlightMode::Cruise));
+            if let Some(last) = previous {
+                let rise = s.flight_target_height_mm - last;
+                max_rise = max_rise.max(rise);
+                assert!(rise <= 35.0 * 0.002 + 1e-9, "target jumped by {rise}mm at {}s", s.time_seconds);
+            }
+            previous = Some(s.flight_target_height_mm);
+            assert!(s.root_position.iter().all(|v| v.is_finite()));
+        }
+        assert!(saw_overhead && release_time.is_some(), "fixture did not leave the table: {:?}", sim.world.root_position());
+        assert!(sim.world.data().warning().iter().all(|w| w.number == 0));
+        eprintln!("table edge: release={release_time:?}, max command rise={max_rise:.9}mm/window, final={:?}", sim.world.root_position());
+    }
+
+    #[test]
+    fn airborne_overhang_release_cannot_release_accumulated_height() {
+        for escape in [false, true] {
+            let mut state = None;
+            let max_step = 35.0 * 0.002;
+            // Spend two seconds below the table while requesting a high cruise.
+            for _ in 0..1000 {
+                let safe = commanded_flight_height(FlightMode::Cruise, 60.0, 20.0, 5.0, true, escape);
+                let delivered = slew_airborne_height(&mut state, safe, 20.0, max_step, true);
+                assert!(delivered <= safe);
+                assert_eq!(state, Some(delivered));
+            }
+            // Crossing the edge, including one-window detection flicker, cannot jump up.
+            for overhead in [false, true, false, false] {
+                let previous = state.unwrap();
+                let safe = commanded_flight_height(FlightMode::Cruise, 60.0, 20.0, 5.0, overhead, false);
+                let delivered = slew_airborne_height(&mut state, safe, 20.0, max_step, overhead);
+                assert!(delivered - previous <= max_step + 1e-12);
+            }
+            for _ in 0..1000 {
+                let previous = state.unwrap();
+                let delivered = slew_airborne_height(&mut state, 60.0, 20.0, max_step, false);
+                assert!(delivered - previous <= max_step + 1e-12);
+            }
+            assert_eq!(state, Some(60.0));
+        }
+    }
+
+    #[test]
+    fn airborne_new_overhang_immediately_caps_and_remembers_target() {
+        let mut state = Some(60.0);
+        assert_eq!(slew_airborne_height(&mut state, 20.0, 20.0, 0.07, true), 20.0);
+        assert_eq!(slew_airborne_height(&mut state, 60.0, 20.0, 0.07, false), 20.07);
     }
 
     #[test]

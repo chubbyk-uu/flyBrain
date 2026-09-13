@@ -8,6 +8,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread::JoinHandle;
 
+fn fresh_behavior_seed(previous: u64) -> u64 {
+    use std::hash::{BuildHasher, Hasher};
+    let mut hasher = std::collections::hash_map::RandomState::new().build_hasher();
+    hasher.write_u64(previous);
+    // Keep the displayed seed exactly representable in browser JSON numbers.
+    let seed = hasher.finish() & ((1_u64 << 53) - 1);
+    if seed == previous { (seed + 1) & ((1_u64 << 53) - 1) } else { seed }
+}
+
 pub struct Frame {
     pub data: MjData<Box<MjModel>>,
     pub snapshot: SimulationSnapshot,
@@ -120,6 +129,7 @@ impl Worker {
                     let mut force_publish = false;
                     let mut reset_this_iteration = false;
                     for command in receiver.try_iter() {
+                        let reseed = matches!(command, Command::Viewer(ViewerControl::Reset));
                         let command = match command {
                             Command::Viewer(control) => match control {
                                 ViewerControl::ViewerReady if first_viewer_ready => continue,
@@ -155,6 +165,11 @@ impl Worker {
                                 }
                                 if input.reset {
                                     simulation.reset()?;
+                                    if reseed {
+                                        let seed = fresh_behavior_seed(simulation.snapshot().behavior_seed);
+                                        simulation.set_behavior_seed(seed)?;
+                                        eprintln!("Browser reset: behavior seed {seed}");
+                                    }
                                     reset_this_iteration = true;
                                     epoch += 1;
                                     field_samples.clear();
@@ -317,6 +332,17 @@ impl Drop for Worker {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn browser_reset_seed_changes_and_is_json_exact() {
+        let mut previous = 0;
+        for _ in 0..100 {
+            let seed = fresh_behavior_seed(previous);
+            assert_ne!(seed, previous);
+            assert!(seed < (1_u64 << 53));
+            previous = seed;
+        }
+    }
 
     fn options() -> ViewOptions {
         ViewOptions {
@@ -489,11 +515,14 @@ mod tests {
         }
         worker.commands.send(Command::Viewer(ViewerControl::Reset)).unwrap();
         wait_until(|| worker.frame.lock().unwrap().epoch == 2);
+        let seed = worker.frame.lock().unwrap().snapshot.behavior_seed;
+        assert_ne!(seed, 0);
         for _ in 0..3 { worker.commands.send(Command::Viewer(ViewerControl::ViewerReady)).unwrap(); }
         std::thread::sleep(Duration::from_millis(100));
         {
             let f = worker.frame.lock().unwrap();
             assert_eq!(f.epoch,2); assert!(f.paused);
+            assert_eq!(f.snapshot.behavior_seed,seed);
             assert_eq!(f.snapshot.time_seconds,0.0);
             assert_eq!(f.snapshot.root_position,[26.0,-12.0,32.1]);
             assert_eq!(f.snapshot.hunger,0.72);
@@ -501,6 +530,9 @@ mod tests {
             assert_eq!(f.snapshot.dirt,0.1);
             assert_eq!(f.snapshot.cumulative_spiking_neuron_count,0);
         }
+        worker.commands.send(Command::Viewer(ViewerControl::Reset)).unwrap();
+        wait_until(|| worker.frame.lock().unwrap().epoch == 3);
+        assert_ne!(worker.frame.lock().unwrap().snapshot.behavior_seed,seed);
         worker.commands.send(Command::Viewer(ViewerControl::Resume)).unwrap();
         wait_until(|| worker.frame.lock().unwrap().snapshot.time_seconds > 0.01);
         worker.finish().unwrap();

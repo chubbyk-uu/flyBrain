@@ -18,7 +18,7 @@ for(const [surface,position] of [['floor',[0,-70,2.1]],['table',[0,0,32.1]]]) {
   const r=JSON.parse(await readFile(path));
   const event=r.summary.grooming_events.find(e=>e.completed&&e.trigger==='autonomous');
   const passed=Boolean(event&&event.start_seconds-event.opportunity_seconds<=2
-    &&event.end_seconds-event.start_seconds>=2&&event.end_seconds-event.start_seconds<=3
+    &&Math.abs(event.end_seconds-event.start_seconds-4)<=0.003
     &&event.minimum_contacts>=4&&event.minimum_support_legs>=4
     &&event.rubbing_distance_mm!==null&&event.rubbing_distance_mm<1.5
     &&event.head_eye_distance_mm!==null&&event.head_eye_distance_mm<1.5);

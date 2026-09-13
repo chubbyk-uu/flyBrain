@@ -1,7 +1,7 @@
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
 const output=process.argv[2];
-if(!output)throw new Error('usage: node tools/run_indoor_foraging.mjs OUTPUT [SEED|all] [TASK|all] [motor-off|odor-off]');
+if(!output)throw new Error('usage: node tools/run_indoor_foraging.mjs OUTPUT [SEED|all] [TASK|all] [motor-off|odor-off] [--record-display]');
 const protocol=JSON.parse(await readFile('assets/neuromechfly/scenes/indoor-v2-foraging-tasks.json'));
 const seeds=process.argv[3]&&process.argv[3]!=='all'?[Number(process.argv[3])]:protocol.seeds;
 const tasks=process.argv[4]&&process.argv[4]!=='all'?protocol.tasks.filter(t=>t.id===process.argv[4]):protocol.tasks;
@@ -19,6 +19,7 @@ for(const task of tasks)for(const seed of seeds) {
   if(task.disable_resource)args.push('--disable-resource',task.disable_resource);
   if(ablation==='motor-off')args.push('--disconnect-motor-outputs');
   if(ablation==='odor-off')args.push('--disconnect-olfactory-evoked-inputs');
+  if(process.argv.includes('--record-display'))args.push('--record-display');
   console.log(`RUN ${task.id} seed=${seed}`);
   const child=spawn('target/release/flybrain-world',args,{env:{...process.env,LD_LIBRARY_PATH:`${process.cwd()}/work/mujoco/lib`},stdio:['ignore','ignore','inherit']});
   const code=await new Promise((resolve,reject)=>{child.on('error',reject);child.on('exit',resolve);});

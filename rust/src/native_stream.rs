@@ -268,6 +268,7 @@ fn snapshot_payload(frame: &view_worker::Frame) -> serde_json::Value {
         "food_search": snapshot.food_search,
         "realtime_factor": frame.realtime_factor,
     });
+    payload["behavior_seed"] = json!(snapshot.behavior_seed);
     payload["grooming_cooldown_seconds"]=json!(snapshot.grooming_cooldown_seconds);
     payload["grooming_completed_bouts"]=json!(snapshot.grooming_completed_bouts);
     payload["grooming_opportunity_count"]=json!(snapshot.grooming_opportunity_count);

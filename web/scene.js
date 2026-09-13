@@ -282,6 +282,7 @@ export class FlySceneRenderer {
   addLights() {
     const hemisphere = new THREE.HemisphereLight(0xd9e7f3, 0x4e2d1d, 1.1);
     hemisphere.position.set(0, 0, 1);
+    this.ambientLight = hemisphere;
     this.scene.add(hemisphere);
     const key = new THREE.DirectionalLight(0xffe8c7, 2.0);
     key.position.set(-140, -100, 205);
@@ -298,7 +299,21 @@ export class FlySceneRenderer {
     this.scene.add(key);
     const fill = new THREE.DirectionalLight(0x8ca9d1, 0.35);
     fill.position.set(-240, 180, 180);
+    this.fillLight = fill;
     this.scene.add(fill);
+    // One downward shadow map, not a six-face point-light cubemap.
+    const ceiling = new THREE.SpotLight(0xffedcf, 1.6, 0, 65 * Math.PI / 180, 0.45, 0);
+    ceiling.position.set(0, -15, 135);
+    ceiling.target.position.set(0, -15, 0);
+    ceiling.castShadow = true;
+    ceiling.shadow.mapSize.set(2048, 2048);
+    ceiling.shadow.camera.near = 1;
+    ceiling.shadow.camera.far = 350;
+    ceiling.shadow.bias = -0.00005;
+    ceiling.shadow.normalBias = 0.03;
+    ceiling.visible = false;
+    this.ceilingLight = ceiling;
+    this.scene.add(ceiling, ceiling.target);
   }
 
   makeEyeRenderTarget() {
@@ -317,16 +332,25 @@ export class FlySceneRenderer {
     return camera;
   }
 
-  setScene(descriptor) {
-    if (!descriptor || !Array.isArray(descriptor.geoms) || !Array.isArray(descriptor.meshes) || !Array.isArray(descriptor.cameras)) {
-      throw new Error("scene descriptor must contain geoms, meshes, and cameras arrays");
-    }
-    const indoor = descriptor.geoms.some((geom) => String(geom.material).startsWith("indoor-v2/"));
+  setIndoorLighting(indoor) {
+    this.ceilingLight.visible = indoor;
+    // Cutaway walls must not admit exterior lighting into the indoor viewer.
+    this.keyLight.visible = !indoor;
+    this.fillLight.visible = !indoor;
+    this.ambientLight.intensity = indoor ? 0.35 : 1.1;
+    this.keyLight.intensity = 2.0;
     const shadow = this.keyLight.shadow;
     const extent = indoor ? 220 : 500;
     Object.assign(shadow.camera, { left: -extent, right: extent, top: extent, bottom: -extent, far: indoor ? 700 : 1800 });
     shadow.normalBias = indoor ? 0.15 : 0;
     shadow.camera.updateProjectionMatrix();
+  }
+
+  setScene(descriptor) {
+    if (!descriptor || !Array.isArray(descriptor.geoms) || !Array.isArray(descriptor.meshes) || !Array.isArray(descriptor.cameras)) {
+      throw new Error("scene descriptor must contain geoms, meshes, and cameras arrays");
+    }
+    this.setIndoorLighting(descriptor.geoms.some((geom) => String(geom.material).startsWith("indoor-v2/")));
     this.disposeSceneObjects();
     this.bodyGroups = Array.from({ length: Math.max(0, Number(descriptor?.bodyCount) || 0) }, () => new THREE.Group());
     this.bodyDescriptors = Array.isArray(descriptor?.bodies) ? descriptor.bodies : [];
@@ -418,7 +442,8 @@ export class FlySceneRenderer {
   makeGeom(descriptor) {
     const type = Number(descriptor?.type);
     const size = size3(descriptor?.size);
-    const geometry = type === PRIMITIVE_TYPES.mesh
+    const sugarWater = descriptor?.material === "indoor-v2/candy";
+    const geometry = sugarWater ? this.makeSugarWaterGeometry(size) : type === PRIMITIVE_TYPES.mesh
       ? this.meshGeometries[Number(descriptor?.mesh)]
       : this.makePrimitiveGeometry(type, size);
     if (!geometry) return null;
@@ -435,10 +460,30 @@ export class FlySceneRenderer {
     object.userData.isWall = Boolean(wallRuleFor(name));
     object.userData.kind = kind;
     object.visible = object.userData.baseVisible;
-    object.castShadow = object.userData.baseVisible && object.material.opacity >= 0.999;
+    object.castShadow = object.userData.baseVisible && object.material.opacity >= 0.999
+      && descriptor?.material !== "indoor-v2/lamp";
     object.receiveShadow = object.userData.baseVisible && kind !== "wing";
     if (kind === "oak") object.receiveShadow = true;
     return object;
+  }
+
+  makeSugarWaterGeometry(size) {
+    const key = `sugar-water:${size.join(',')}`;
+    if (this.primitiveGeometries.has(key)) return this.primitiveGeometries.get(key);
+    // A thin irregular meniscus inside the original food footprint. The native
+    // sensory/contact proxy, resource position and licking height stay unchanged.
+    const geometry = new THREE.SphereGeometry(1, 64, 20);
+    const positions = geometry.getAttribute('position');
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i), y = positions.getY(i), z = positions.getZ(i);
+      const angle = Math.atan2(y, x);
+      const radius = 0.88 + 0.07 * Math.sin(3 * angle + 0.4) + 0.04 * Math.cos(5 * angle);
+      positions.setXYZ(i, x * size[0] * radius, y * size[1] * radius, z * size[2]);
+    }
+    geometry.computeVertexNormals();
+    geometry.computeBoundingSphere();
+    this.primitiveGeometries.set(key, geometry);
+    return geometry;
   }
 
   makePrimitiveGeometry(type, size) {
@@ -474,6 +519,15 @@ export class FlySceneRenderer {
     const key = JSON.stringify([kind, descriptor?.material, descriptor?.rgba, descriptor?.texrepeat]);
     const cached = this.materialCache.get(key);
     if (cached) return cached;
+    if (descriptor?.material === "indoor-v2/candy") {
+      const liquid = new THREE.MeshPhysicalMaterial({
+        color: 0xecc987, roughness: 0.12, metalness: 0, clearcoat: 1,
+        clearcoatRoughness: 0.06, transmission: 0.25, thickness: 0.25,
+        ior: 1.35, transparent: false, opacity: 1,
+      });
+      this.materialCache.set(key, liquid);
+      return liquid;
+    }
     const { color, opacity } = colorForKind(kind, descriptor?.rgba);
     const transparent = opacity < 0.999;
     const options = {
@@ -485,6 +539,10 @@ export class FlySceneRenderer {
       metalness: kind === "eye" ? 0.08 : kind === "ceramic" ? 0.02 : 0,
     };
     const material = kind === "eye" ? new THREE.MeshPhysicalMaterial({ ...options, clearcoat: 0.18, clearcoatRoughness: 0.32 }) : new THREE.MeshStandardMaterial(options);
+    if (descriptor?.material === "indoor-v2/lamp") {
+      material.emissive.setHex(0xffedcf);
+      material.emissiveIntensity = 1.0;
+    }
     if (indoor) {
       // Newly authored deterministic surface grain; no inherited habitat texture.
       const wood = descriptor.material.endsWith("/ashwood");

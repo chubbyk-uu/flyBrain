@@ -19,6 +19,9 @@ pub struct Habitat {
     airflow_mm_s: [f64; 3],
     resources: Vec<Resource>,
     sensory_model: SensoryModel,
+    /// Runtime sensory intervention only; source assets and taste remain intact.
+    #[serde(skip)]
+    suppressed_odors: BTreeSet<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -124,6 +127,12 @@ impl Habitat {
         let resource = self.resources.iter_mut().find(|resource| resource.id == id)
             .ok_or_else(|| anyhow::anyhow!("unknown resource {id}"))?;
         resource.enabled = enabled;
+        Ok(())
+    }
+
+    pub fn set_resource_odor_enabled(&mut self, id: &str, enabled: bool) -> Result<()> {
+        if !self.resources.iter().any(|resource|resource.id==id) {bail!("unknown resource {id}");}
+        if enabled {self.suppressed_odors.remove(id);}else{self.suppressed_odors.insert(id.to_owned());}
         Ok(())
     }
 
@@ -263,7 +272,8 @@ impl Habitat {
     ) -> f64 {
         self.resources
             .iter()
-            .filter(|resource| resource.enabled && (!resource.movable || movable_sugar_enabled))
+            .filter(|resource| resource.enabled && (!resource.movable || movable_sugar_enabled)
+                && !self.suppressed_odors.contains(&resource.id))
             .map(|resource| {
                 let source = self.resource_position(resource, movable_sugar_position);
                 let delta = subtract(sample_position, source);
@@ -367,6 +377,7 @@ mod tests {
 
     fn habitat() -> Habitat {
         let habitat = Habitat {
+            suppressed_odors:BTreeSet::new(),
             schema: "flybrain-habitat-v2".to_owned(),
             units: HabitatUnits {
                 length: "millimeter".to_owned(),
@@ -442,6 +453,26 @@ mod tests {
         };
         habitat.validate().expect("valid inline habitat");
         habitat
+    }
+
+    #[test]
+    fn odor_intervention_preserves_taste_geometry_and_other_source() {
+        let mut habitat=Habitat::load_path("assets/neuromechfly/scenes/indoor-v2-habitat.json").unwrap();
+        let sugar=habitat.resources()[0].position;
+        let before=habitat.sample(sugar,sugar,sugar,sugar,true);
+        let original=habitat.resources()[0].clone();
+        let mut source_off=habitat.clone();source_off.set_resource_enabled("sugar_drop",false).unwrap();
+        habitat.set_resource_odor_enabled("sugar_drop",false).unwrap();
+        let during=habitat.sample(sugar,sugar,sugar,sugar,true);
+        assert_eq!(during.tasted_resource,before.tasted_resource);
+        assert_eq!(during.taste_valence,before.taste_valence);
+        assert_eq!(during.odor_left_ppm,source_off.sample(sugar,sugar,sugar,sugar,true).odor_left_ppm);
+        assert!(during.odor_left_ppm<before.odor_left_ppm);
+        assert_eq!(habitat.resources()[0].position,original.position);
+        assert_eq!(habitat.resources()[0].odor_source_ppm,original.odor_source_ppm);
+        habitat.set_resource_odor_enabled("sugar_drop",true).unwrap();
+        assert_eq!(habitat.sample(sugar,sugar,sugar,sugar,true),before);
+        assert!(habitat.set_resource_odor_enabled("missing",false).is_err());
     }
 
     #[test]

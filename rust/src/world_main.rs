@@ -448,6 +448,13 @@ struct CnsCheckOptions {
     /// Save native body poses at 50 Hz for display-only visual replay.
     #[arg(long)]
     record_display: bool,
+    /// Temporarily suppress just one source's odor, leaving its taste/geometry intact.
+    #[arg(long)]
+    odor_pulse_resource: Option<String>,
+    #[arg(long, default_value_t=2.0)]
+    odor_pulse_start_seconds: f64,
+    #[arg(long, default_value_t=12.0)]
+    odor_pulse_end_seconds: f64,
     #[arg(long)]
     parameters: Option<PathBuf>,
     #[arg(long)]
@@ -460,6 +467,12 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     }
     if options.output.exists() {
         bail!("output already exists: {}", options.output.display())
+    }
+    if options.odor_pulse_resource.is_some() && (!options.odor_pulse_start_seconds.is_finite()
+        || !options.odor_pulse_end_seconds.is_finite() || options.odor_pulse_start_seconds<0.0
+        || options.odor_pulse_end_seconds<=options.odor_pulse_start_seconds
+        || options.odor_pulse_end_seconds>options.duration_seconds) {
+        bail!("odor pulse must be a finite ordered interval within the run");
     }
     let mut parameters = options
         .parameters
@@ -626,12 +639,29 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     let mut flight_telemetry_wall_seconds = 0.0;
     let mut window_wall_seconds = 0.0;
     let mut samples = Vec::new();
+    let mut sensory_interventions=Vec::new();
+    let mut odor_pulse_started=false;
+    let mut odor_pulse_ended=false;
+    if let Some(resource)=&options.odor_pulse_resource {simulation.set_resource_odor_enabled(resource,true)?;}
     let mut display_frames=Vec::new();
     let mut next_display_time=0.0;
     let period = simulation.control_period().as_secs_f64();
     let mut next_sample_time = 0.0;
     let mut next_progress_time = 1.0;
     while simulation.snapshot().time_seconds + period * 0.5 < options.duration_seconds {
+        if let Some(resource)=&options.odor_pulse_resource {
+            let time=simulation.snapshot().time_seconds;
+            if !odor_pulse_started && time+1e-9>=options.odor_pulse_start_seconds {
+                simulation.set_resource_odor_enabled(resource,false)?;
+                sensory_interventions.push(json!({"time_seconds":time,"resource":resource,"odor_enabled":false}));
+                odor_pulse_started=true;
+            }
+            if odor_pulse_started && !odor_pulse_ended && time+1e-9>=options.odor_pulse_end_seconds {
+                simulation.set_resource_odor_enabled(resource,true)?;
+                sensory_interventions.push(json!({"time_seconds":time,"resource":resource,"odor_enabled":true}));
+                odor_pulse_ended=true;
+            }
+        }
         let snapshot = simulation.step_window()?;
         if options.record_display && snapshot.time_seconds+1e-9>=next_display_time {
             let wing_envelope=if snapshot.flight_mode==FlightMode::Grounded {0.0}else{snapshot.flight_amplitude_scale.clamp(0.0,1.0)};
@@ -707,12 +737,12 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
             });
             let event=&mut grooming_events[index];
             event["minimum_contacts"]=json!(event["minimum_contacts"].as_u64().unwrap().min(snapshot.contact_count as u64));
-            if (0.15..=0.90).contains(&snapshot.grooming_phase) {
+            if (0.09375..=0.9375).contains(&snapshot.grooming_phase) {
                 event["minimum_support_legs"]=json!(event["minimum_support_legs"].as_u64().unwrap().min(snapshot.grooming_actual_support_leg_count as u64));
             }
             for (key,value,eligible) in [
-                ("rubbing_distance_mm",snapshot.front_tarsi_distance_mm,(0.20..=0.40).contains(&snapshot.grooming_phase)),
-                ("head_eye_distance_mm",snapshot.front_tarsus_head_eye_min_distance_mm,(0.52..=0.85).contains(&snapshot.grooming_phase)),
+                ("rubbing_distance_mm",snapshot.front_tarsi_distance_mm,(0.15625..=0.6375).contains(&snapshot.grooming_phase)),
+                ("head_eye_distance_mm",snapshot.front_tarsus_head_eye_min_distance_mm,(0.7125..=0.90625).contains(&snapshot.grooming_phase)),
             ] {
                 if eligible {event[key]=json!(event[key].as_f64().unwrap_or(f64::INFINITY).min(value));}
             }
@@ -815,7 +845,7 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
                 "population_rate_hz": snapshot.filtered_population_rate_hz,
                 "population_spike_delta": snapshot.population_spike_delta,
                 "boundary_avoidance": snapshot.flight_boundary_avoidance,
-                "collision_reflex_active": snapshot.flight_escape_active,
+                "collision_reflex_active": snapshot.collision_reflex_active,
             });
             trace_sample["hunger"] = json!(snapshot.hunger);
             trace_sample["food_search"] = json!(snapshot.food_search);
@@ -833,6 +863,7 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
             trace_sample["grooming_dn_rate_hz"] = json!(snapshot.grooming_dn_rate_hz);
             trace_sample["dirt"] = json!(snapshot.dirt);
             trace_sample["grooming_active"] = json!(snapshot.grooming_active);
+            trace_sample["navigation_escape_active"] = json!(snapshot.flight_escape_active);
             trace_sample["grooming_phase"] = json!(snapshot.grooming_phase);
             trace_sample["grooming_support_leg_count"] = json!(snapshot.grooming_support_leg_count);
             trace_sample["grooming_actual_support_leg_count"] = json!(snapshot.grooming_actual_support_leg_count);
@@ -946,6 +977,7 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     report["summary"]["olfactory_readout_spikes"] = json!(olfactory_readout_spikes);
     report["summary"]["invalid_hunger_relief_windows"] = json!(invalid_hunger_relief_windows);
     report["summary"]["grooming_events"] = json!(grooming_events);
+    report["sensory_interventions"]=json!(sensory_interventions);
     if options.record_display {
         report["display_replay"]=json!({"kind":"recorded native physical poses; display-only replay",
             "scene":flybrain_engine::display_protocol::scene_descriptor(simulation.world().data().model(),

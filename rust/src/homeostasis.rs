@@ -32,19 +32,19 @@ impl Default for HomeostasisParameters {
     fn default() -> Self {
         Self {
             initial_hunger: 0.72,
-            hunger_rate_per_second: (0.55-0.30)/60.0,
+            hunger_rate_per_second: (0.55-0.30)/50.0,
             feeding_relief_per_second: 0.22,
             hunger_enter: 0.55,
             hunger_release: 0.30,
             feeding_extension_threshold: 0.10,
             feeding_mn9_threshold_hz: 1.0,
             initial_fatigue: 0.05,
-            flight_fatigue_rate_per_second: 0.020,
-            support_recovery_rate_per_second: 0.060,
+            flight_fatigue_rate_per_second: 0.016,
+            support_recovery_rate_per_second: 0.080,
             fatigue_landing_enter: 0.68,
             fatigue_takeoff_release: 0.25,
             minimum_rest_seconds: 0.0,
-            minimum_grounded_seconds: 10.0,
+            minimum_grounded_seconds: 7.0,
             waypoint_min_seconds: 2.0,
             waypoint_max_seconds: 4.0,
             waypoint_margin_fraction: 0.18,
@@ -110,6 +110,8 @@ pub struct HomeostaticInput {
     pub dt_seconds: f64,
     pub flight_mode: FlightMode,
     pub contact_count: usize,
+    /// Upright near-surface walking with actual foot contact; not an airborne flag.
+    pub supported_locomotion: bool,
     pub support_contact: bool,
     pub horizontal_speed_mm_s: f64,
     pub flight_amplitude: f64,
@@ -123,6 +125,8 @@ pub struct HomeostaticInput {
     pub room_half_extents_mm: [f64; 3],
     pub planar_wall_clearance_mm: f64,
     pub collision_escape_active: bool,
+    /// Urgent physical escape only; broad navigation may still renew exploration.
+    pub urgent_collision_escape_active: bool,
 }
 
 impl Default for HomeostaticInput {
@@ -131,6 +135,7 @@ impl Default for HomeostaticInput {
             dt_seconds: 0.0,
             flight_mode: FlightMode::Grounded,
             contact_count: 0,
+            supported_locomotion:false,
             support_contact: false,
             horizontal_speed_mm_s: 0.0,
             flight_amplitude: 0.0,
@@ -144,6 +149,7 @@ impl Default for HomeostaticInput {
             room_half_extents_mm: [100.0; 3],
             planar_wall_clearance_mm: 100.0,
             collision_escape_active: false,
+            urgent_collision_escape_active: false,
         }
     }
 }
@@ -240,7 +246,8 @@ impl HomeostaticController {
 
         let airborne = input.flight_mode != FlightMode::Grounded;
         let powered_flight = airborne && input.flight_amplitude > 0.1;
-        let stable_support = !airborne && input.contact_count >= 3;
+        let stable_support = !airborne && (input.contact_count>=3
+            || (input.supported_locomotion&&input.contact_count>0));
         if powered_flight {
             // Holding the body aloft has a cost even at zero horizontal velocity.
             let effort = 0.75 + 0.25*input.flight_amplitude.clamp(0.0,1.0);
@@ -267,10 +274,9 @@ impl HomeostaticController {
             }
         } else if airborne {
             self.state.supported_seconds = 0.0;
-        } else if self.state.fatigue_landing_latched {
-            self.state.supported_seconds =
-                (self.state.supported_seconds - input.dt_seconds).max(0.0);
         }
+        // Brief stance transitions pause recovery, never erase rest already
+        // obtained. Actual airborne motion above resets the supported interval.
 
         if self.state.fatigue_landing_latched && !airborne && !self.state.hungry {
             self.quiet_seconds=(self.quiet_seconds-input.dt_seconds).max(0.0);
@@ -316,7 +322,7 @@ impl HomeostaticController {
             landing_request: self.state.fatigue_landing_latched
                 && input.flight_mode != FlightMode::Grounded
                 && input.planar_wall_clearance_mm >= 30.0
-                && !input.collision_escape_active,
+                && !input.urgent_collision_escape_active,
             takeoff_inhibited: self.state.fatigue_landing_latched
                 || (self.state.hungry
                     && input.target_sensed
@@ -504,11 +510,11 @@ mod tests {
         for i in 1..=30002 {
             if hungry.update(HomeostaticInput {dt_seconds:0.002,..Default::default()}).unwrap().hungry {onset=Some(i as f64*0.002);break;}
         }
-        assert!((onset.unwrap()-60.0).abs()<=0.002001,"hunger onset {onset:?}");
+        assert!((onset.unwrap()-50.0).abs()<=0.002001,"hunger onset {onset:?}");
         for speed in [60.0,0.0,0.5] {
             let mut state=controller();
             let mut fatigue_onset=None;
-            for i in 1..=22501 {
+            for i in 1..=28001 {
                 let before=state.state().fatigue;
                 let command=state.update(HomeostaticInput {dt_seconds:0.002,flight_mode:FlightMode::Cruise,
                     horizontal_speed_mm_s:speed,flight_amplitude:0.85,..Default::default()}).unwrap();
@@ -516,7 +522,9 @@ mod tests {
                 if command.landing_request {fatigue_onset=Some(i as f64*0.002);break;}
             }
             let time=fatigue_onset.unwrap();
-            assert!((30.0..=45.0).contains(&time));
+            assert!((39.0..=55.0).contains(&time));
+            let expected = (0.68 - 0.05) / (0.016 * (0.75 + 0.25 * 0.85));
+            assert!((time - expected).abs() <= 0.002001);
             eprintln!("speed={speed} mm/s: fatigue threshold at {time}s");
         }
         for speed in [0.0,4.0] {
@@ -530,7 +538,7 @@ mod tests {
                 assert!(command.fatigue<=before);
                 if !command.takeoff_inhibited {release=Some(i as f64*0.002);break;}
             }
-            assert!((9.0..=11.0).contains(&release.unwrap()));
+            assert!((release.unwrap()-7.0).abs()<=0.002001);
             eprintln!("supported speed={speed} mm/s: flight eligibility at {release:?}s");
         }
         let mut falling=controller();
@@ -538,6 +546,29 @@ mod tests {
         falling.update(HomeostaticInput {dt_seconds:5.0,flight_mode:FlightMode::Landing,
             contact_count:0,flight_amplitude:0.0,..Default::default()}).unwrap();
         assert_eq!(falling.state().fatigue,before);
+    }
+
+    #[test]
+    fn alternating_supported_steps_restore_flight_without_erasing_rest() {
+        let mut state=HomeostaticController::new(13,HomeostasisParameters {
+            initial_hunger:0.7,initial_fatigue:0.72,..Default::default()}).unwrap();
+        state.state.fatigue_landing_latched=true;
+        let mut release=None;
+        for i in 1..=5500 {
+            // Brief flightless swing transitions have no foot contact; ordinary
+            // stance alternates 1/2/3 measured feet on the real narrow soil perch.
+            let contacts=if i%20==0 {0}else{1+i%3};
+            let previous=state.state.supported_seconds;
+            let result=state.update(HomeostaticInput {dt_seconds:0.002,contact_count:contacts,
+                supported_locomotion:true,horizontal_speed_mm_s:4.0,..Default::default()}).unwrap();
+            if !result.takeoff_inhibited {release=Some(i as f64*0.002);break;}
+            assert!(state.state.supported_seconds>=previous);
+        }
+        // One unsupported window in twenty pauses (rather than resets) recovery.
+        assert!((release.unwrap()-7.0/0.95).abs()<0.004,"release {release:?}");
+        let mut falling=controller();let before=falling.state();
+        falling.update(HomeostaticInput {dt_seconds:5.0,contact_count:0,supported_locomotion:true,..Default::default()}).unwrap();
+        assert_eq!(falling.state().fatigue,before.fatigue);
     }
 
     #[test]

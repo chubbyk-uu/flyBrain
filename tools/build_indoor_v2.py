@@ -11,8 +11,8 @@ import math
 import xml.etree.ElementTree as ET
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets/neuromechfly"
-SUGAR = [48.0, -12.0, 30.6]
-NECTAR = [-48.0, 12.0, 65.4]
+SUGAR = [48.0, -12.0, 30.2]
+NECTAR = [-48.0, 12.0, 30.2]
 SPAWN = [26.0, -12.0, 32.1]
 
 
@@ -29,8 +29,7 @@ def build():
             asset.append(deepcopy(item))
     colors = {
         "plaster": "0.82 0.80 0.74 1", "floor": "0.57 0.61 0.58 1",
-        "ashwood": "0.62 0.43 0.25 1", "ceramic": "0.26 0.43 0.43 1",
-        "soil": "0.12 0.085 0.05 1", "leaf": "0.18 0.38 0.12 1",
+        "ashwood": "0.62 0.43 0.25 1", "lamp": "1 0.91 0.72 1",
         "petal": "0.92 0.64 0.72 1", "nectar": "0.83 0.52 0.12 1",
         "candy": "0.90 0.30 0.12 1",
     }
@@ -44,8 +43,8 @@ def build():
     ET.SubElement(world, "site", name="fly", pos="0 0 0.8")
     ET.SubElement(world, "camera", name="room_camera", pos="220 -290 220",
                   xyaxes="0.797 0.604 0 -0.30 0.396 0.868", fovy="52")
-    ET.SubElement(world, "light", pos="0 -50 135", dir="0 0 -1", directional="true",
-                  diffuse="0.7 0.68 0.63", castshadow="true")
+    ET.SubElement(world, "light", name="ceiling_light", pos="0 -15 135", dir="0 0 -1", directional="false",
+                  diffuse="0.7 0.68 0.63", cutoff="65", castshadow="true")
 
     def geom(name, shape, pos, size, material, collision=True, **extra):
         return ET.SubElement(world, "geom", name=name, type=shape,
@@ -69,29 +68,22 @@ def build():
     for i, (x, y) in enumerate([(-78, -29), (78, -29), (-78, 29), (78, 29)]):
         geom(f"table_leg_{i}", "box", [x, y, 13], [3, 3, 13], "ashwood")
     # One exposed low candy surface, not several decorative false food targets.
-    geom("food_patch", "ellipsoid", SUGAR, [3.5, 3, 0.6], "candy", False)
-    geom("plant_pot", "cylinder", [-48, 12, 36], [9, 6], "ceramic")
-    geom("plant_soil", "cylinder", [-48, 12, 42.05], [8.1, 0.15], "soil")
-    geom("plant_stem", "cylinder", [-48, 12, 53.2], [0.65, 11.2], "leaf", False)
-    for i, (z, side) in enumerate([(47, -1), (51, 1), (55, -1), (59, 1)]):
-        tilt = side * -0.25
-        geom(f"plant_leaf_{i}", "ellipsoid", [-48 + side * 4.5, 12, z + 1.1],
-             [5.1, 2.2, 0.25], "leaf", False,
-             quat=f"{math.cos(tilt/2)} 0 {math.sin(tilt/2)} 0")
-    # A thin contiguous landing calyx; petal collision is its documented approximation.
-    geom("flower_support", "cylinder", [-48, 12, 64.4], [7.5, 0.6], "leaf")
+    geom("ceiling_lamp", "cylinder", [0, -15, 138.5], [5, 0.5], "lamp", False)
+    geom("food_patch", "ellipsoid", SUGAR, [3.5, 3, 0.2], "candy", False)
+    # Detached flower rests on the table. Separate shallow petals retain real
+    # collision; the table supports the gaps, so no continuous disk is needed.
     for i in range(8):
         a = i * math.tau / 8
         geom(f"flower_petal_{i}", "ellipsoid",
-             [-48 + 5 * math.cos(a), 12 + 5 * math.sin(a), 65], [5, 2.5, 0.55],
-             "petal", False, quat=f"{math.cos(a/2)} 0 0 {math.sin(a/2)}")
-    geom("resource_nectar", "cylinder", NECTAR, [2.8, 0.4], "nectar", False)
+             [-48 + 5 * math.cos(a), 12 + 5 * math.sin(a), 30.01], [5, 2.0, 0.01],
+             "petal", True, quat=f"{math.cos(a/2)} 0 0 {math.sin(a/2)}")
+    geom("resource_nectar", "cylinder", NECTAR, [2.8, 0.2], "nectar", False)
     for i in range(13):
         a = i * 2.4
         radius = 0.55 * math.sqrt(i)
         geom(f"flower_stamen_{i}", "sphere",
-             [-48 + radius * math.cos(a), 12 + radius * math.sin(a), 65.87],
-             [0.25], "nectar", False)
+             [-48 + radius * math.cos(a), 12 + radius * math.sin(a), 30.43],
+             [0.08], "nectar", False)
     # Ground contact pairs and all fly dynamics are preserved byte-semantically.
     fly_hash = hashlib.sha256(ET.tostring(fly)).hexdigest()
     ET.indent(root)
