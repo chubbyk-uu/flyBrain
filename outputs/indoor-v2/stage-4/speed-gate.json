@@ -1,0 +1,81 @@
+{
+  "passed": true,
+  "criteria": "all five predefined seeds; instantaneous control-window speeds; collision peaks included; approach settled >=0.5s",
+  "reports": [
+    {
+      "seed": 11,
+      "raw_report": "speed-seed11-v3.json",
+      "sha256": "305698966f199aee5de3d4d9172210d949905a604d6f3dea2d45150e8c0e44aa",
+      "command_max_mm_s": 70.00000000000001,
+      "command_acceleration_max_mm_s2": 250.00000000055422,
+      "cruise_p95_mm_s": 85.22785389012049,
+      "all_window_peak_mm_s": 126.81097673936539,
+      "settled_approach_command_range_mm_s": [
+        27.749714332840178,
+        28.489635152414643
+      ],
+      "realtime_factor": 1.3345844358635406,
+      "feeding_seconds": 0
+    },
+    {
+      "seed": 13,
+      "raw_report": "speed-seed13-v3.json",
+      "sha256": "e785a477b1c4f1f55eded9c3f8a6e0353df96702bba61aa8150ec7aaaaa70783",
+      "command_max_mm_s": 70.00000000000001,
+      "command_acceleration_max_mm_s2": 250.00000000055422,
+      "cruise_p95_mm_s": 103.82492441316435,
+      "all_window_peak_mm_s": 126.78793693697892,
+      "settled_approach_command_range_mm_s": [
+        27.55227604036155,
+        28.47893016945417
+      ],
+      "realtime_factor": 1.3132284164027999,
+      "feeding_seconds": 0
+    },
+    {
+      "seed": 17,
+      "raw_report": "speed-seed17-v3.json",
+      "sha256": "006eb773a80cb307e4351be248513c6864d4424dddc4708ee91600457251bf45",
+      "command_max_mm_s": 70.00000000000001,
+      "command_acceleration_max_mm_s2": 250.00000000055422,
+      "cruise_p95_mm_s": 113.18413703166487,
+      "all_window_peak_mm_s": 126.78198783732846,
+      "settled_approach_command_range_mm_s": [
+        27.729480738672123,
+        28.467714633931415
+      ],
+      "realtime_factor": 1.3382366636037548,
+      "feeding_seconds": 0
+    },
+    {
+      "seed": 19,
+      "raw_report": "speed-seed19-v3.json",
+      "sha256": "efbd38808e53082e26aae3830dc8deb124273019669a1cbba9247f6cd861782e",
+      "command_max_mm_s": 70.00000000000001,
+      "command_acceleration_max_mm_s2": 250.00000000055422,
+      "cruise_p95_mm_s": 105.13859539594692,
+      "all_window_peak_mm_s": 126.81050777922258,
+      "settled_approach_command_range_mm_s": [
+        27.72289478502335,
+        28.48006114918151
+      ],
+      "realtime_factor": 1.352563447885197,
+      "feeding_seconds": 0
+    },
+    {
+      "seed": 23,
+      "raw_report": "speed-seed23-v3.json",
+      "sha256": "383529aa685c15ecc2fdd5005a06e29fedbe06c5bd8356aa258426e8b39f2c0b",
+      "command_max_mm_s": 70.00000000000001,
+      "command_acceleration_max_mm_s2": 250.00000000055422,
+      "cruise_p95_mm_s": 113.40108213859182,
+      "all_window_peak_mm_s": 126.729603433886,
+      "settled_approach_command_range_mm_s": [
+        27.64353979945532,
+        28.45738304024283
+      ],
+      "realtime_factor": 1.3368716296918142,
+      "feeding_seconds": 0
+    }
+  ]
+}

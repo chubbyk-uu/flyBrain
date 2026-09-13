@@ -1,0 +1,9 @@
+   Compiling flybrain-engine v0.1.0 (/home/jerry/rl_ws/fly-brain)
+    Finished `release` profile [optimized] target(s) in 31.03s
+     Running unittests rust/src/lib.rs (target/release/deps/flybrain_engine-5e565c1aea0f2528)
+
+running 1 test
+55mm landing: stable-contact transition at 2.534000s, root z=1.138173mm
+test world_sim::tests::high_altitude_landing_descends_quickly_then_flairs_near_the_floor ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 280 filtered out; finished in 1.74s

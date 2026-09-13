@@ -11,6 +11,11 @@ const NEURAL_ALTITUDE_MINIMUM_COMMAND: f64 = 0.35;
 const NEURAL_ALTITUDE_BOUT_SECONDS: f64 = 2.0;
 const NEURAL_FLIGHT_DRIVE_ALTITUDE_RANGE: f64 = 0.065;
 const NEURAL_FLIGHT_DRIVE_MAXIMUM_HEIGHT_FRACTION: f64 = 0.75;
+// Whole-CNS wing activation lives in a high operating band during sustained
+// flight. Calibrate that observed band across the usable altitude range so its
+// fluctuations remain visible instead of pinning every bout near the ceiling.
+const CNS_FLIGHT_ALTITUDE_ACTIVATION_MINIMUM: f64 = 0.75;
+const CNS_FLIGHT_ALTITUDE_ACTIVATION_MAXIMUM: f64 = 0.95;
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 pub struct FlightBehaviorParameters {
@@ -32,6 +37,12 @@ pub struct FlightBehaviorParameters {
     pub cruise_amplitude: f64,
     pub landing_amplitude: f64,
     pub brain_amplitude_gain: f64,
+    #[serde(default = "default_takeoff_ramp_seconds")]
+    pub takeoff_ramp_seconds: f64,
+    #[serde(default = "default_altitude_command_rate_mm_s")]
+    pub altitude_command_rate_mm_s: f64,
+    #[serde(default = "default_landing_descent_rate_mm_s")]
+    pub landing_descent_rate_mm_s: f64,
     #[serde(default = "default_neural_altitude_rate_mm_s")]
     pub neural_altitude_rate_mm_s: f64,
     #[serde(default = "default_optic_flow_altitude_rate_mm_s")]
@@ -40,6 +51,18 @@ pub struct FlightBehaviorParameters {
 
 fn default_neural_altitude_rate_mm_s() -> f64 {
     40.0
+}
+
+fn default_takeoff_ramp_seconds() -> f64 {
+    0.35
+}
+
+fn default_altitude_command_rate_mm_s() -> f64 {
+    45.0
+}
+
+fn default_landing_descent_rate_mm_s() -> f64 {
+    30.0
 }
 
 fn default_odor_gradient_gain() -> f64 {
@@ -70,6 +93,9 @@ impl Default for FlightBehaviorParameters {
             cruise_amplitude: 0.94,
             landing_amplitude: 0.94,
             brain_amplitude_gain: 0.06,
+            takeoff_ramp_seconds: default_takeoff_ramp_seconds(),
+            altitude_command_rate_mm_s: default_altitude_command_rate_mm_s(),
+            landing_descent_rate_mm_s: default_landing_descent_rate_mm_s(),
             neural_altitude_rate_mm_s: default_neural_altitude_rate_mm_s(),
             optic_flow_altitude_rate_mm_s: 24.0,
         }
@@ -85,6 +111,9 @@ impl FlightBehaviorParameters {
             self.takeoff_height_mm,
             self.cruise_height_mm,
             self.landing_height_mm,
+            self.takeoff_ramp_seconds,
+            self.altitude_command_rate_mm_s,
+            self.landing_descent_rate_mm_s,
         ];
         if positive
             .into_iter()
@@ -200,6 +229,7 @@ pub struct FlightBehaviorCommand {
     pub amplitude_scale: f64,
     pub steering: f64,
     pub target_height_mm: f64,
+    pub takeoff_progress: f64,
     pub altitude_target_clamped: bool,
     pub odor_steering_contribution: f64,
     pub wander_steering_contribution: f64,
@@ -212,6 +242,7 @@ pub struct FlightBehaviorController {
     parameters: FlightBehaviorParameters,
     mode: FlightMode,
     mode_elapsed_seconds: f64,
+    takeoff_origin_height_mm: f64,
     takeoff_drive_elapsed_seconds: f64,
     surface_contact_elapsed_seconds: f64,
     landing_load_transfer: f64,
@@ -237,6 +268,7 @@ impl FlightBehaviorController {
             parameters: parameters.validate()?,
             mode: FlightMode::Grounded,
             mode_elapsed_seconds: 0.0,
+            takeoff_origin_height_mm: 0.0,
             takeoff_drive_elapsed_seconds: 0.0,
             surface_contact_elapsed_seconds: 0.0,
             landing_load_transfer: 0.0,
@@ -321,10 +353,13 @@ impl FlightBehaviorController {
                     && self.takeoff_drive_elapsed_seconds
                         >= self.parameters.takeoff_drive_dwell_seconds =>
             {
+                self.takeoff_origin_height_mm = input.root_height_mm;
+                self.cruise_target_height_mm = self.cruise_target_height_mm.max(input.root_height_mm + self.parameters.takeoff_height_mm);
                 self.enter(FlightMode::Takeoff)
             }
             FlightMode::Takeoff
-                if input.root_height_mm >= 9.0 || self.mode_elapsed_seconds >= 0.8 =>
+                if self.mode_elapsed_seconds >= self.parameters.takeoff_ramp_seconds
+                    && (input.root_height_mm >= self.takeoff_origin_height_mm + 8.0 || self.mode_elapsed_seconds >= 0.8) =>
             {
                 self.enter(FlightMode::Cruise)
             }
@@ -418,8 +453,12 @@ impl FlightBehaviorController {
                         .cns_approach_height_mm
                         .unwrap_or(self.parameters.cruise_height_mm)
                 } else {
+                    let altitude_drive = ((power - CNS_FLIGHT_ALTITUDE_ACTIVATION_MINIMUM)
+                        / (CNS_FLIGHT_ALTITUDE_ACTIVATION_MAXIMUM
+                            - CNS_FLIGHT_ALTITUDE_ACTIVATION_MINIMUM))
+                        .clamp(0.0, 1.0);
                     self.parameters.takeoff_height_mm
-                        + power * (bounds[1] - self.parameters.takeoff_height_mm).max(0.0)
+                        + altitude_drive * (bounds[1] - self.parameters.takeoff_height_mm).max(0.0)
                 };
                 if !input.altitude_hold {
                     let maximum_change =
@@ -464,13 +503,18 @@ impl FlightBehaviorController {
             altitude_target_clamped =
                 (requested_target - self.cruise_target_height_mm).abs() > f64::EPSILON;
         }
+        let takeoff_progress = if self.mode == FlightMode::Takeoff {
+            (self.mode_elapsed_seconds / self.parameters.takeoff_ramp_seconds).clamp(0.0, 1.0)
+        } else {
+            1.0
+        };
         let (target_height_mm, base_amplitude) = match self.mode {
             FlightMode::Grounded => (input.root_height_mm, 0.0),
             FlightMode::Takeoff => (
                 if input.cns_motor_activation.is_some() {
                     self.cruise_target_height_mm
                 } else {
-                    self.parameters.takeoff_height_mm
+                    self.takeoff_origin_height_mm + self.parameters.takeoff_height_mm
                 },
                 self.parameters.takeoff_amplitude,
             ),
@@ -501,6 +545,7 @@ impl FlightBehaviorController {
             amplitude_scale,
             steering,
             target_height_mm,
+            takeoff_progress,
             altitude_target_clamped,
             odor_steering_contribution,
             wander_steering_contribution,
@@ -625,6 +670,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn tabletop_takeoff_cannot_bypass_ramp_using_absolute_height() {
+        for height in [1.1,31.1] {
+            let mut controller = FlightBehaviorController::new(1);
+            let mut elapsed = 0.0;
+            let mut observed_takeoff = false;
+            for _ in 0..400 {
+                let command = controller.update(FlightBehaviorInput {
+                    enabled:true,brain_enabled:true,cns_motor_activation:Some(0.9),brain_flight_drive:0.9,
+                    dt_seconds:0.002,root_height_mm:height, ..Default::default()
+                }).unwrap();
+                if command.mode==FlightMode::Takeoff { observed_takeoff=true;elapsed+=0.002; }
+                if command.mode==FlightMode::Cruise { assert!(elapsed>=0.35); }
+            }
+            assert!(observed_takeoff);
+        }
+    }
+
+    #[test]
     fn cns_output_disconnect_prevents_takeoff_despite_descending_drive() {
         let mut controller = FlightBehaviorController::new(1);
         for _ in 0..100 {
@@ -677,8 +740,9 @@ mod tests {
                 .unwrap()
                 .target_height_mm;
         }
-        assert!(high_target > 150.0);
-        assert!(target < 70.0);
+        assert!(high_target > 60.0);
+        assert!(target < 30.0);
+        assert!(high_target > target + 30.0);
     }
 
     #[test]
@@ -847,12 +911,21 @@ mod tests {
         for _ in 0..3 {
             controller.update(driven).unwrap();
         }
-        controller
-            .update(FlightBehaviorInput {
-                root_height_mm: 10.0,
-                ..driven
-            })
-            .unwrap()
+        finish_takeoff(controller, FlightBehaviorInput {
+            root_height_mm: 10.0,
+            contact_count: 0,
+            ..driven
+        })
+    }
+
+    fn finish_takeoff(controller: &mut FlightBehaviorController, airborne: FlightBehaviorInput) -> FlightBehaviorCommand {
+        for _ in 0..100 {
+            let command = controller.update(airborne).unwrap();
+            if command.mode == FlightMode::Cruise {
+                return command;
+            }
+        }
+        panic!("fixture did not finish the bounded takeoff ramp");
     }
 
     #[test]
@@ -915,7 +988,7 @@ mod tests {
         airborne.root_height_mm = 10.0;
         airborne.contact_count = 0;
         assert_eq!(
-            controller.update(airborne).unwrap().mode,
+            finish_takeoff(&mut controller, airborne).mode,
             FlightMode::Cruise
         );
         airborne.odor_left = 0.7;
@@ -1322,13 +1395,11 @@ mod tests {
         for _ in 0..3 {
             controller.update(driven).unwrap();
         }
-        let cruise = controller
-            .update(FlightBehaviorInput {
+        let cruise = finish_takeoff(&mut controller, FlightBehaviorInput {
                 root_height_mm: 10.0,
                 contact_count: 0,
                 ..driven
-            })
-            .unwrap();
+            });
         assert_eq!(cruise.mode, FlightMode::Cruise);
         assert!(cruise.target_height_mm > 100.0);
         assert!(cruise.target_height_mm < 208.0);
@@ -1354,13 +1425,12 @@ mod tests {
         for _ in 0..3 {
             controller.update(driven).unwrap();
         }
-        let command = controller
-            .update(FlightBehaviorInput {
-                root_height_mm: 10.0,
-                brain_altitude_control: 0.0,
-                ..driven
-            })
-            .unwrap();
+        let command = finish_takeoff(&mut controller, FlightBehaviorInput {
+            root_height_mm: 10.0,
+            contact_count: 0,
+            brain_altitude_control: 0.0,
+            ..driven
+        });
         assert_eq!(command.mode, FlightMode::Cruise);
         assert!(command.target_height_mm > controller.parameters.cruise_height_mm + 1.0);
     }
@@ -1416,12 +1486,11 @@ mod tests {
         for _ in 0..3 {
             controller.update(driven).unwrap();
         }
-        let takeoff = controller
-            .update(FlightBehaviorInput {
-                root_height_mm: 10.0,
-                ..driven
-            })
-            .unwrap();
+        let takeoff = finish_takeoff(&mut controller, FlightBehaviorInput {
+            root_height_mm: 10.0,
+            contact_count: 0,
+            ..driven
+        });
         assert_eq!(takeoff.mode, FlightMode::Cruise);
         assert!(takeoff.target_height_mm > 28.0);
     }

@@ -36,6 +36,8 @@ use crate::retina::RetinaSummary;
 use crate::world::{MuJoCoWorld, ObstacleSample, WorldEnvironment};
 
 const OVERHANG_DESCENT_MM: f64 = 14.0;
+const LANDING_APPROACH_CLEARANCE_MM: f64 = 15.0;
+const LANDING_APPROACH_RATE_MM_S: f64 = 12.0;
 const PLANAR_WALL_ESCAPE_CLEARANCE_MM: f64 = 5.0;
 const PLANAR_WALL_ESCAPE_RELEASE_MM: f64 = 20.0;
 const WALL_ESCAPE_RELEASE_ALIGNMENT: f64 = 0.9;
@@ -272,6 +274,7 @@ pub struct SimulationSnapshot {
     pub flight_amplitude_scale: f64,
     pub flight_frequency_scale: f64,
     pub flight_horizontal_speed_scale: f64,
+    pub flight_command_velocity_mm_s: [f64; 2],
     pub flight_steering: f64,
     pub flight_odor_steering: f64,
     pub flight_wander_steering: f64,
@@ -429,8 +432,10 @@ pub struct SimulationStepper {
     turn_gain: f64,
     walking_translation_scale: f64,
     landing_target_mm: Option<f64>,
+    airborne_target_mm: Option<f64>,
     wall_landing: Option<WallLandingTarget>,
     touchdown_gait_ramp: f64,
+    touchdown_settle_until: f64,
     standing_joint_controls: [f64; 42],
     feeding_pose_held: bool,
     feeding_extension: f64,
@@ -602,8 +607,10 @@ impl SimulationStepper {
             turn_gain: 0.0,
             walking_translation_scale: 1.0,
             landing_target_mm: None,
+            airborne_target_mm: None,
             wall_landing: None,
             touchdown_gait_ramp: 1.0,
+            touchdown_settle_until: 0.0,
             standing_joint_controls,
             feeding_pose_held: false,
             feeding_extension: 0.0,
@@ -670,7 +677,7 @@ impl SimulationStepper {
         }
         self.feeding_pose_held =
             self.snapshot.behavior_mode == BehaviorMode::Feed || self.feeding_extension > 0.01;
-        if was_airborne {
+        if was_airborne || self.world.time() < self.touchdown_settle_until {
             self.touchdown_gait_ramp = 0.0;
         } else {
             self.touchdown_gait_ramp = (self.touchdown_gait_ramp + window_seconds / 0.16).min(1.0);
@@ -1066,7 +1073,9 @@ impl SimulationStepper {
             landing_request: foraging.landing_request || homeostasis.landing_request,
             takeoff_inhibited: foraging.takeoff_inhibited
                 || homeostasis.takeoff_inhibited
-                || grooming_intent,
+                || grooming_intent
+                || self.world.time() < self.settle_seconds
+                || self.world.time() < self.touchdown_settle_until,
             collision_escape_active: self.wall_escape.latched
                 || self.wall_escape.release_hold_windows > 0,
             flight_altitude_bounds_mm: self.habitat.room().flight_altitude_bounds_mm,
@@ -1164,6 +1173,11 @@ impl SimulationStepper {
             foraging.horizontal_speed_scale * homeostasis.flight_speed_scale
         }) * cns_motor
             .map_or(1.0, |motor| motor.flight_activation.sqrt());
+        let horizontal_speed_scale = if flight_behavior.mode == FlightMode::Takeoff {
+            horizontal_speed_scale * flight_behavior.takeoff_progress
+        } else {
+            horizontal_speed_scale
+        };
         let grooming_completed_before = self.grooming.state().completed_bouts;
         let grooming_command = self.grooming.update(GroomingInput {
             dt_seconds: window_seconds,
@@ -1194,6 +1208,7 @@ impl SimulationStepper {
         }
         if flight_behavior.mode == FlightMode::Grounded {
             if was_airborne {
+                self.touchdown_settle_until = self.world.time() + 0.6;
                 self.phase_rad = 0.0;
                 joint_controls = self.standing_joint_controls;
                 adhesion = sample.foot_contacts.map(f64::from);
@@ -1201,9 +1216,14 @@ impl SimulationStepper {
             if perched_on_wall {
                 joint_controls = std::array::from_fn(|index| self.world.neutral_control()[index]);
                 adhesion = [1.0; 6];
-            } else if grooming_command.active || self.grooming.preparing() {
+            } else if grooming_command.active || self.grooming.preparing()
+                || self.world.time() < self.touchdown_settle_until {
                 joint_controls = self.standing_joint_controls;
                 adhesion = [1.0; 6];
+            }
+            if self.world.time() < self.touchdown_settle_until {
+                next_motor.0 = 0.0;
+                next_motor.1 = 0.0;
             }
             self.grooming.apply(&mut joint_controls, &mut adhesion);
             clamp_joint_controls_to_actuator_ranges(&self.world, &mut joint_controls)?;
@@ -1226,19 +1246,37 @@ impl SimulationStepper {
             self.world.set_adhesion_controls(&wall_adhesion)?;
         }
         let desired_height_mm = if let Some(target) = self.wall_landing.filter(|_| landing) {
+            self.airborne_target_mm = None;
             target.surface_point_mm[2]
         } else if landing {
+            self.airborne_target_mm = None;
             let surface_target = surface_relative_landing_height(
                 root_position[2],
                 obstacle_sample.down_clearance_mm,
                 self.parameters.flight_behavior.landing_height_mm,
             );
             let target = self.landing_target_mm.get_or_insert(root_position[2]);
-            *target = (*target - 12.0 * window_seconds).max(surface_target);
+            let descent_rate_mm_s =
+                if obstacle_sample.down_clearance_mm <= LANDING_APPROACH_CLEARANCE_MM {
+                    LANDING_APPROACH_RATE_MM_S
+                } else {
+                    self.parameters.flight_behavior.landing_descent_rate_mm_s
+                };
+            *target = (*target - descent_rate_mm_s * window_seconds).max(surface_target);
             *target
         } else {
             self.landing_target_mm = None;
-            flight_behavior.target_height_mm
+            if flight_behavior.mode == FlightMode::Grounded {
+                self.airborne_target_mm = None;
+                flight_behavior.target_height_mm
+            } else {
+                let target = self.airborne_target_mm.get_or_insert(root_position[2]);
+                let maximum_change =
+                    self.parameters.flight_behavior.altitude_command_rate_mm_s * window_seconds;
+                *target += (flight_behavior.target_height_mm - *target)
+                    .clamp(-maximum_change, maximum_change);
+                *target
+            }
         };
         let minimum_command_height_mm = if flight_behavior.mode == FlightMode::Landing {
             self.parameters.flight_behavior.landing_height_mm
@@ -1267,11 +1305,18 @@ impl SimulationStepper {
                 && !perched_on_wall)
                 .then_some(0.0),
             wall_landing: self.wall_landing.filter(|_| landing),
-            frequency_scale: flight_frequency_scale(
-                flight_behavior.mode,
-                commanded_height_mm - root_position[2],
-                root_velocity[5],
-            ),
+            frequency_scale: {
+                let requested = flight_frequency_scale(
+                    flight_behavior.mode,
+                    commanded_height_mm - root_position[2],
+                    root_velocity[5],
+                );
+                if flight_behavior.mode == FlightMode::Takeoff {
+                    1.0 + (requested - 1.0) * flight_behavior.takeoff_progress
+                } else {
+                    requested
+                }
+            },
             pitch_bias_rad: 0.0,
             roll_bias_rad: 0.0,
             differential_pitch_rad: 0.0,
@@ -1296,6 +1341,9 @@ impl SimulationStepper {
                         * if self.wall_escape.latched { 0.35 } else { 1.0 }
                         * cns_motor.map_or(1.0, |motor| motor.flight_activation.sqrt());
             }
+            let cruise_limit = if odor_guidance.active && homeostasis.hungry && !wall_escape_active { 30.0 } else { 70.0 };
+            command_base.horizontal_speed_scale = command_base.horizontal_speed_scale.min(
+                cruise_limit / self.parameters.flight_dynamics.target_horizontal_speed_mm_s);
             let command = self.flight_stabilizer.command_with_base_limited(
                 self.world.root_quaternion(),
                 self.world.root_velocity(),
@@ -1457,6 +1505,7 @@ impl SimulationStepper {
             flight_amplitude_scale: flight_behavior.amplitude_scale,
             flight_frequency_scale: base_flight_command.frequency_scale,
             flight_horizontal_speed_scale: base_flight_command.horizontal_speed_scale,
+            flight_command_velocity_mm_s: self.flight.horizontal_command_mm_s(),
             flight_steering,
             flight_odor_steering: flight_behavior.odor_steering_contribution,
             flight_wander_steering: flight_behavior.wander_steering_contribution,
@@ -1516,6 +1565,9 @@ impl SimulationStepper {
             self.food_center = self.world.metadata().environment.food_center;
         }
         self.brain = brain;
+        self.flight = FlightRuntime::new_with_parameters(
+            self.neural_io_path.parent().expect("neural IO has asset directory"),
+            &self.world, self.parameters.flight_dynamics)?;
         self.habitat = self.initial_habitat.clone();
         self.food_enabled = true;
         self.flight_allowed = true;
@@ -1525,8 +1577,10 @@ impl SimulationStepper {
         self.turn_gain = 0.0;
         self.walking_translation_scale = 1.0;
         self.landing_target_mm = None;
+        self.airborne_target_mm = None;
         self.wall_landing = None;
         self.touchdown_gait_ramp = 1.0;
+        self.touchdown_settle_until = 0.0;
         self.standing_joint_controls =
             std::array::from_fn(|index| self.world.neutral_control()[index]);
         self.feeding_pose_held = false;
@@ -2624,6 +2678,124 @@ mod tests {
                 .iter()
                 .all(|speed| speed.abs() < 2.0)
         );
+    }
+
+    #[test]
+    fn high_altitude_landing_descends_quickly_then_flairs_near_the_floor() {
+        let mut simulation =
+            SimulationStepper::new(DEFAULT_ASSETS_DIR, None::<&str>, 500.0, 0.0).unwrap();
+        prime_airborne_simulation(&mut simulation, [0.0, 0.0, 55.0], [0.0, 0.0, 0.0]);
+        simulation
+            .flight_behavior
+            .update(FlightBehaviorInput {
+                enabled: true,
+                landing_request: true,
+                dt_seconds: 0.002,
+                root_height_mm: 55.0,
+                ..Default::default()
+            })
+            .unwrap();
+        let command = simulation
+            .flight_behavior
+            .update(FlightBehaviorInput {
+                enabled: true,
+                landing_request: true,
+                dt_seconds: 0.002,
+                root_height_mm: 55.0,
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(command.mode, FlightMode::Landing);
+        let started = simulation.world.time();
+        let mut touchdown = None;
+        for _ in 0..2_000 {
+            let snapshot = simulation.step_window().unwrap();
+            if snapshot.flight_mode == FlightMode::Grounded {
+                touchdown = Some((snapshot.time_seconds - started, snapshot.root_position[2]));
+                break;
+            }
+        }
+        let (elapsed, height) = touchdown.unwrap_or_else(|| {
+            panic!(
+                "high-altitude landing must reach stable support: mode={:?} position={:?} contacts={:?} velocity={:?}",
+                simulation.snapshot.flight_mode,
+                simulation.snapshot.root_position,
+                simulation.world.support_contacts(),
+                simulation.world.root_velocity()
+            )
+        });
+        assert!(elapsed < 3.5, "high-altitude landing took {elapsed}s");
+        assert!(height < 5.0, "touchdown height was {height}mm");
+        eprintln!("55mm landing: stable-contact transition at {elapsed:.6}s, root z={height:.6}mm");
+    }
+
+    #[test]
+    fn indoor_v2_floor_and_table_five_physical_takeoff_landing_cycles() {
+        // Controlled actuator integration fixture, not an autonomous CNS event.
+        for (surface, position) in [("floor", [0.0, -70.0, 2.1]), ("table", [0.0, 0.0, 32.1])] {
+            for trial in 0..5 {
+                let mut simulation = SimulationStepper::new_with_parameters_physics_and_scene(
+                    DEFAULT_ASSETS_DIR, None::<&str>, 500.0, 0.0,
+                    SimulationParameters::default(), Some(0.0002), "indoor-v2",
+                ).unwrap();
+                simulation.set_resource_enabled("sugar_drop", false).unwrap();
+                simulation.set_resource_enabled("flower_nectar", false).unwrap();
+                simulation.set_initial_position(position).unwrap();
+                simulation.set_initial_yaw((trial as f64 - 2.0) * 0.1).unwrap();
+                simulation.set_initial_hunger(0.3).unwrap();
+                for _ in 0..250 { simulation.step_window().unwrap(); }
+                let origin = simulation.world.root_position();
+                for _ in 0..76 {
+                    simulation.flight_behavior.update(FlightBehaviorInput {
+                        enabled: true, dt_seconds: 0.002, root_height_mm: origin[2],
+                        brain_flight_drive: 1.0, ..Default::default()
+                    }).unwrap();
+                }
+                let started = simulation.world.time();
+                let mut takeoff_seconds = 0.0;
+                let mut maximum_height = origin[2];
+                let mut maximum_vertical_speed = 0.0_f64;
+                let mut minimum_up = 1.0_f64;
+                for _ in 0..400 {
+                    let s = simulation.step_window().unwrap();
+                    takeoff_seconds += if s.flight_mode == FlightMode::Takeoff { 0.002 } else { 0.0 };
+                    maximum_height = maximum_height.max(s.root_position[2]);
+                    maximum_vertical_speed = maximum_vertical_speed.max(simulation.world.root_velocity()[5].abs());
+                    let [_, x, y, _] = simulation.world.root_quaternion();
+                    minimum_up = minimum_up.min(1.0 - 2.0 * (x*x+y*y));
+                }
+                assert!(maximum_height > origin[2] + 5.0, "{surface}/{trial}: no lift {maximum_height} from {origin:?}");
+                assert!(takeoff_seconds >= 0.34, "ramp bypassed: {takeoff_seconds}");
+                simulation.flight_behavior.update(FlightBehaviorInput {
+                    enabled: true, landing_request: true, dt_seconds: 0.002,
+                    root_height_mm: simulation.world.root_position()[2], ..Default::default()
+                }).unwrap();
+                let landing_start = simulation.world.time();
+                eprintln!("{surface}/{trial}: launch_origin={origin:?} descent_position={:?} velocity={:?}", simulation.world.root_position(), simulation.world.root_velocity());
+                let mut touchdown = None;
+                let mut stable = 0.0;
+                for _ in 0..2500 {
+                    let before_vz = simulation.world.root_velocity()[5];
+                    let s = simulation.step_window().unwrap();
+                    let [_, x, y, _] = simulation.world.root_quaternion();
+                    minimum_up = minimum_up.min(1.0 - 2.0*(x*x+y*y));
+                    if s.flight_mode == FlightMode::Grounded && s.contact_count >= 3 {
+                        touchdown.get_or_insert((s.time_seconds-landing_start, before_vz, s.root_position));
+                        stable += 0.002;
+                        if stable >= 0.5 { break; }
+                    } else { stable = 0.0; }
+                }
+                eprintln!("{surface}/{trial}: ramp={takeoff_seconds:.3}s lift={:.3}mm max_vz={maximum_vertical_speed:.3} up={minimum_up:.3} touchdown={touchdown:?} stable={stable:.3} total={:.3}", maximum_height-origin[2], simulation.world.time()-started);
+                assert!(stable >= 0.5, "{surface}/{trial}: unstable landing {:?}", simulation.snapshot);
+                // Flight has a deliberate ~47-degree pitch; do not call that a
+                // ground topple. Require no inversion aloft and upright support.
+                assert!(minimum_up > 0.3, "{surface}/{trial}: inverted aloft");
+                let [_, x, y, _] = simulation.world.root_quaternion();
+                assert!(1.0 - 2.0*(x*x+y*y) > 0.8, "{surface}/{trial}: toppled on support");
+                assert!(simulation.world.data().warning().iter().all(|w| w.number == 0));
+                assert!((simulation.world.root_position()[2] - origin[2]).abs() < 2.0, "wrong support surface");
+            }
+        }
     }
 
     fn minimum_wall_mesh_clearance(world: &MuJoCoWorld, target: WallLandingTarget) -> f64 {

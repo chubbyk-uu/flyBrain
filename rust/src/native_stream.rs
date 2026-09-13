@@ -223,6 +223,7 @@ fn snapshot_payload(frame: &view_worker::Frame) -> serde_json::Value {
         "time_seconds": snapshot.time_seconds,
         "root_position": snapshot.root_position,
         "horizontal_speed_mm_s": snapshot.horizontal_speed_mm_s,
+        "flight_command_velocity_mm_s": snapshot.flight_command_velocity_mm_s,
         "body_pitch_deg": snapshot.body_pitch_deg,
         "flight_mode": format!("{:?}", snapshot.flight_mode),
         "behavior_mode": format!("{:?}", snapshot.behavior_mode),
@@ -248,7 +249,7 @@ fn snapshot_payload(frame: &view_worker::Frame) -> serde_json::Value {
         "brain_flight_steering": snapshot.brain_flight_steering,
         "wing_display": {
             "source": "cns-hybrid-flight-command",
-            "physical_frequency_hz": 218.0 * snapshot.flight_frequency_scale,
+            "physical_frequency_hz": if wing_envelope > 0.0 { 218.0 * snapshot.flight_frequency_scale } else { 0.0 },
             "phase_cycles": (snapshot.time_seconds * 218.0).rem_euclid(1.0),
             "envelope": wing_envelope,
             "steering": snapshot.flight_steering.clamp(-1.0, 1.0),

@@ -11,7 +11,7 @@ export function wingSignal(snapshot) {
   return {
     envelope: clamp(signal?.envelope ?? fallbackEnvelope, 0, 1),
     steering: clamp(signal?.steering ?? snapshot?.brain_flight_steering, -1, 1),
-    physicalFrequencyHz: clamp(signal?.physical_frequency_hz ?? 218, 1, 1000),
+    physicalFrequencyHz: clamp(signal?.physical_frequency_hz ?? (grounded ? 0 : 218), 0, 1000),
     phaseCycles: ((Number(signal?.phase_cycles) || 0) % 1 + 1) % 1,
     connected: Boolean(signal),
     paused: Boolean(snapshot?.paused),
@@ -43,7 +43,7 @@ export class WingDisplayController {
     const displayFrequencyHz = Math.min(18, this.signal.physicalFrequencyHz);
     this.phaseCycles = (this.phaseCycles + displayFrequencyHz * dt) % 1;
     const carrier = Math.sin(TAU * this.phaseCycles);
-    const asymmetry = 0.22 * this.signal.steering;
+    const asymmetry = 0.12 * this.signal.steering;
     const leftEnvelope = clamp(this.envelope * (1 - asymmetry), 0, 1);
     const rightEnvelope = clamp(this.envelope * (1 + asymmetry), 0, 1);
     return {
@@ -53,8 +53,10 @@ export class WingDisplayController {
       connected: this.signal.connected,
       leftEnvelope,
       rightEnvelope,
-      leftAngleRad: carrier * 0.82 * leftEnvelope,
-      rightAngleRad: -carrier * 0.82 * rightEnvelope,
+      // Opening measured from the posterior body axis, not a local joint swing.
+      // Folded 15 degrees; flight stroke 50..90 degrees at full neural envelope.
+      leftAngleRad: (15 + (55 + 20 * carrier) * leftEnvelope) * Math.PI / 180,
+      rightAngleRad: (15 + (55 + 20 * carrier) * rightEnvelope) * Math.PI / 180,
       blurOpacity: 0.12 + 0.22 * this.envelope,
     };
   }

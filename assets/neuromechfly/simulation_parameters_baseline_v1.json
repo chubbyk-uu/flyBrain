@@ -7,7 +7,7 @@
   "source_dataset_sha256": null,
   "parameters": {
     "cns_foraging": {
-      "approach_speed_scale": 0.02,
+      "approach_speed_scale": 0.10,
       "landing_drive_enter": 0.02,
       "landing_drive_release": 0.01,
       "landing_odor_enter": 0.4,
@@ -120,6 +120,9 @@
       "cruise_amplitude": 0.94,
       "landing_amplitude": 0.94,
       "brain_amplitude_gain": 0.06,
+      "takeoff_ramp_seconds": 0.35,
+      "altitude_command_rate_mm_s": 45.0,
+      "landing_descent_rate_mm_s": 30.0,
       "neural_altitude_rate_mm_s": 40.0
     },
     "flight_dynamics": {

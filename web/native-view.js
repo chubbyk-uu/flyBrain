@@ -119,7 +119,7 @@ function animate(now) {
     const fps = renderedFrames * 1000 / (now - fpsStarted);
     const snapshot = latest?.snapshot;
     metrics.textContent = snapshot
-      ? `${fps.toFixed(1)} FPS (cap ${renderHz}) · stream ${latest.sequence} · sim ${snapshot.time_seconds.toFixed(2)} s · ${snapshot.realtime_factor.toFixed(2)}× · ${snapshot.behavior_mode}/${snapshot.flight_mode} · wing ${renderer.wingDisplayState.physicalFrequencyHz.toFixed(0)} Hz neural / ${renderer.wingDisplayState.displayFrequencyHz.toFixed(0)} Hz display`
+      ? `${fps.toFixed(1)} FPS (cap ${renderHz}) · stream ${latest.sequence} · sim ${snapshot.time_seconds.toFixed(2)} s · ${snapshot.realtime_factor.toFixed(2)}× · ${snapshot.behavior_mode}/${snapshot.flight_mode} · wing ${renderer.wingDisplayState.physicalFrequencyHz.toFixed(0)} Hz physical command / ${renderer.wingDisplayState.displayFrequencyHz.toFixed(0)} Hz display`
       : `${fps.toFixed(1)} FPS · waiting for frames`;
     renderedFrames = 0;
     fpsStarted = now;

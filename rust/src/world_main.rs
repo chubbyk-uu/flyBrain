@@ -573,6 +573,10 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     let mut feeding_seconds = 0.0;
     let mut maximum_speed_mm_s = 0.0_f64;
     let mut maximum_abs_pitch_deg = 0.0_f64;
+    let mut maximum_command_speed_mm_s = 0.0_f64;
+    let mut maximum_command_acceleration_mm_s2 = 0.0_f64;
+    let mut previous_command = [0.0_f64;2];
+    let mut cruise_speeds = Vec::new();
     let mut population_spikes = 0_u64;
     let mut motor_output_spikes = 0_u64;
     let mut forward_flight_distance_mm = 0.0;
@@ -593,6 +597,12 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
     let mut next_progress_time = 1.0;
     while simulation.snapshot().time_seconds + period * 0.5 < options.duration_seconds {
         let snapshot = simulation.step_window()?;
+        let command = snapshot.flight_command_velocity_mm_s;
+        maximum_command_speed_mm_s = maximum_command_speed_mm_s.max(command[0].hypot(command[1]));
+        maximum_command_acceleration_mm_s2 = maximum_command_acceleration_mm_s2.max(
+            (command[0]-previous_command[0]).hypot(command[1]-previous_command[1])/period);
+        previous_command = command;
+        if snapshot.flight_mode == FlightMode::Cruise { cruise_speeds.push(snapshot.horizontal_speed_mm_s); }
         if snapshot
             .root_position
             .iter()
@@ -696,6 +706,7 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
                 "collision_reflex_active": snapshot.flight_escape_active,
             });
             trace_sample["hunger"] = json!(snapshot.hunger);
+            trace_sample["flight_command_velocity_mm_s"] = json!(snapshot.flight_command_velocity_mm_s);
             trace_sample["fatigue"] = json!(snapshot.fatigue);
             trace_sample["hungry"] = json!(snapshot.hungry);
             trace_sample["homeostatic_landing_request"] =
@@ -759,7 +770,9 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
             - flight_post_step_wall_seconds
             - flight_telemetry_wall_seconds).max(0.0),
     });
-    let report = json!({
+    cruise_speeds.sort_by(f64::total_cmp);
+    let cruise_speed_p95_mm_s = cruise_speeds.get(cruise_speeds.len().saturating_sub(1)*95/100).copied();
+    let mut report = json!({
         "schema": "flybrain.cns-world-check", "schema_version": 1,
         "runtime_sha256": runtime_sha256,
         "brain": {"model": simulation.brain_model_name(),
@@ -805,6 +818,9 @@ fn cns_world_check(options: CnsCheckOptions) -> Result<()> {
             "elapsed_seconds": started.elapsed().as_secs_f64()},
         "samples": samples,
     });
+    report["summary"]["maximum_command_speed_mm_s"] = json!(maximum_command_speed_mm_s);
+    report["summary"]["maximum_command_acceleration_mm_s2"] = json!(maximum_command_acceleration_mm_s2);
+    report["summary"]["cruise_speed_p95_mm_s"] = json!(cruise_speed_p95_mm_s);
     if let Some(parent) = options.output.parent() {
         fs::create_dir_all(parent)?;
     }

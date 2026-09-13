@@ -356,6 +356,21 @@ export class FlySceneRenderer {
       const parent = this.bodyGroups[bodyIndex] ?? this.worldRoot;
       parent.add(object);
       this.objects.push(object);
+      const rig = this.wingRigs.find((candidate) => candidate.body === bodyIndex);
+      if (rig && object.userData.baseVisible && object.userData.isWing) {
+        const vertices = object.geometry.getAttribute("position");
+        const point = new THREE.Vector3();
+        const tip = new THREE.Vector3();
+        for (let i = 0; i < vertices.count; i += 1) {
+          point.fromBufferAttribute(vertices, i).applyQuaternion(object.quaternion).add(object.position);
+          if (point.lengthSq() > tip.lengthSq()) tip.copy(point);
+        }
+        rig.tipLocal = tip;
+        const tipBody = tip.clone().applyQuaternion(rig.quaternion).normalize();
+        const flat = new THREE.Vector3(tipBody.x, tipBody.y, 0).normalize();
+        rig.referenceYaw = Math.atan2(flat.y, flat.x);
+        rig.displayQuaternion = new THREE.Quaternion().setFromUnitVectors(tipBody, flat).multiply(rig.quaternion);
+      }
       const name = String(geomDescriptor?.name ?? "");
       if (name === "food_patch") this.foodObjects.push(object);
       const rule = wallRuleFor(name);
@@ -553,9 +568,11 @@ export class FlySceneRenderer {
       const parent = this.bodyGroups[rig.parent];
       if (!wing || !parent) continue;
       wing.position.copy(rig.position).applyQuaternion(parent.quaternion).add(parent.position);
-      wing.quaternion.copy(parent.quaternion).multiply(rig.quaternion);
-      const angle = rig.side === "left" ? state.leftAngleRad : state.rightAngleRad;
-      wing.quaternion.multiply(this.tempQuaternion.setFromAxisAngle(this.wingAxis, angle));
+      const opening = rig.side === "left" ? state.leftAngleRad : state.rightAngleRad;
+      const desiredYaw = rig.side === "left" ? Math.PI - opening : -Math.PI + opening;
+      wing.quaternion.copy(parent.quaternion)
+        .multiply(this.tempQuaternion.setFromAxisAngle(this.wingAxis, desiredYaw - (rig.referenceYaw ?? 0)))
+        .multiply(rig.displayQuaternion ?? rig.quaternion);
     }
     for (const object of this.objects) {
       if (!object.userData.isWing) continue;
@@ -568,6 +585,23 @@ export class FlySceneRenderer {
   disconnectTelemetry() {
     this.wingDisplay.ingest({ flight_mode: "Grounded", brain_flight_drive: 0 });
     this.needsRender = true;
+  }
+
+  wingPoseDiagnostics() {
+    return this.wingRigs.map((rig) => {
+      const wing = this.bodyGroups[rig.body];
+      const parent = this.bodyGroups[rig.parent];
+      if (!rig.tipLocal) return { side: rig.side, error: "visible mesh tip missing" };
+      const inverseParent = parent.quaternion.clone().invert();
+      const span = rig.tipLocal.clone().applyQuaternion(wing.quaternion).applyQuaternion(inverseParent);
+      const anchor = wing.position.clone().sub(parent.position).applyQuaternion(inverseParent);
+      return {
+        side: rig.side,
+        openingDegrees: Math.atan2(Math.abs(span.y), -span.x) * 180 / Math.PI,
+        spanBodyMm: span.toArray(),
+        anchorErrorMm: anchor.distanceTo(rig.position),
+      };
+    });
   }
 
   resetTelemetry() {
@@ -671,9 +705,9 @@ export class FlySceneRenderer {
     }
   }
 
-  render() {
+  render(nowMs = performance.now()) {
     this.controls.update();
-    this.applyWingDisplay(performance.now());
+    this.applyWingDisplay(nowMs);
     if (!this.needsRender && !this.pendingVision) return;
     if (this.sceneReady) {
       this.applyWallCutaway(true);

@@ -37,7 +37,7 @@ impl Default for CnsForagingParameters {
             landing_odor_release: 0.2,
             landing_drive_enter: 0.02,
             landing_drive_release: 0.01,
-            approach_speed_scale: 0.02,
+            approach_speed_scale: 0.10,
         }
     }
 }

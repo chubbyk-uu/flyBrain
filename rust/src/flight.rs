@@ -32,6 +32,31 @@ const WALL_LANDING_FOOT_CLEARANCE_MM: f64 = 1.1;
 const WALL_LANDING_ROTATION_CLEARANCE_MM: f64 = 5.0;
 const WALL_LANDING_APPROACH_GAIN_PER_S: f64 = 20.0;
 const WALL_LANDING_APPROACH_SPEED_MM_S: f64 = 12.0;
+pub const MAXIMUM_FLIGHT_COMMAND_SPEED_MM_S: f64 = 100.0;
+pub const MAXIMUM_FLIGHT_COMMAND_ACCELERATION_MM_S2: f64 = 250.0;
+
+#[derive(Default)]
+struct HorizontalCommandLimiter {
+    velocity: [f64; 2],
+    last_time: Option<f64>,
+}
+
+impl HorizontalCommandLimiter {
+    fn update(&mut self, mut target: [f64; 2], time: f64, initial_dt: f64) -> [f64; 2] {
+        if self.last_time.is_some_and(|last| time < last) { *self = Self::default(); }
+        let dt = self.last_time.map_or(initial_dt, |last| (time-last).max(0.0));
+        self.last_time = Some(time);
+        let norm = target[0].hypot(target[1]);
+        if norm > MAXIMUM_FLIGHT_COMMAND_SPEED_MM_S {
+            target = target.map(|v| v * MAXIMUM_FLIGHT_COMMAND_SPEED_MM_S / norm);
+        }
+        let change = [target[0]-self.velocity[0], target[1]-self.velocity[1]];
+        let distance = change[0].hypot(change[1]);
+        let fraction = (MAXIMUM_FLIGHT_COMMAND_ACCELERATION_MM_S2 * dt / distance.max(1e-12)).min(1.0);
+        for axis in 0..2 { self.velocity[axis] += change[axis] * fraction; }
+        self.velocity
+    }
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 pub struct FlightDynamicsParameters {
@@ -253,6 +278,8 @@ impl FlightTelemetry {
 }
 
 pub struct FlightRuntime {
+    horizontal_command: HorizontalCommandLimiter,
+    horizontal_hold_anchor: Option<[f64; 2]>,
     config: AerodynamicsConfig,
     dynamics: FlightDynamicsParameters,
     generator: WingbeatGenerator,
@@ -505,6 +532,10 @@ fn project_axis_feedback(
 }
 
 impl FlightRuntime {
+    pub fn horizontal_command_mm_s(&self) -> [f64; 2] {
+        self.horizontal_command.velocity
+    }
+
     pub fn new(assets: impl AsRef<Path>, world: &MuJoCoWorld) -> Result<Self> {
         Self::new_with_parameters(assets, world, FlightDynamicsParameters::default())
     }
@@ -546,6 +577,8 @@ impl FlightRuntime {
         }
         Ok(Self {
             config,
+            horizontal_command: HorizontalCommandLimiter::default(),
+            horizontal_hold_anchor: None,
             dynamics,
             generator,
             wing_indices,
@@ -635,6 +668,8 @@ impl FlightRuntime {
         world.set_wing_controls(controls)?;
         let engineered_body_stabilizer_enabled = command.enabled && command.amplitude > 0.0;
         if !engineered_body_stabilizer_enabled {
+            self.horizontal_hold_anchor = None;
+            self.horizontal_command.update([0.0; 2], world.time(), world.timestep_seconds());
             self.reset_horizontal_velocity_integral();
             self.reset_altitude_position_error_integral();
         }
@@ -876,6 +911,18 @@ impl FlightRuntime {
             horizontal_speed_scale * self.dynamics.target_horizontal_speed_mm_s * direction[axis]
                 / direction_norm
         });
+        // Zero translation requests mean hold the current local position, not
+        // merely cancel velocity after drifting across a narrow support edge.
+        // This uses proprioception only and stays inside the shared limits.
+        if horizontal_speed_scale <= f64::EPSILON && wall_landing.is_none() {
+            let position = world.root_position();
+            let anchor = self.horizontal_hold_anchor.get_or_insert([position[0], position[1]]);
+            for axis in 0..2 {
+                target_velocity[axis] = (4.0 * (anchor[axis] - position[axis])).clamp(-30.0, 30.0);
+            }
+        } else {
+            self.horizontal_hold_anchor = None;
+        }
         if let Some(target) = wall_landing {
             let clearance = WALL_LANDING_FOOT_CLEARANCE_MM
                 + WALL_LANDING_ROTATION_CLEARANCE_MM
@@ -892,9 +939,11 @@ impl FlightRuntime {
             }
         }
         let velocity = world.root_velocity();
+        let limited = self.horizontal_command.update([target_velocity[0], target_velocity[1]],
+            world.time(), world.timestep_seconds());
         let velocity_error_mm_s = [
-            target_velocity[0] - velocity[3],
-            target_velocity[1] - velocity[4],
+            limited[0] - velocity[3],
+            limited[1] - velocity[4],
         ];
         let maximum_vertical_force = self.body_mass_g
             * 9_810.0
@@ -1299,6 +1348,20 @@ fn transformed_strip(strip: &WingStrip, rotation: [f64; 9]) -> WingStrip {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn indoor_command_limits_speed_and_vector_acceleration_in_every_direction() {
+        let mut limiter = HorizontalCommandLimiter::default();
+        let mut previous = [0.0_f64;2];
+        for step in 0..2000 {
+            let angle = (step / 100) as f64 * 2.4;
+            let v = limiter.update([1000.0*angle.cos(),1000.0*angle.sin()],step as f64*0.002,0.002);
+            assert!(v[0].hypot(v[1]) <= 100.0+1e-9);
+            assert!((v[0]-previous[0]).hypot(v[1]-previous[1])/0.002 <= 250.0+1e-8);
+            previous=v;
+        }
+        assert!(limiter.update([1000.0,0.0],0.0,0.002)[0].abs() <= 0.5);
+    }
 
     #[test]
     fn wall_targets_point_feet_into_each_wall_without_euler_singularity() {
