@@ -31,7 +31,7 @@
 - v12仅在v11上新增完整统计；三个代表任务的抽样姿态、神经读出、需求和搜索状态精确重放。
   这不是要求CUDA与CPU-f64长程逐神经元一致。
 
-完整机器门控：[gate.json](../../outputs/indoor-v2/stage-5/registered-v12/gate.json)。
+完整机器门控：[gate.json](../outputs/indoor-v2/stage-5/registered-v12/gate.json)。
 
 ## 修正及工程边界
 
@@ -58,7 +58,7 @@ CUDA MaleCNS仍166700神经元、24469412边；完整132 DOF身体不变，神�
 验收程序SHA256：`99f95e67ff191c73ff7c544cc3f31fe89134737acfaf19d02982aa645ab624fb`。
 
 相关Rust定向测试81项通过；前端测试通过。日志在
-[checks](../../outputs/indoor-v2/stage-5/checks)。包括地板/茶几各五次起降，55 mm下降2.534秒；
+[checks](../outputs/indoor-v2/stage-5/checks)。包括地板/茶几各五次起降，55 mm下降2.534秒；
 低处食物着陆0.600秒、六足支持及实际taste；支撑射线的失败位置已加入回归测试。
 
 ```bash
