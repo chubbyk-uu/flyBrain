@@ -1,0 +1,12 @@
+import {writeFile} from 'node:fs/promises';
+const target=await(await fetch('http://127.0.0.1:9338/json/new?http://127.0.0.1:8080/native-view.html',{method:'PUT'})).json();
+const ws=new WebSocket(target.webSocketDebuggerUrl);await new Promise(r=>ws.addEventListener('open',r,{once:true}));let seq=0;const pending=new Map();
+ws.onmessage=({data})=>{const r=JSON.parse(data),p=pending.get(r.id);if(p){pending.delete(r.id);r.error?p.reject(r.error):p.resolve(r.result);}};
+const call=(method,params={})=>new Promise((resolve,reject)=>{let id=++seq;pending.set(id,{resolve,reject});ws.send(JSON.stringify({id,method,params}));});
+await call('Emulation.setDeviceMetricsOverride',{width:1600,height:1000,deviceScaleFactor:1,mobile:false});
+await new Promise(r=>setTimeout(r,4000));
+const result=await call('Runtime.evaluate',{expression:'({text:document.querySelector("#neural-status").textContent,metrics:window.flybrainAcceptance()})',returnByValue:true});
+const value=result.result.value;if(!value.metrics.connected||!value.text.includes('累计参与')||value.metrics.lastError)throw Error(JSON.stringify(value));
+await writeFile('outputs/social-video-20260913/native-neural-check.json',JSON.stringify(value,null,2));
+const shot=await call('Page.captureScreenshot',{format:'png'});await writeFile('outputs/social-video-20260913/native-neural-check.png',Buffer.from(shot.data,'base64'));
+ws.close();await fetch(`http://127.0.0.1:9338/json/close/${target.id}`);console.log(value.text);

@@ -70,4 +70,4 @@ LD_LIBRARY_PATH=work/mujoco/lib target/release/flybrain-world web-view --scene i
 node tools/summarize_indoor_polish.mjs outputs/indoor-v2/polish/verified/foraging outputs/indoor-v2/polish/final /tmp/flybrain-polish-recheck.json
 ```
 
-不提交、不推送本轮工作树；等待用户审阅。翻身自救、旧五种子长程测试和整套实时性优化均未冒充完成。
+本报告记录当时待审阅版本；相关改进随后已随 `683e41a` 提交。翻身自救、旧五种子长程测试和整套实时性优化均未冒充完成。当前默认值见[项目规范](project-spec.md)，后续糖液形状和疲劳累积率不以本报告旧值为准。

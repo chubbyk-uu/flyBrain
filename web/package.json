@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node serve.mjs",
-    "test": "node scene-test.mjs && node native-pose-test.mjs && node wing-display-test.mjs && node frame-limiter-test.mjs && node native-retina-test.mjs && node --check native-gallery.js && node --check native-view.js",
+    "test": "node scene-test.mjs && node native-pose-test.mjs && node wing-display-test.mjs && node frame-limiter-test.mjs && node native-retina-test.mjs && node neural-activity-test.mjs && node --check native-gallery.js && node --check native-view.js",
     "build:wasm": "../tools/build_browser.sh",
     "build:cloudflare": "node ../tools/package_cloudflare.mjs",
     "deploy": "npm run build:cloudflare && node ../tools/cloudflare.mjs deploy"

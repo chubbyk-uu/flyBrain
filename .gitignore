@@ -9,5 +9,8 @@ work/
 target/
 outputs/packs/
 outputs/benchmarks/
+# Local generated artifacts; already tracked acceptance evidence remains tracked.
+/outputs/
+/web/node_modules/
 /assets/neuromechfly_realtime*/
 .DS_Store

@@ -2,6 +2,8 @@ import { createSceneRenderer } from "./scene.js";
 import { PoseBuffer } from "./native-pose-buffer.js";
 import { decodeRetinaPreview, drawRetinaPreview } from "./native-retina.js";
 import { FrameLimiter } from "./frame-limiter.js";
+import { NeuralActivity } from "./neural-activity.js";
+const neuralActivity = new NeuralActivity(document.querySelector('#neural-canvas'),document.querySelector('#neural-status'));
 
 const canvas = document.querySelector("#scene-canvas");
 const connection = document.querySelector("#connection");
@@ -94,6 +96,7 @@ function connectSocket() {
   } else if (message.type === "frame" && poses) {
     if (message.epoch !== currentEpoch) {
       currentEpoch = message.epoch;
+      neuralActivity.reset();
       renderer.resetTelemetry();
       retinaCanvas.getContext("2d").clearRect(0, 0, retinaCanvas.width, retinaCanvas.height);
       retinaStatus.textContent = "等待当前 epoch 的 native 双眼画面…";
@@ -110,6 +113,7 @@ function connectSocket() {
     acceptance.latestSnapshot = message.snapshot;
     acceptance.epoch = message.epoch;
     const s = message.snapshot;
+    neuralActivity.push(s);
     const percent = (value) => `${(100 * Number(value ?? 0)).toFixed(0)}%`;
     needs.textContent = `饥饿 ${percent(s.hunger)} · 飞行疲劳 ${percent(s.flight_fatigue)} · 清洁冲动 ${percent(s.grooming_urge)}`;
     const search = s.food_search?.retreating ? "沿已走路径退开" : s.food_search?.escaping_overhang ? "离开上方遮挡" : s.food_search?.vertical_sampling ? "高度采样" : s.food_search?.recovery_active ? "无进展恢复" : s.food_search?.turning_back ? "回查感觉较强处" : "无额外搜索干预";

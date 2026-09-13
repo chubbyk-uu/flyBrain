@@ -1,9 +1,19 @@
-# Neural grooming: current boundary
+# Neural grooming: hybrid implementation and scientific boundary
 
-Grooming is not currently wired to the brain-to-body readout. The old visible
-front-leg sweep is an engineered pose diagnostic. Connected-brain runs no
-longer start it on an idle timer; manual `H`/Grooming pose test remains an
-explicit diagnostic. There is no after-meal trigger.
+The indoor runtime now implements autonomous, CNS-gated combined foreleg rubbing
+and head/eye cleaning. An engineered grooming urge, satiety and support checks
+request the action; neural evidence and motor output gate execution. A four-second
+engineered trajectory includes about 1.5 seconds of extended, paired foreleg rubbing.
+It is not a fixed after-meal animation or a recovered complete biological circuit.
+Manual `H` remains a separate pose diagnostic, not evidence of neural triggering.
+See the [current specification](project-spec.md), [causal stage results](indoor-v2-stage-6-result.md)
+and [measured foreleg geometry](forward-rub-2026-09-13.md).
+
+## Original candidate rationale
+
+The following candidate inventory and scientific limitations predate the hybrid
+implementation. Candidate presence is not proof that a natural grooming circuit
+has been recovered.
 
 The exact MaleCNS v1.0 annotation file at
 `work/upstream/male-cns/v1.0/body-annotations-male-cns-v1.0-minconf-0.5.feather`
@@ -23,8 +33,9 @@ The implementation gap is not simply a missing trigger. A defensible direct
 connection still requires directed, signed route verification through premotor
 and T1 motor populations, a calibrated sensory input, and an actuator mapping.
 The physical model has head, mouthpart, and antennal joints; their existence
-does not supply that mapping. Existing grooming code only imposes a front-leg
-trajectory on the 42 leg-control channels.
+does not supply that mapping. The current hybrid implementation still supplies
+engineered trajectories on the leg-control channels rather than deriving each
+joint target from a validated premotor-to-muscle model.
 
 Validation must compare intact and targeted-silencing/stimulation conditions
 and measure grooming-specific leg/head contact and kinematics. Neither higher

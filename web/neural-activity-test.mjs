@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {NeuralActivity} from './neural-activity.js';
+const context=new Proxy({}, {get:(o,k)=>o[k]??(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+const label={};const n=new NeuralActivity({width:880,height:200,getContext:()=>context},label);
+n.push({time_seconds:1,filtered_population_rate_hz:100,cumulative_spiking_neuron_count:7});
+assert.match(label.textContent,/100/);assert.match(label.textContent,/累计参与 7/);
+n.push({time_seconds:1,filtered_population_rate_hz:200});assert.equal(n.points.length,1);
+n.push({time_seconds:12,filtered_population_rate_hz:300});assert.equal(n.points.length,1);
+n.push({time_seconds:.1,filtered_population_rate_hz:10});assert.deepEqual(n.points,[[.1,10]]);
+n.push({time_seconds:.2});assert.equal(n.points.length,1);
+n.reset();assert.equal(n.points.length,0);
+console.log('PASS: actual population samples, deduplication, history, reset and missing telemetry');

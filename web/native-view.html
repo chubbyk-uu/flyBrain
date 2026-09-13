@@ -16,7 +16,11 @@
       .retina { position: fixed; right: 16px; top: 16px; width: min(440px, 42vw); padding: 10px; border: 1px solid #ffffff26; border-radius: 8px; background: #07101bd9; }
       .retina canvas { display: block; width: 100%; height: auto; margin-top: 7px; background: #000; image-rendering: pixelated; }
       .retina .labels { display: flex; justify-content: space-around; margin-top: 4px; color: #b8c9dc; }
+      .neural { position:fixed;right:16px;bottom:16px;width:min(440px,42vw);padding:10px;background:#07101be8;border:1px solid #ffffff26;border-radius:8px; }
+      .neural canvas {width:100%;height:100px;display:block;margin:8px 0;}
+      .neural small {color:#aabfce;display:block;}
       @media (max-width: 760px) { .retina { top: auto; bottom: 12px; width: calc(100vw - 44px); } }
+      @media (max-width: 760px) { .neural { bottom:300px;width:calc(100vw - 44px); } .neural canvas {height:70px;} }
     </style>
     <script type="importmap">
       {"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}
@@ -42,6 +46,12 @@
       <span id="retina-status">waiting for native retina…</span>
       <canvas id="retina-canvas" width="450" height="256"></canvas>
       <div class="labels"><span>Left</span><span>Right</span></div>
+    </aside>
+    <aside class="neural">
+      <strong>真实神经活动 · 全 CNS 群体放电</strong>
+      <canvas id="neural-canvas" width="880" height="200"></canvas>
+      <small id="neural-status">等待 native 神经遥测…</small>
+      <small>采样后的平滑总放电速率；累计参与 ≠ 同时活跃。不代表思想解码。</small>
     </aside>
     <div style="position:fixed;left:16px;bottom:14px;max-width:560px;color:#aab8c8;font-size:12px;background:#07101bb8;padding:7px 9px;border-radius:6px">
       MaleCNS connectome replay plus documented engineered homeostasis/behavior arbitration. Wing animation is visual only; native MuJoCo physics and retina remain authoritative.

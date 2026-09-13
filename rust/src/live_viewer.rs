@@ -876,6 +876,40 @@ impl LiveViewer {
         Ok(true)
     }
 
+    /// Offline film capture only: both eyes from this exact, unadvanced state.
+    /// Separate processors ensure presentation never feeds the live sensory path.
+    pub fn capture_film_stereo<M>(
+        &mut self, data: &mut MjData<M>, processors: &mut [FlyGymRetina; 2],
+        food_center: [f64; 3], food_enabled: bool,
+    ) -> Result<Vec<u8>> where M: std::ops::Deref<Target = MjModel> {
+        unsafe { glfwMakeContextCurrent(self.window.as_ptr()) };
+        let _release_context = CurrentGlContextGuard;
+        let context = self.context.as_mut().context("film render context missing")?;
+        let eye_scene = self.eye_scene.as_mut().context("film eye scene missing")?;
+        let viewport = MjrRectangle::new(0, 0, RETINA_WIDTH as c_int, RETINA_HEIGHT as c_int);
+        let mut raw = vec![0_u8; RETINA_WIDTH * RETINA_HEIGHT * 3];
+        let mut top = raw.clone();
+        let mut stereo = vec![0_u8; RETINA_WIDTH * RETINA_HEIGHT / 2];
+        context.offscreen();
+        for (eye, processor) in processors.iter_mut().enumerate() {
+            let mut camera = MjvCamera::new_fixed(self.eye_camera_ids[eye]);
+            eye_scene.update(data, &self.eye_option, &self.perturb, &mut camera);
+            hide_fly_visuals(eye_scene, data.model());
+            move_food_geom(eye_scene, self.food_geom_id, food_center, food_enabled);
+            eye_scene.render(&viewport, context);
+            context.read_pixels(Some(&mut raw), None, &viewport)?;
+            flip_rgb_rows(&raw, &mut top, RETINA_WIDTH, RETINA_HEIGHT);
+            let display = processor.process_top_down(&top)?;
+            for row in 0..RETINA_HEIGHT / 2 {
+                for col in 0..RETINA_WIDTH / 2 {
+                    stereo[row * RETINA_WIDTH + eye * RETINA_WIDTH / 2 + col] =
+                        display[(row * 2 * RETINA_WIDTH + col * 2) * 3];
+                }
+            }
+        }
+        Ok(stereo)
+    }
+
     pub fn set_title(&self, title: &str) -> Result<()> {
         let title = CString::new(title)?;
         unsafe { glfwSetWindowTitle(self.window.as_ptr(), title.as_ptr()) };

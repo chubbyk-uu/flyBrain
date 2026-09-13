@@ -84,6 +84,10 @@ tools/run_native_viewer.sh
 Open `http://localhost:8080/native-view.html` in Windows Chrome/Edge. `web-view` defaults to native
 MuJoCo 0.2 ms and a 30 Hz pose/snapshot stream on `ws://127.0.0.1:8765`; MaleCNS stays at 0.1 ms.
 The first stage keeps native retina sensory capture and does not use the browser image for brain input.
+The default `indoor-v2` scene now has a shallow sugar-liquid patch and a flat flower
+on a low coffee table, not the earlier potted plant. The viewer also displays actual
+aggregate neural telemetry. Manual reset changes the behavior seed and pauses;
+the first ready viewer automatically resets once per backend process and continues.
 Use `http://localhost:8080/native-gallery.html` to collect non-empty fixed room views and CNS-observed
 behavior states. The normal viewer remains `native-view.html`; the gallery never sends commands.
 
@@ -101,8 +105,15 @@ python -m pytest -q tests/test_male_cns.py tests/test_reference.py \
 These tests do not establish full-pack neural execution or native GPU parity.
 Some other tests require data omitted from Git or an accessible Metal device.
 
-For the existing browser bundle, restore and verify the MaleCNS pack as described
-in the [project specification](project-spec.md), then run:
+Both native and browser full-CNS modes require the local pack, which is not in Git.
+Restore the published arrays verbatim and validate against the pinned I/O hashes:
+
+```bash
+python tools/restore_male_cns_pack.py
+```
+
+The restoration script refuses conflicting local content; do not regenerate I/O to
+bypass a mismatch. For the existing browser bundle, after restoring the pack, run:
 
 ```bash
 npm --prefix web start
